@@ -9,7 +9,8 @@ import { BadgePulse } from "@/components/general/badgePulse";
 gsap.registerPlugin(useGSAP);
 
 interface PageBannerProps {
-  eyebrow: string;
+  /** Omit for a plain title+subtitle hero (e.g. /contact has no eyebrow badge in its Figma). */
+  eyebrow?: string;
   title: string;
   subtitle?: string;
   /** Extra content under the subtitle, e.g. the patch-version tag on /meta. */
@@ -30,24 +31,17 @@ export function PageBanner({ eyebrow, title, subtitle, children }: PageBannerPro
       const mm = gsap.matchMedia();
 
       mm.add("(prefers-reduced-motion: no-preference)", () => {
-        gsap
-          .timeline({ defaults: { ease: "power3.out" } })
-          .from("[data-banner-badge]", { autoAlpha: 0, y: 14, duration: 0.5 })
-          .from(
-            "[data-banner-title]",
-            { autoAlpha: 0, y: 18, duration: 0.6 },
-            "-=0.3"
-          )
-          .from(
-            "[data-banner-subtitle]",
-            { autoAlpha: 0, y: 14, duration: 0.5 },
-            "-=0.35"
-          )
-          .from(
-            "[data-banner-extra]",
-            { autoAlpha: 0, y: 14, duration: 0.5 },
-            "-=0.3"
-          );
+        const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+        if (eyebrow) {
+          tl.from("[data-banner-badge]", { autoAlpha: 0, y: 14, duration: 0.5 });
+        }
+        tl.from(
+          "[data-banner-title]",
+          { autoAlpha: 0, y: 18, duration: 0.6 },
+          eyebrow ? "-=0.3" : undefined
+        )
+          .from("[data-banner-subtitle]", { autoAlpha: 0, y: 14, duration: 0.5 }, "-=0.35")
+          .from("[data-banner-extra]", { autoAlpha: 0, y: 14, duration: 0.5 }, "-=0.3");
       });
 
       return () => mm.revert();
@@ -64,9 +58,11 @@ export function PageBanner({ eyebrow, title, subtitle, children }: PageBannerPro
           "radial-gradient(ellipse 640px 240px at 50% 30%, rgba(61,60,206,0.18) 0%, rgba(18,19,23,0) 75%), linear-gradient(90deg, #121317 0%, #121317 100%)",
       }}
     >
-      <div data-banner-badge>
-        <BadgePulse>{eyebrow}</BadgePulse>
-      </div>
+      {eyebrow && (
+        <div data-banner-badge>
+          <BadgePulse>{eyebrow}</BadgePulse>
+        </div>
+      )}
 
       <h1
         data-banner-title
