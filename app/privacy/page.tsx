@@ -63,6 +63,7 @@ const SECTIONS = [
 export default function PrivacyPage() {
   return (
     <LegalPage
+      eyebrow="اسناد قانونی"
       title="حریم خصوصی دوتامیت"
       updatedAt="۶ شهریور ۱۴۰۵"
       intro="حریم خصوصی بازیکنان برای ما مهمه. این صفحه توضیح می‌ده چه اطلاعاتی جمع‌آوری می‌شه و چطور ازشون محافظت می‌کنیم."

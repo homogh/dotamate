@@ -15,8 +15,12 @@ interface RevealGroupProps {
   y?: number;
 }
 
-/** Staggers the direct children of the wrapper into view as the group scrolls in. */
-export function RevealGroup({ children, className, y = 24 }: RevealGroupProps) {
+/**
+ * Staggers the direct children of the wrapper into view as the group scrolls
+ * in — use only when those children genuinely read as a list (a card grid,
+ * a row of stats), not as a blanket entrance for every section.
+ */
+export function RevealGroup({ children, className, y = 16 }: RevealGroupProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useGSAP(
@@ -27,9 +31,9 @@ export function RevealGroup({ children, className, y = 24 }: RevealGroupProps) {
         gsap.from(gsap.utils.toArray(ref.current!.children), {
           autoAlpha: 0,
           y,
-          duration: 0.6,
-          stagger: 0.12,
-          ease: "power3.out",
+          duration: 0.45,
+          stagger: 0.08,
+          ease: "power2.out",
           scrollTrigger: {
             trigger: ref.current,
             start: "top 85%",

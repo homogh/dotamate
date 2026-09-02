@@ -14,7 +14,7 @@ export function FinalCta() {
     >
       <Reveal className="flex w-full flex-col items-center gap-10">
         <div className="flex w-full max-w-[720px] flex-col items-center gap-5 text-center">
-          <h2 className="w-full text-[28px] font-black text-text md:text-[36px]" dir="auto">
+          <h2 className="w-full text-balance text-[28px] font-black text-text md:text-[36px]" dir="auto">
             آماده‌ای رنکت رو بالا ببری؟
           </h2>
           <p className="w-full text-base leading-[1.7] text-text-dim" dir="auto">

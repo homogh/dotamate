@@ -1,8 +1,6 @@
-import Image from "next/image";
-
 import { Card } from "@/components/general/card";
+import { IconBadge } from "@/components/general/iconBadge";
 import { SectionHeading } from "@/components/general/sectionHeading";
-import { Reveal } from "@/components/general/reveal";
 import { RevealGroup } from "@/components/general/revealGroup";
 
 const FEATURES = [
@@ -35,23 +33,16 @@ const FEATURES = [
 export function Features() {
   return (
     <section className="flex w-full flex-col items-start gap-14 bg-bg px-6 py-20 md:px-[100px]">
-      <Reveal className="w-full">
-        <SectionHeading
-          eyebrow="امکانات پلتفرم"
-          title="چرا باید از دوتامیت استفاده کنید؟"
-          subtitle="قابلیت‌های بی‌نظیر برای مدیریت و هماهنگی راحت‌تر تیم"
-        />
-      </Reveal>
+      <SectionHeading
+        eyebrow="امکانات پلتفرم"
+        title="چرا باید از دوتامیت استفاده کنید؟"
+        subtitle="قابلیت‌های بی‌نظیر برای مدیریت و هماهنگی راحت‌تر تیم"
+      />
 
       <RevealGroup className="grid w-full grid-cols-1 gap-6 sm:grid-cols-2">
         {FEATURES.map((feature) => (
           <Card key={feature.icon} className="gap-4">
-            <Image
-              src={`/images/landing/${feature.icon}.svg`}
-              alt=""
-              width={28}
-              height={28}
-            />
+            <IconBadge src={`/images/landing/${feature.icon}.svg`} size={22} />
             <p className="w-full text-right text-xl font-black text-text" dir="auto">
               {feature.title}
             </p>

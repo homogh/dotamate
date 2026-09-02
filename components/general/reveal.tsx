@@ -14,10 +14,24 @@ interface RevealProps {
   className?: string;
   y?: number;
   delay?: number;
+  duration?: number;
+  ease?: string;
 }
 
-/** Fades + rises a single block into view as it scrolls in. Skips motion for prefers-reduced-motion. */
-export function Reveal({ children, className, y = 24, delay = 0 }: RevealProps) {
+/**
+ * Fades + rises a single block into view as it scrolls in. Skips motion for
+ * prefers-reduced-motion. Keep this the quiet, supporting-tier default
+ * (short duration, gentle ease) — reserve a slower/richer ease for the one
+ * or two focal moments on a page, authored inline instead of here.
+ */
+export function Reveal({
+  children,
+  className,
+  y = 16,
+  delay = 0,
+  duration = 0.5,
+  ease = "power2.out",
+}: RevealProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useGSAP(
@@ -28,9 +42,9 @@ export function Reveal({ children, className, y = 24, delay = 0 }: RevealProps) 
         gsap.from(ref.current, {
           autoAlpha: 0,
           y,
-          duration: 0.7,
+          duration,
           delay,
-          ease: "power3.out",
+          ease,
           scrollTrigger: {
             trigger: ref.current,
             start: "top 85%",

@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 
 const NAV_ITEMS = [
   { label: "صفحه اصلی", href: "/" },
-  { label: "جستجوی لابی", href: "/lobbies" },
+  { label: "جستجوی لابی", href: "/search-lobby" },
   { label: "متا", href: "/meta" },
   { label: "وبلاگ", href: "/blog" },
   { label: "سوالات متداول", href: "/faq" },
@@ -25,7 +25,7 @@ export function Navbar() {
 
   useEffect(() => {
     function closeOnDesktop() {
-      if (window.innerWidth >= 768) setOpen(false);
+      if (window.innerWidth >= 1024) setOpen(false);
     }
     window.addEventListener("resize", closeOnDesktop);
     return () => window.removeEventListener("resize", closeOnDesktop);
@@ -41,16 +41,21 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 flex w-full flex-col border-b border-border bg-bg-alt">
       <div className="flex h-[80px] w-full items-center justify-between px-6 md:px-[100px]">
-        <div className="hidden items-center gap-4 md:flex">
-          <Button asChild size="sm">
-            <Link href="/signup">ثبت‌نام رایگان</Link>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/login">ورود به حساب</Link>
-          </Button>
-        </div>
+        <Link href="/" className="flex items-center gap-3">
+          <p className="text-[22px] font-black text-text" dir="auto">
+            دوتامیت
+          </p>
+          <div className="flex size-10 items-center justify-center rounded-[8px] bg-primary">
+            <Image
+              src="/images/landing/shield-check.svg"
+              alt=""
+              width={24}
+              height={24}
+            />
+          </div>
+        </Link>
 
-        <nav className="hidden items-center gap-8 text-sm font-bold md:flex">
+        <nav className="hidden items-center gap-6 text-sm font-bold lg:flex xl:gap-8">
           {NAV_ITEMS.map((item) => (
             <Link
               key={item.href}
@@ -67,24 +72,19 @@ export function Navbar() {
           ))}
         </nav>
 
-        <Link href="/" className="flex items-center gap-3">
-          <p className="text-[22px] font-black text-text" dir="auto">
-            دوتامیت
-          </p>
-          <div className="flex size-10 items-center justify-center rounded-[8px] bg-primary">
-            <Image
-              src="/images/landing/shield-check.svg"
-              alt=""
-              width={24}
-              height={24}
-            />
-          </div>
-        </Link>
+        <div className="hidden items-center gap-4 lg:flex">
+          <Button asChild size="sm">
+            <Link href="/signup">ثبت‌نام رایگان</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/login">ورود به حساب</Link>
+          </Button>
+        </div>
 
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex size-10 items-center justify-center rounded-[8px] border border-border text-text md:hidden"
+          className="flex size-10 items-center justify-center rounded-[8px] border border-border text-text lg:hidden"
           aria-label={open ? "بستن منو" : "باز کردن منو"}
           aria-expanded={open}
         >
@@ -121,7 +121,7 @@ function MobileMenu({
   return (
     <div
       ref={ref}
-      className="flex w-full flex-col gap-6 border-t border-border bg-bg-alt px-6 py-6 md:hidden"
+      className="flex w-full flex-col gap-6 border-t border-border bg-bg-alt px-6 py-6 lg:hidden"
     >
       <nav className="flex flex-col items-start gap-4 text-sm font-bold">
         {NAV_ITEMS.map((item) => (

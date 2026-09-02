@@ -7,6 +7,7 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 
 import { Button } from "@/components/ui/button";
+import { BadgePulse } from "@/components/general/badgePulse";
 
 gsap.registerPlugin(useGSAP);
 
@@ -63,19 +64,13 @@ export function Hero() {
       </div>
 
       <div className="relative flex w-full max-w-[800px] flex-col items-center gap-5">
-        <div
-          data-hero-badge
-          className="flex items-center gap-2 rounded-full border border-border bg-white/[0.06] px-4 py-1.5"
-        >
-          <p className="text-xs font-bold text-accent" dir="auto">
-            پلتفرم تخصصی هماهنگی پارتی Dota 2
-          </p>
-          <span className="size-1.5 rounded-full bg-success" />
+        <div data-hero-badge>
+          <BadgePulse>پلتفرم تخصصی هماهنگی پارتی Dota 2</BadgePulse>
         </div>
 
         <h1
           data-hero-title
-          className="text-center text-[36px] font-black leading-[1.2] text-text md:text-[56px]"
+          className="text-balance text-center text-[36px] font-black leading-[1.2] text-text md:text-[56px]"
           dir="auto"
         >
           هم‌تیمی پیدا کن، رنک بزن!
@@ -100,7 +95,7 @@ export function Hero() {
         </div>
         <div data-hero-cta>
           <Button asChild variant="outline" size="default">
-            <Link href="/lobbies">مشاهده لیست بازیکنان آنلاین</Link>
+            <Link href="/search-lobby">مشاهده لیست بازیکنان آنلاین</Link>
           </Button>
         </div>
       </div>

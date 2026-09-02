@@ -2,7 +2,6 @@ import Image from "next/image";
 
 import { Card } from "@/components/general/card";
 import { SectionHeading } from "@/components/general/sectionHeading";
-import { Reveal } from "@/components/general/reveal";
 import { RevealGroup } from "@/components/general/revealGroup";
 
 const TESTIMONIALS = [
@@ -25,13 +24,11 @@ const TESTIMONIALS = [
 export function Testimonials() {
   return (
     <section className="flex w-full flex-col items-start gap-14 bg-bg-alt px-6 py-20 md:px-[100px]">
-      <Reveal className="w-full">
-        <SectionHeading
-          eyebrow="نظرات بازیکنان"
-          title="رضایت پلیرها از دوتامیت"
-          subtitle="جامعه پلیرهای Dota 2 ایران درباره ما چه می‌گویند؟"
-        />
-      </Reveal>
+      <SectionHeading
+        eyebrow="نظرات بازیکنان"
+        title="رضایت پلیرها از دوتامیت"
+        subtitle="جامعه پلیرهای Dota 2 ایران درباره ما چه می‌گویند؟"
+      />
 
       <RevealGroup className="grid w-full grid-cols-1 gap-6 sm:grid-cols-2">
         {TESTIMONIALS.map((t) => (

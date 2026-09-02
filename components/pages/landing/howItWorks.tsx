@@ -1,6 +1,5 @@
 import { Card } from "@/components/general/card";
 import { SectionHeading } from "@/components/general/sectionHeading";
-import { Reveal } from "@/components/general/reveal";
 import { RevealGroup } from "@/components/general/revealGroup";
 
 const STEPS = [
@@ -25,13 +24,11 @@ const STEPS = [
 export function HowItWorks() {
   return (
     <section className="flex w-full flex-col items-start gap-16 bg-bg-alt px-6 py-20 md:px-[100px]">
-      <Reveal className="w-full">
-        <SectionHeading
-          eyebrow="راهنمای استفاده"
-          title="چطوری هم‌تیمی پیدا کنم؟"
-          subtitle="فقط در ۳ قدم ساده پارتی خودت رو بساز و وارد نبرد شو"
-        />
-      </Reveal>
+      <SectionHeading
+        eyebrow="راهنمای استفاده"
+        title="چطوری هم‌تیمی پیدا کنم؟"
+        subtitle="فقط در ۳ قدم ساده پارتی خودت رو بساز و وارد نبرد شو"
+      />
 
       <RevealGroup className="grid w-full grid-cols-1 gap-8 md:grid-cols-3">
         {STEPS.map((step) => (

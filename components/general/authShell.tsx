@@ -20,7 +20,7 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
     >
       <Reveal className="flex w-full max-w-[440px] flex-col gap-8">
         <div className="flex w-full flex-col items-center gap-2 text-center">
-          <h1 className="w-full text-[28px] font-black text-text" dir="auto">
+          <h1 className="w-full text-balance text-[28px] font-black text-text" dir="auto">
             {title}
           </h1>
           <p className="w-full text-sm leading-[1.7] text-text-dim" dir="auto">

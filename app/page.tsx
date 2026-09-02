@@ -6,6 +6,7 @@ import { Stats } from "@/components/pages/landing/stats";
 import { Features } from "@/components/pages/landing/features";
 import { Testimonials } from "@/components/pages/landing/testimonials";
 import { FinalCta } from "@/components/pages/landing/finalCta";
+import { FloatingCta } from "@/components/general/floatingCta";
 
 export default function Home() {
   return (
@@ -18,6 +19,7 @@ export default function Home() {
       <Features />
       <Testimonials />
       <FinalCta />
+      <FloatingCta />
     </div>
   );
 }
