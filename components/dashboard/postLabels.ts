@@ -23,7 +23,10 @@ export const GAME_MODE_OPTIONS = [
   { value: "CAPTAINS_MODE", label: "Captains Mode" },
 ] as const;
 
-export const RANK_LABEL: Record<string, string> = Object.fromEntries(RANK_OPTIONS.map((o) => [o.value, o.label]));
+export const RANK_LABEL: Record<string, string> = {
+  UNRANKED: "بدون رنک",
+  ...Object.fromEntries(RANK_OPTIONS.map((o) => [o.value, o.label])),
+};
 export const REGION_LABEL: Record<string, string> = Object.fromEntries(REGION_OPTIONS.map((o) => [o.value, o.label]));
 export const GAME_MODE_LABEL: Record<string, string> = Object.fromEntries(
   GAME_MODE_OPTIONS.map((o) => [o.value, o.label]),

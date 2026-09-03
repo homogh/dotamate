@@ -132,6 +132,7 @@ model Post {
   partySize   Int          @default(5)
   description String       @db.Text
   hasVoice    Boolean      @default(true)
+  voiceLink   String?
   status      PostStatus   @default(ACTIVE)
   bumpedAt    DateTime     @default(now())
   createdAt   DateTime     @default(now())
