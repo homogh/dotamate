@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { ChevronDown, X, Swords, Volume2 } from "lucide-react";
+import { ChevronDown, X, Swords, Volume2, Search } from "lucide-react";
 
 import { Card } from "@/components/general/card";
 import { HeroAvatar } from "@/components/general/heroAvatar";
@@ -54,6 +55,7 @@ interface FeedPost {
   createdAt: string;
   memberCount: number;
   partySize: number;
+  myRequestStatus: "PENDING" | "ACCEPTED" | "DECLINED" | "REMOVED" | null;
 }
 
 function timeLabel(post: FeedPost) {
@@ -71,6 +73,7 @@ export default function BrowseFeedPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const [tab, setTab] = useState<"lobbies" | "requests">("lobbies");
   const [onlyNow, setOnlyNow] = useState(false);
   const [hasVoice, setHasVoice] = useState(false);
   const [gameMode, setGameMode] = useState("");
@@ -81,14 +84,13 @@ export default function BrowseFeedPage() {
   const [pageCount, setPageCount] = useState(1);
   const [loading, setLoading] = useState(true);
   const [joiningId, setJoiningId] = useState<number | null>(null);
-  const [joinedIds, setJoinedIds] = useState<Set<number>>(new Set());
 
   const query = searchParams.get("query") ?? "";
 
   // Reset to page 1 during render (not an effect) whenever a filter changes —
   // React's documented pattern for adjusting state when inputs change,
   // avoiding an extra effect-triggered render.
-  const filterKey = `${query}|${onlyNow}|${hasVoice}|${gameMode}|${region}|${rank}`;
+  const filterKey = `${tab}|${query}|${onlyNow}|${hasVoice}|${gameMode}|${region}|${rank}`;
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey);
@@ -97,6 +99,7 @@ export default function BrowseFeedPage() {
 
   const load = useCallback(() => {
     const params = new URLSearchParams();
+    if (tab === "requests") params.set("tab", "requests");
     if (query) params.set("query", query);
     if (onlyNow) params.set("onlyNow", "1");
     if (hasVoice) params.set("hasVoice", "1");
@@ -114,7 +117,7 @@ export default function BrowseFeedPage() {
         }
       })
       .finally(() => setLoading(false));
-  }, [query, onlyNow, hasVoice, gameMode, region, rank, page]);
+  }, [tab, query, onlyNow, hasVoice, gameMode, region, rank, page]);
 
   useEffect(() => {
     load();
@@ -126,7 +129,7 @@ export default function BrowseFeedPage() {
       const res = await fetch(`/api/posts/${postId}/join`, { method: "POST" });
       const json = await res.json();
       if (json.status === "success") {
-        setJoinedIds((prev) => new Set(prev).add(postId));
+        setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, myRequestStatus: "PENDING" } : p)));
       }
     } finally {
       setJoiningId(null);
@@ -143,6 +146,39 @@ export default function BrowseFeedPage() {
 
   return (
     <div className="flex w-full flex-col gap-6 p-6 md:p-10">
+      {query && (
+        <Card tone="surface-alt" noHover highlighted className="w-full flex-row items-center gap-3 p-4">
+          <Search size={20} className="shrink-0 text-text-dim" />
+          <p className="flex-1 text-right text-[15px] text-text" dir="auto">
+            {query}
+          </p>
+          <button
+            onClick={() => router.push("/dashboard/browse")}
+            className="shrink-0 rounded-[8px] bg-primary px-4 py-2 text-[14px] font-bold text-white"
+            dir="auto"
+          >
+            جستجو مجدد
+          </button>
+        </Card>
+      )}
+
+      <div className="flex w-full items-center gap-6 border-b border-border">
+        <button
+          onClick={() => setTab("lobbies")}
+          className={`px-2 py-3 text-[16px] ${tab === "lobbies" ? "border-b-2 border-primary font-black text-text" : "font-bold text-text-dim"}`}
+          dir="auto"
+        >
+          لابی‌ها
+        </button>
+        <button
+          onClick={() => setTab("requests")}
+          className={`px-2 py-3 text-[16px] ${tab === "requests" ? "border-b-2 border-primary font-black text-text" : "font-bold text-text-dim"}`}
+          dir="auto"
+        >
+          ریکوست‌ها
+        </button>
+      </div>
+
       <Card tone="surface" noHover className="w-full gap-4 p-6">
         <div className="flex w-full flex-wrap items-center justify-end gap-4">
           <div className="flex items-center gap-4">
@@ -236,8 +272,16 @@ export default function BrowseFeedPage() {
         <div className="flex h-64 w-full items-center justify-center text-sm text-text-dim">در حال بارگذاری...</div>
       ) : posts.length === 0 ? (
         <Card tone="surface" noHover className="w-full items-center gap-2 p-10 text-center">
-          <p className="text-[15px] text-text-dim" dir="auto">
-            پستی با این فیلترها پیدا نشد — فیلترها رو تغییر بده یا خودت یه پست بساز.
+          <p className="text-[13px] text-[#686b6e]" dir="auto">
+            {query
+              ? `نتیجه‌ای برای «${query}» یافت نشد؟ `
+              : tab === "requests"
+                ? "هنوز به هیچ پستی درخواست عضویت ندادی. "
+                : "پستی با این فیلترها پیدا نشد. "}
+            <Link href="/dashboard/create-post" className="font-bold text-accent">
+              لابی خودتان را بسازید
+            </Link>{" "}
+            یا کلمات کلیدی را تغییر دهید.
           </p>
         </Card>
       ) : (
@@ -247,7 +291,7 @@ export default function BrowseFeedPage() {
         >
           {posts.map((post) => {
             const PositionIcon = POSITION_ICON[post.position] ?? Swords;
-            const joined = joinedIds.has(post.id);
+            const joined = post.myRequestStatus !== null;
             const fillPercent = Math.round((post.memberCount / post.partySize) * 100);
 
             return (
@@ -309,12 +353,22 @@ export default function BrowseFeedPage() {
                 </div>
 
                 <button
-                  disabled={joined || joiningId === post.id}
+                  disabled={joined || joiningId === post.id || post.memberCount >= post.partySize}
                   onClick={() => handleJoin(post.id)}
                   className="flex w-full items-center justify-center rounded-[8px] border border-border bg-surface-alt px-4 py-2.5 text-[13px] font-bold text-text transition-colors hover:enabled:bg-white/5 disabled:opacity-60"
                   dir="auto"
                 >
-                  {joined ? "درخواست ارسال شد" : joiningId === post.id ? "در حال ارسال..." : "درخواست عضویت"}
+                  {post.memberCount >= post.partySize
+                    ? "ظرفیت تکمیل است"
+                    : post.myRequestStatus === "ACCEPTED"
+                      ? "عضو این لابی هستی"
+                      : post.myRequestStatus === "PENDING"
+                        ? "درخواست ارسال شد"
+                        : post.myRequestStatus === "DECLINED"
+                          ? "درخواست رد شد"
+                          : joiningId === post.id
+                            ? "در حال ارسال..."
+                            : "درخواست عضویت"}
                 </button>
               </Card>
             );

@@ -59,11 +59,13 @@ export async function GET(request: NextRequest) {
   const gameMode = searchParams.get("gameMode") ?? "";
   const region = searchParams.get("region") ?? "";
   const rank = searchParams.get("rank") ?? "";
+  const tab = searchParams.get("tab") ?? "lobbies";
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
 
   const where: Prisma.PostWhereInput = {
     status: "ACTIVE",
     authorId: { not: session.id },
+    ...(tab === "requests" ? { members: { some: { userId: session.id } } } : {}),
     ...(onlyNow ? { sessionType: "NOW" as const } : {}),
     ...(hasVoice ? { hasVoice: true } : {}),
     ...(gameMode ? { gameMode: gameMode as GameMode } : {}),
@@ -106,6 +108,7 @@ export async function GET(request: NextRequest) {
       createdAt: post.createdAt,
       memberCount: post.members.filter((m) => m.status === "ACCEPTED").length + 1,
       partySize: post.partySize,
+      myRequestStatus: post.members.find((m) => m.userId === session.id)?.status ?? null,
     })),
     page,
     pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)),
