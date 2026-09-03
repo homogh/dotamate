@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { LoginForm } from "@/components/pages/login/loginForm";
 
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function LoginPage() {
-  return <LoginForm />;
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
 }

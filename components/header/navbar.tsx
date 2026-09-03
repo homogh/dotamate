@@ -9,6 +9,8 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 
 import { Button } from "@/components/ui/button";
+import { HeroAvatar } from "@/components/general/heroAvatar";
+import { useAuth } from "@/app/stores/useAuth";
 
 const NAV_ITEMS = [
   { label: "صفحه اصلی", href: "/" },
@@ -22,6 +24,12 @@ const NAV_ITEMS = [
 export function Navbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const { user, status, fetchMe } = useAuth();
+  const isDashboard = pathname.startsWith("/dashboard");
+
+  useEffect(() => {
+    if (status === "idle" && !isDashboard) fetchMe();
+  }, [status, fetchMe, isDashboard]);
 
   useEffect(() => {
     function closeOnDesktop() {
@@ -37,6 +45,8 @@ export function Navbar() {
       document.body.style.overflow = "";
     };
   }, [open]);
+
+  if (isDashboard) return null;
 
   return (
     <header className="sticky top-0 z-50 flex w-full flex-col border-b border-border bg-bg-alt">
@@ -73,12 +83,26 @@ export function Navbar() {
         </nav>
 
         <div className="hidden items-center gap-4 lg:flex">
-          <Button asChild size="sm">
-            <Link href="/signup">ثبت‌نام رایگان</Link>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/login">ورود به حساب</Link>
-          </Button>
+          {status === "authenticated" && user ? (
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-3 rounded-[8px] border border-border px-3 py-2 transition-colors hover:bg-white/5"
+            >
+              <span className="text-sm font-bold text-text" dir="auto">
+                {user.displayName}
+              </span>
+              <HeroAvatar name={user.displayName} size={32} round />
+            </Link>
+          ) : (
+            <>
+              <Button asChild size="sm">
+                <Link href="/signup">ثبت‌نام رایگان</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/login">ورود به حساب</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         <button
@@ -92,7 +116,14 @@ export function Navbar() {
         </button>
       </div>
 
-      {open && <MobileMenu pathname={pathname} onNavigate={() => setOpen(false)} />}
+      {open && (
+        <MobileMenu
+          pathname={pathname}
+          onNavigate={() => setOpen(false)}
+          user={user}
+          status={status}
+        />
+      )}
     </header>
   );
 }
@@ -100,9 +131,13 @@ export function Navbar() {
 function MobileMenu({
   pathname,
   onNavigate,
+  user,
+  status,
 }: {
   pathname: string;
   onNavigate: () => void;
+  user: ReturnType<typeof useAuth.getState>["user"];
+  status: ReturnType<typeof useAuth.getState>["status"];
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -137,16 +172,26 @@ function MobileMenu({
         ))}
       </nav>
       <div className="flex flex-col items-stretch gap-3">
-        <Button asChild size="sm">
-          <Link href="/signup" onClick={onNavigate}>
-            ثبت‌نام رایگان
-          </Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/login" onClick={onNavigate}>
-            ورود به حساب
-          </Link>
-        </Button>
+        {status === "authenticated" && user ? (
+          <Button asChild size="sm">
+            <Link href="/dashboard" onClick={onNavigate}>
+              رفتن به داشبورد
+            </Link>
+          </Button>
+        ) : (
+          <>
+            <Button asChild size="sm">
+              <Link href="/signup" onClick={onNavigate}>
+                ثبت‌نام رایگان
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/login" onClick={onNavigate}>
+                ورود به حساب
+              </Link>
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );

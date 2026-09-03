@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { usePathname } from "next/navigation";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 
@@ -12,34 +13,43 @@ gsap.registerPlugin(useGSAP);
  * effect. Fixed + pointer-events-none so it never competes with content.
  */
 export function AmbientCorners() {
+  const pathname = usePathname();
+  const isDashboard = pathname.startsWith("/dashboard");
   const topRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  useGSAP(() => {
-    const mm = gsap.matchMedia();
+  useGSAP(
+    () => {
+      if (isDashboard || !topRef.current || !bottomRef.current) return;
 
-    mm.add("(prefers-reduced-motion: no-preference)", () => {
-      gsap.to(topRef.current, {
-        opacity: 0.32,
-        scale: 1.08,
-        duration: 7,
-        ease: "sine.inOut",
-        repeat: -1,
-        yoyo: true,
-      });
-      gsap.to(bottomRef.current, {
-        opacity: 0.28,
-        scale: 1.1,
-        duration: 9,
-        delay: 1.5,
-        ease: "sine.inOut",
-        repeat: -1,
-        yoyo: true,
-      });
-    });
+      const mm = gsap.matchMedia();
 
-    return () => mm.revert();
-  }, {});
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        gsap.to(topRef.current, {
+          opacity: 0.32,
+          scale: 1.08,
+          duration: 7,
+          ease: "sine.inOut",
+          repeat: -1,
+          yoyo: true,
+        });
+        gsap.to(bottomRef.current, {
+          opacity: 0.28,
+          scale: 1.1,
+          duration: 9,
+          delay: 1.5,
+          ease: "sine.inOut",
+          repeat: -1,
+          yoyo: true,
+        });
+      });
+
+      return () => mm.revert();
+    },
+    { dependencies: [isDashboard] },
+  );
+
+  if (isDashboard) return null;
 
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">

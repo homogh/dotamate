@@ -1,0 +1,240 @@
+// DotaMate schema — Dota 2 teammate-finder. MySQL via Prisma, matching the
+// ShakhesOnline reference project's conventions (shared prisma singleton,
+// ApiResponse<T> API shape).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rank {
+  UNRANKED
+  HERALD
+  GUARDIAN
+  CRUSADER
+  ARCHON
+  LEGEND
+  ANCIENT
+  DIVINE
+  IMMORTAL
+}
+
+enum Position {
+  POS1
+  POS2
+  POS3
+  POS4
+  POS5
+}
+
+enum Region {
+  EU_WEST
+  EU_EAST
+  RUSSIA
+  DUBAI
+}
+
+enum GameMode {
+  RANKED_ALL_PICK
+  ALL_PICK
+  TURBO
+  CAPTAINS_MODE
+}
+
+enum SessionType {
+  NOW
+  SCHEDULED
+}
+
+enum PostStatus {
+  ACTIVE
+  FULL
+  EXPIRED
+  COMPLETED
+  CANCELLED
+}
+
+enum MemberStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REMOVED
+}
+
+enum RankVerification {
+  SELF_DECLARED
+  VERIFIED
+}
+
+enum NotificationType {
+  POST_REQUEST
+  REQUEST_ACCEPTED
+  REQUEST_DECLINED
+  NEW_MESSAGE
+  SESSION_REMINDER
+  SYSTEM
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  DISMISSED
+}
+
+model User {
+  id               Int               @id @default(autoincrement())
+  displayName      String
+  email            String?           @unique
+  phone            String?           @unique
+  passwordHash     String
+  bio              String?           @db.Text
+  country          String?
+  languages        String?
+  rank             Rank              @default(UNRANKED)
+  rankTier         Int?
+  mainPosition     Position?
+  rankVerification RankVerification  @default(SELF_DECLARED)
+  steamProfileUrl  String?
+  steamId          String?           @unique
+  notifyBell       Boolean           @default(true)
+  notifyEmail      Boolean           @default(true)
+  notifyPush       Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  posts            Post[]
+  memberships      PostMember[]
+  favoritesMade    Favorite[]        @relation("FavoritedBy")
+  favoritedByUsers Favorite[]        @relation("FavoriteTarget")
+  messagesSent     Message[]
+  conversations    ConversationParticipant[]
+  notifications    Notification[]
+  reportsMade      Report[]          @relation("Reporter")
+  reportsAgainst   Report[]          @relation("ReportedUser")
+  blocking         Block[]           @relation("Blocker")
+  blockedBy        Block[]           @relation("Blocked")
+}
+
+model Post {
+  id          Int          @id @default(autoincrement())
+  authorId    Int
+  author      User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  position    Position
+  rank        Rank
+  gameMode    GameMode
+  region      Region
+  sessionType SessionType
+  startAt     DateTime?
+  partySize   Int          @default(5)
+  description String       @db.Text
+  hasVoice    Boolean      @default(true)
+  status      PostStatus   @default(ACTIVE)
+  bumpedAt    DateTime     @default(now())
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  members     PostMember[]
+  messages    Message[]
+
+  @@index([status, sessionType])
+  @@index([authorId])
+}
+
+model PostMember {
+  id        Int          @id @default(autoincrement())
+  postId    Int
+  post      Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    MemberStatus @default(PENDING)
+  position  Position?
+  createdAt DateTime     @default(now())
+
+  @@unique([postId, userId])
+}
+
+model Favorite {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  user           User     @relation("FavoritedBy", fields: [userId], references: [id], onDelete: Cascade)
+  favoriteUserId Int
+  favoriteUser   User     @relation("FavoriteTarget", fields: [favoriteUserId], references: [id], onDelete: Cascade)
+  note           String?
+  createdAt      DateTime @default(now())
+
+  @@unique([userId, favoriteUserId])
+}
+
+model Conversation {
+  id           Int                        @id @default(autoincrement())
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  id             Int          @id @default(autoincrement())
+  conversationId Int
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         Int
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime?
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id             Int           @id @default(autoincrement())
+  conversationId Int?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  postId         Int?
+  post           Post?         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  senderId       Int
+  sender         User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  body           String        @db.Text
+  createdAt      DateTime      @default(now())
+
+  @@index([conversationId])
+  @@index([postId])
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String?          @db.Text
+  link      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, read])
+}
+
+model Report {
+  id             Int          @id @default(autoincrement())
+  reporterId     Int
+  reporter       User         @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUserId Int?
+  reportedUser   User?        @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  reason         String       @db.Text
+  status         ReportStatus @default(PENDING)
+  createdAt      DateTime     @default(now())
+}
+
+model Block {
+  id        Int      @id @default(autoincrement())
+  blockerId Int
+  blocker   User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId Int
+  blocked   User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+}

@@ -2,18 +2,25 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthShell } from "@/components/general/authShell";
+import { useAuth } from "@/app/stores/useAuth";
 
 export function SignupForm() {
+  const router = useRouter();
+  const fetchMe = useAuth((state) => state.fetchMe);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const displayName = String(form.get("displayName") ?? "").trim();
+    const contact = String(form.get("contact") ?? "").trim();
     const password = String(form.get("password") ?? "");
     const confirmPassword = String(form.get("confirmPassword") ?? "");
 
@@ -23,7 +30,29 @@ export function SignupForm() {
     }
 
     setError(null);
-    // TODO: اتصال به API ثبت‌نام وقتی بک‌اند آماده شد.
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ displayName, contact, password }),
+      });
+      const json = await res.json();
+
+      if (json.status !== "success") {
+        setError(json.message ?? "ثبت‌نام ناموفق بود.");
+        setLoading(false);
+        return;
+      }
+
+      await fetchMe();
+      router.push("/dashboard");
+      router.refresh();
+    } catch {
+      setError("مشکلی در ارتباط با سرور پیش اومد.");
+      setLoading(false);
+    }
   }
 
   return (
@@ -78,8 +107,8 @@ export function SignupForm() {
           </p>
         )}
 
-        <Button type="submit" className="w-full">
-          ثبت‌نام رایگان
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? "در حال ثبت‌نام..." : "ثبت‌نام رایگان"}
         </Button>
 
         <p className="text-center text-xs leading-[1.7] text-text-dim" dir="auto">
