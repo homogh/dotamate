@@ -103,6 +103,8 @@ model User {
   notifyBell       Boolean           @default(true)
   notifyEmail      Boolean           @default(true)
   notifyPush       Boolean           @default(false)
+  sessionReminderEnabled Boolean     @default(true)
+  sessionReminderMinutes Int         @default(15)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
