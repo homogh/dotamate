@@ -2,19 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Award, Clock, Users, Swords, Crosshair, ShieldHalf, HandHeart, ShieldPlus } from "lucide-react";
+import { Award, Clock, Users, Swords } from "lucide-react";
 
 import { Card } from "@/components/general/card";
 import { HeroAvatar } from "@/components/general/heroAvatar";
 import { DashboardFadeIn } from "@/components/dashboard/fadeIn";
-
-const POSITION_ICON: Record<string, typeof Swords> = {
-  "Pos 1 - Carry": Swords,
-  "Pos 2 - Mid": Crosshair,
-  "Pos 3 - Offlane": ShieldHalf,
-  "Pos 4 - Soft Support": HandHeart,
-  "Pos 5 - Hard Support": ShieldPlus,
-};
+import { POSITION_ICON } from "@/components/dashboard/positionMeta";
 
 interface HomeData {
   user: { displayName: string; rankLabel: string; rankTier: number | null; mainPosition: string | null };

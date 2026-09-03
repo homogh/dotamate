@@ -2,21 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { ChevronDown, X, Swords, Crosshair, ShieldHalf, HandHeart, ShieldPlus, Volume2 } from "lucide-react";
+import { ChevronDown, X, Swords, Volume2 } from "lucide-react";
 
 import { Card } from "@/components/general/card";
 import { HeroAvatar } from "@/components/general/heroAvatar";
 import { Switch } from "@/components/ui/switch";
 import { Pagination } from "@/components/general/pagination";
 import { DashboardFadeIn } from "@/components/dashboard/fadeIn";
-
-const POSITION_ICON: Record<string, typeof Swords> = {
-  "Pos 1 - Carry": Swords,
-  "Pos 2 - Mid": Crosshair,
-  "Pos 3 - Offlane": ShieldHalf,
-  "Pos 4 - Soft Support": HandHeart,
-  "Pos 5 - Hard Support": ShieldPlus,
-};
+import { POSITION_ICON } from "@/components/dashboard/positionMeta";
 
 const GAME_MODE_OPTIONS = [
   { value: "", label: "همه حالت‌ها" },
