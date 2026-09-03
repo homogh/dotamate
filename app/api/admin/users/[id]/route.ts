@@ -20,8 +20,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   const userId = Number(id);
 
-  const [user, posts, reportsAgainst, auditLogs] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId } }),
+  const [user, posts, reportsAgainst, auditLogs, roles] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, include: { role: true } }),
     prisma.post.findMany({ where: { authorId: userId }, orderBy: { createdAt: "desc" }, take: 10 }),
     prisma.report.findMany({
       where: { reportedUserId: userId },
@@ -35,6 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       include: { actor: true },
       take: 10,
     }),
+    prisma.role.findMany({ orderBy: { id: "asc" }, select: { id: true, name: true } }),
   ]);
 
   if (!user) {
@@ -59,6 +60,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     suspendedUntil: user.suspendedUntil,
     createdAt: user.createdAt,
     lastActiveAt: user.lastActiveAt,
+    roleId: user.roleId,
+    roleName: user.role?.name ?? null,
+    roles,
     posts: posts.map((p) => ({
       id: p.id,
       description: p.description,
@@ -111,6 +115,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const updates: Record<string, unknown> = {};
   let auditAction: string | null = null;
   let notifyTitle: string | null = null;
+  let auditDetail: string | null = null;
 
   switch (action) {
     case "ban":
@@ -153,6 +158,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       updates.rankVerification = "SELF_DECLARED";
       auditAction = "UNVERIFY_USER";
       break;
+    case "assignRole": {
+      const roleId = body?.roleId === null ? null : Number(body?.roleId);
+      if (roleId === null) {
+        auditDetail = "حذف نقش از کاربر";
+      } else {
+        const role = await prisma.role.findUnique({ where: { id: roleId } });
+        if (!role) {
+          return NextResponse.json<ApiResponse>({ status: "error", message: "نقش پیدا نشد.", data: null }, { status: 404 });
+        }
+        auditDetail = `تخصیص نقش: ${role.name}`;
+      }
+      updates.roleId = roleId;
+      auditAction = "ASSIGN_ROLE";
+      break;
+    }
     default:
       return NextResponse.json<ApiResponse>({ status: "error", message: "عملیات نامعتبره.", data: null }, { status: 400 });
   }
@@ -169,7 +189,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           action: auditAction as never,
           targetType: "User",
           targetId: userId,
-          detail: body?.reason ? String(body.reason).slice(0, 500) : null,
+          detail: auditDetail ?? (body?.reason ? String(body.reason).slice(0, 500) : null),
         },
       }),
     );

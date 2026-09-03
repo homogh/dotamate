@@ -83,6 +83,33 @@ export default function AdminRolesPage() {
     load();
   }
 
+  async function handleEditRole(role: AdminRole) {
+    const name = prompt("نام نقش:", role.name);
+    if (!name || !name.trim()) return;
+    const description = prompt("توضیحات نقش:", role.description ?? "") ?? role.description ?? "";
+    setBusy(true);
+    await fetch(`/api/admin/roles/${role.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, description }),
+    });
+    setBusy(false);
+    load();
+  }
+
+  async function handleDeleteRole(role: AdminRole) {
+    if (!confirm(`مطمئنی می‌خوای نقش «${role.name}» رو حذف کنی؟`)) return;
+    setBusy(true);
+    const res = await fetch(`/api/admin/roles/${role.id}`, { method: "DELETE" });
+    const json = await res.json().catch(() => null);
+    setBusy(false);
+    if (!res.ok) {
+      alert(json?.message ?? "حذف نقش با خطا مواجه شد.");
+      return;
+    }
+    load();
+  }
+
   if (loading) {
     return <div className="flex h-64 w-full items-center justify-center text-sm text-text-dim">در حال بارگذاری...</div>;
   }
@@ -121,6 +148,26 @@ export default function AdminRolesPage() {
             <p className="w-full text-right text-[12px] leading-[1.6] text-text-dim" dir="auto">
               {role.description}
             </p>
+            {role.editable && (
+              <div className="flex w-full items-center gap-2 border-t border-border pt-3">
+                <button
+                  disabled={busy}
+                  onClick={() => handleEditRole(role)}
+                  className="flex-1 rounded-[6px] border border-border bg-surface-alt px-3 py-1.5 text-[12px] font-bold text-text disabled:opacity-50"
+                  dir="auto"
+                >
+                  ویرایش مشخصات
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() => handleDeleteRole(role)}
+                  className="flex-1 rounded-[6px] border border-danger bg-danger/10 px-3 py-1.5 text-[12px] font-bold text-danger disabled:opacity-50"
+                  dir="auto"
+                >
+                  حذف نقش
+                </button>
+              </div>
+            )}
           </Card>
         ))}
       </div>

@@ -24,6 +24,9 @@ interface UserDetail {
   suspendedUntil: string | null;
   createdAt: string;
   lastActiveAt: string | null;
+  roleId: number | null;
+  roleName: string | null;
+  roles: { id: number; name: string }[];
   posts: { id: number; description: string; status: string; gameMode: string; createdAt: string }[];
   reports: { id: number; reason: string; status: string; severity: string; reporterName: string; createdAt: string }[];
   auditLogs: { id: number; action: string; detail: string | null; actorName: string; createdAt: string }[];
@@ -37,6 +40,7 @@ const ACTION_LABEL: Record<string, string> = {
   WARN_USER: "ارسال اخطار",
   VERIFY_USER: "تایید رنک",
   UNVERIFY_USER: "لغو تایید رنک",
+  ASSIGN_ROLE: "تغییر نقش کاربری",
 };
 
 type Tab = "posts" | "sessions" | "reports" | "history";
@@ -73,6 +77,10 @@ export default function AdminUserDetailPage() {
     load();
   }
 
+  function handleRoleChange(value: string) {
+    act("assignRole", { roleId: value ? Number(value) : null });
+  }
+
   if (loading || !user) {
     return <div className="flex h-64 w-full items-center justify-center text-sm text-text-dim">در حال بارگذاری...</div>;
   }
@@ -98,6 +106,26 @@ export default function AdminUserDetailPage() {
 
       <div className="flex w-full flex-col-reverse gap-6 lg:flex-row">
         <div className="flex w-full flex-col gap-5 lg:w-[340px] lg:shrink-0">
+          <Card tone="surface" noHover className="w-full gap-4 p-6">
+            <p className="w-full text-right text-[16px] font-black text-text" dir="auto">
+              نقش کاربری
+            </p>
+            <select
+              disabled={busy}
+              value={user.roleId ?? ""}
+              onChange={(e) => handleRoleChange(e.target.value)}
+              className="w-full rounded-[8px] border border-border bg-surface-alt p-3 text-[14px] text-text disabled:opacity-50"
+              dir="auto"
+            >
+              <option value="">بدون نقش (کاربر عادی)</option>
+              {user.roles.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </Card>
+
           <Card tone="surface" noHover className="w-full gap-4 p-6">
             <p className="w-full text-right text-[16px] font-black text-text" dir="auto">
               عملیات نظارتی
