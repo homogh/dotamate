@@ -1,24 +1,72 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
-import { Paperclip } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/general/card";
-import { TICKET_PRIORITIES, TICKET_CATEGORIES } from "@/app/lib/supportTickets";
+import { useAuth } from "@/app/stores/useAuth";
+import { TICKET_PRIORITY_OPTIONS, TICKET_CATEGORY_OPTIONS } from "@/components/pages/contact/ticketLabels";
 
-export function ContactForm() {
+export function ContactForm({ onCreated }: { onCreated?: () => void }) {
+  const { user, status, fetchMe } = useAuth();
   const [sent, setSent] = useState(false);
-  const [fileName, setFileName] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    if (status === "idle") fetchMe();
+  }, [status, fetchMe]);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    // TODO: اتصال به API ثبت تیکت پشتیبانی وقتی بک‌اند آماده شد.
-    setSent(true);
+    setError(null);
+    const form = new FormData(event.currentTarget);
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          priority: form.get("priority"),
+          category: form.get("category"),
+          subject: form.get("subject"),
+          message: form.get("message"),
+        }),
+      });
+      const json = await res.json();
+      if (json.status !== "success") {
+        setError(json.message ?? "خطایی پیش اومد.");
+        setSubmitting(false);
+        return;
+      }
+      setSent(true);
+      onCreated?.();
+    } catch {
+      setError("مشکلی در ارتباط با سرور پیش اومد.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (status === "guest") {
+    return (
+      <Card noHover className="items-center gap-4 p-9 text-center">
+        <p className="text-lg font-black text-text" dir="auto">
+          برای ثبت تیکت پشتیبانی اول وارد حساب شو
+        </p>
+        <p className="text-sm leading-[1.8] text-text-dim" dir="auto">
+          این کار به ما کمک می‌کنه پاسخ کارشناسان رو مستقیم توی همین صفحه بهت نشون بدیم.
+        </p>
+        <Button asChild>
+          <Link href="/login?next=/contact">ورود به حساب</Link>
+        </Button>
+      </Card>
+    );
   }
 
   if (sent) {
@@ -50,13 +98,13 @@ export function ContactForm() {
             <select
               id="priority"
               name="priority"
-              defaultValue={TICKET_PRIORITIES[1]}
+              defaultValue="MEDIUM"
               className="h-11 w-full rounded-[8px] border border-border bg-surface-alt px-4 text-sm text-text outline-none transition-colors focus-visible:border-primary"
               dir="auto"
             >
-              {TICKET_PRIORITIES.map((p) => (
-                <option key={p} value={p}>
-                  {p}
+              {TICKET_PRIORITY_OPTIONS.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
                 </option>
               ))}
             </select>
@@ -67,13 +115,13 @@ export function ContactForm() {
             <select
               id="category"
               name="category"
-              defaultValue={TICKET_CATEGORIES[0]}
+              defaultValue="TECHNICAL"
               className="h-11 w-full rounded-[8px] border border-border bg-surface-alt px-4 text-sm text-text outline-none transition-colors focus-visible:border-primary"
               dir="auto"
             >
-              {TICKET_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
+              {TICKET_CATEGORY_OPTIONS.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
                 </option>
               ))}
             </select>
@@ -96,27 +144,18 @@ export function ContactForm() {
           />
         </div>
 
-        <div className="flex w-full flex-wrap items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 rounded-[8px] border border-border px-4 py-2.5 text-[13px] text-text-dim transition-colors hover:border-white/20 hover:text-text"
-          >
-            <span dir="auto">
-              {fileName ? `فایل ضمیمه: ${fileName}` : "ضمیمه کردن فایل (عکس/ویدیو)"}
-            </span>
-            <Paperclip size={16} />
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,video/*"
-            className="hidden"
-            onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
-          />
+        {error && (
+          <p className="text-sm text-red-400" dir="auto">
+            {error}
+          </p>
+        )}
 
-          <Button type="submit" size="default" className="px-8">
-            ارسال تیکت پشتیبانی
+        <div className="flex w-full flex-wrap items-center justify-between gap-3">
+          <p className="text-[13px] text-text-dim" dir="auto">
+            {user ? `ثبت‌کننده: ${user.displayName}` : ""}
+          </p>
+          <Button type="submit" size="default" className="px-8" disabled={submitting}>
+            {submitting ? "در حال ارسال..." : "ارسال تیکت پشتیبانی"}
           </Button>
         </div>
       </form>
