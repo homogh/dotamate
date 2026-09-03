@@ -395,6 +395,19 @@ model AuditLog {
   @@index([actorId])
 }
 
+model PlatformSetting {
+  id                        Int      @id @default(1)
+  bannerText                String?  @db.Text
+  bannerActive              Boolean  @default(false)
+  maintenanceMode           Boolean  @default(false)
+  maintenanceMessage        String?  @db.Text
+  signupsEnabled            Boolean  @default(true)
+  lobbyChatEnabled          Boolean  @default(true)
+  scheduledSessionsEnabled  Boolean  @default(true)
+  steamAutoSyncEnabled      Boolean  @default(false)
+  updatedAt                 DateTime @updatedAt
+}
+
 model Announcement {
   id        Int      @id @default(autoincrement())
   title     String

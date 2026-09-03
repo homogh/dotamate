@@ -2,12 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 
 import prisma from "@/app/lib/prisma";
 import { hashPassword, signSession, SESSION_COOKIE, SESSION_COOKIE_OPTIONS } from "@/app/lib/auth";
+import { getPlatformSettings } from "@/app/lib/platformSettings";
 import type { ApiResponse } from "@/app/types/api";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^09\d{9}$/;
 
 export async function POST(request: NextRequest) {
+  const settings = await getPlatformSettings();
+  if (!settings.signupsEnabled) {
+    return NextResponse.json<ApiResponse>(
+      { status: "error", message: "ثبت‌نام کاربران جدید موقتاً توسط مدیریت غیرفعال شده.", data: null },
+      { status: 403 },
+    );
+  }
+
   const body = await request.json().catch(() => null);
   const displayName = String(body?.displayName ?? "").trim();
   const contact = String(body?.contact ?? "").trim();

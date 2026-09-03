@@ -5,6 +5,7 @@ import "./globals.css";
 import { Navbar } from "@/components/header/navbar";
 import { Footer } from "@/components/footer/footer";
 import { AmbientCorners } from "@/components/general/ambientCorners";
+import { SiteBanner } from "@/components/general/siteBanner";
 
 const vazirmatn = Vazirmatn({
   variable: "--font-vazirmatn",
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="fa" dir="rtl" className={`${vazirmatn.variable} antialiased`}>
       <body className="flex min-h-screen flex-col bg-bg">
         <AmbientCorners />
+        <SiteBanner />
         <Navbar />
         <main className="flex flex-1 flex-col items-center">{children}</main>
         <Footer />
