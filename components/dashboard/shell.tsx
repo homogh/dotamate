@@ -53,7 +53,6 @@ export function DashboardShell({
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="sticky top-0 z-20">
           <DashboardTopbar
-            displayName={user.displayName}
             unreadNotifications={unreadNotifications}
             mobileMenuOpen={mobileOpen}
             onToggleMobileMenu={() => setMobileOpen((v) => !v)}

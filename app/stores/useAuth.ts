@@ -18,10 +18,18 @@ export interface AuthUser {
   createdAt: string;
 }
 
+export interface AuthRole {
+  roleId: number;
+  roleName: string;
+  permissions: Record<string, "NONE" | "VIEW" | "EDIT">;
+}
+
 interface AuthState {
   user: AuthUser | null;
   status: "idle" | "loading" | "authenticated" | "guest";
+  role: AuthRole | null;
   fetchMe: () => Promise<void>;
+  fetchRole: () => Promise<void>;
   setUser: (user: AuthUser | null) => void;
   logout: () => Promise<void>;
 }
@@ -29,6 +37,7 @@ interface AuthState {
 export const useAuth = create<AuthState>((set) => ({
   user: null,
   status: "idle",
+  role: null,
 
   fetchMe: async () => {
     set({ status: "loading" });
@@ -38,10 +47,20 @@ export const useAuth = create<AuthState>((set) => ({
       if (json.status === "success") {
         set({ user: json.data, status: "authenticated" });
       } else {
-        set({ user: null, status: "guest" });
+        set({ user: null, status: "guest", role: null });
       }
     } catch {
-      set({ user: null, status: "guest" });
+      set({ user: null, status: "guest", role: null });
+    }
+  },
+
+  fetchRole: async () => {
+    try {
+      const res = await fetch("/api/auth/role", { cache: "no-store" });
+      const json = await res.json();
+      set({ role: json.status === "success" ? json.data : null });
+    } catch {
+      set({ role: null });
     }
   },
 
@@ -49,6 +68,6 @@ export const useAuth = create<AuthState>((set) => ({
 
   logout: async () => {
     await fetch("/api/auth/logout", { method: "POST" });
-    set({ user: null, status: "guest" });
+    set({ user: null, status: "guest", role: null });
   },
 }));

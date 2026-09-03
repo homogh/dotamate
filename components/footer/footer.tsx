@@ -20,7 +20,7 @@ const SOCIAL_ICONS = ["telegram", "discord", "steam"];
 
 export function Footer() {
   const pathname = usePathname();
-  if (pathname.startsWith("/dashboard")) return null;
+  if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) return null;
 
   return (
     <footer className="flex w-full flex-col items-start gap-16 border-t border-border bg-bg-alt px-6 pb-10 pt-20 md:px-[100px]">

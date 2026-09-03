@@ -85,6 +85,95 @@ enum ReportStatus {
   DISMISSED
 }
 
+enum ReportSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ReportAction {
+  NONE
+  WARNED
+  SUSPENDED
+  BANNED
+  POST_REMOVED
+  DISMISSED
+}
+
+enum AdminResource {
+  USERS
+  POSTS
+  REPORTS
+  SESSIONS
+  REFERENCE_DATA
+  ANNOUNCEMENTS
+  AUDIT_LOG
+  BLOG
+  ROLES
+  TICKETS
+}
+
+enum PermissionLevel {
+  NONE
+  VIEW
+  EDIT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_REVIEW
+  ANSWERED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketCategory {
+  ACCOUNT
+  TECHNICAL
+  GENERAL
+  BUG_REPORT
+  SUGGESTION
+}
+
+enum BlogStatus {
+  DRAFT
+  PUBLISHED
+  SCHEDULED
+}
+
+enum AuditAction {
+  BAN_USER
+  UNBAN_USER
+  SUSPEND_USER
+  UNSUSPEND_USER
+  WARN_USER
+  VERIFY_USER
+  UNVERIFY_USER
+  DELETE_POST
+  RESOLVE_REPORT
+  DISMISS_REPORT
+  CREATE_ROLE
+  UPDATE_ROLE
+  DELETE_ROLE
+  ASSIGN_ROLE
+  CREATE_ANNOUNCEMENT
+  UPDATE_ANNOUNCEMENT
+  DELETE_ANNOUNCEMENT
+  PUBLISH_BLOG_POST
+  UPDATE_BLOG_POST
+  DELETE_BLOG_POST
+  UPDATE_REFERENCE_DATA
+  CLOSE_TICKET
+  REPLY_TICKET
+}
+
 model User {
   id               Int               @id @default(autoincrement())
   displayName      String
@@ -105,6 +194,15 @@ model User {
   notifyPush       Boolean           @default(false)
   sessionReminderEnabled Boolean     @default(true)
   sessionReminderMinutes Int         @default(15)
+
+  roleId           Int?
+  role             Role?             @relation(fields: [roleId], references: [id])
+  banned           Boolean           @default(false)
+  bannedAt         DateTime?
+  banReason        String?           @db.Text
+  suspendedUntil   DateTime?
+  lastActiveAt     DateTime?
+
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
@@ -117,8 +215,14 @@ model User {
   notifications    Notification[]
   reportsMade      Report[]          @relation("Reporter")
   reportsAgainst   Report[]          @relation("ReportedUser")
+  reportsResolved  Report[]          @relation("ReportResolver")
   blocking         Block[]           @relation("Blocker")
   blockedBy        Block[]           @relation("Blocked")
+  auditLogs        AuditLog[]        @relation("AuditActor")
+  announcements    Announcement[]
+  blogPosts        BlogPost[]
+  tickets          Ticket[]
+  ticketMessages   TicketMessage[]
 }
 
 model Post {
@@ -142,6 +246,7 @@ model Post {
 
   members     PostMember[]
   messages    Message[]
+  reports     Report[]
 
   @@index([status, sessionType])
   @@index([authorId])
@@ -221,14 +326,25 @@ model Notification {
 }
 
 model Report {
-  id             Int          @id @default(autoincrement())
+  id             Int            @id @default(autoincrement())
   reporterId     Int
-  reporter       User         @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reporter       User           @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
   reportedUserId Int?
-  reportedUser   User?        @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: Cascade)
-  reason         String       @db.Text
-  status         ReportStatus @default(PENDING)
-  createdAt      DateTime     @default(now())
+  reportedUser   User?          @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  reportedPostId Int?
+  reportedPost   Post?          @relation(fields: [reportedPostId], references: [id], onDelete: Cascade)
+  severity       ReportSeverity @default(MEDIUM)
+  context        String?
+  reason         String         @db.Text
+  status         ReportStatus   @default(PENDING)
+  action         ReportAction   @default(NONE)
+  resolvedById   Int?
+  resolvedBy     User?          @relation("ReportResolver", fields: [resolvedById], references: [id])
+  resolvedAt     DateTime?
+  createdAt      DateTime       @default(now())
+
+  @@index([status])
+  @@index([reportedPostId])
 }
 
 model Block {
@@ -240,4 +356,112 @@ model Block {
   createdAt DateTime @default(now())
 
   @@unique([blockerId, blockedId])
+}
+
+// --- Admin panel: RBAC, moderation, content, and support ---------------
+
+model Role {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  description String?          @db.Text
+  editable    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+
+  users       User[]
+  permissions RolePermission[]
+}
+
+model RolePermission {
+  id       Int             @id @default(autoincrement())
+  roleId   Int
+  role     Role            @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  resource AdminResource
+  level    PermissionLevel @default(NONE)
+
+  @@unique([roleId, resource])
+}
+
+model AuditLog {
+  id         Int         @id @default(autoincrement())
+  actorId    Int
+  actor      User        @relation("AuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+  action     AuditAction
+  targetType String?
+  targetId   Int?
+  detail     String?     @db.Text
+  createdAt  DateTime    @default(now())
+
+  @@index([createdAt])
+  @@index([actorId])
+}
+
+model Announcement {
+  id        Int      @id @default(autoincrement())
+  title     String
+  body      String   @db.Text
+  active    Boolean  @default(true)
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([active])
+}
+
+model BlogPost {
+  id          Int        @id @default(autoincrement())
+  title       String
+  slug        String     @unique
+  category    String
+  excerpt     String?    @db.Text
+  body        String     @db.Text
+  coverSeed   String?
+  status      BlogStatus @default(DRAFT)
+  authorId    Int
+  author      User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  publishedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([status])
+}
+
+model Ticket {
+  id        Int             @id @default(autoincrement())
+  userId    Int
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject   String
+  category  TicketCategory  @default(GENERAL)
+  priority  TicketPriority  @default(MEDIUM)
+  status    TicketStatus    @default(OPEN)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  messages  TicketMessage[]
+
+  @@index([status])
+}
+
+model TicketMessage {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  senderId  Int
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  isStaff   Boolean  @default(false)
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+}
+
+model ReferenceEntry {
+  id        Int      @id @default(autoincrement())
+  category  String   @db.VarChar(40)
+  key       String   @db.VarChar(60)
+  label     String
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  @@unique([category, key])
 }

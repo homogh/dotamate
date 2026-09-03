@@ -43,5 +43,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // Lightweight presence signal for the admin "active users" metric. Wrapped
+  // so a failure here (e.g. a dev server that hasn't restarted since
+  // lastActiveAt was added) never breaks this widely-used endpoint.
+  prisma.user.update({ where: { id: session.id }, data: { lastActiveAt: new Date() } }).catch(() => {});
+
   return NextResponse.json<ApiResponse>({ status: "success", message: "ok", data: user });
 }

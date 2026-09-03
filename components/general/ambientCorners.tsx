@@ -14,7 +14,7 @@ gsap.registerPlugin(useGSAP);
  */
 export function AmbientCorners() {
   const pathname = usePathname();
-  const isDashboard = pathname.startsWith("/dashboard");
+  const isDashboard = pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
   const topRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 

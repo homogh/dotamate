@@ -1,31 +1,16 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, Menu, Search, X } from "lucide-react";
 
 import { AccountMenu } from "@/components/general/accountMenu";
+import { ADMIN_NAV_ITEMS } from "@/components/admin/navItems";
 
-const PAGE_TITLES: Record<string, string> = {
-  "/dashboard": "پنل مدیریت هم‌تیمی",
-  "/dashboard/browse": "مرور پست‌ها",
-  "/dashboard/create-post": "ایجاد پست جدید",
-  "/dashboard/my-posts": "پست‌های من",
-  "/dashboard/sessions": "جلسات هماهنگ‌شده",
-  "/dashboard/favorites": "علاقه‌مندی‌ها",
-  "/dashboard/messages": "پیام‌ها",
-  "/dashboard/notifications": "اعلان‌ها",
-  "/dashboard/profile": "پروفایل",
-  "/dashboard/settings": "تنظیمات",
-};
-
-export function DashboardTopbar({
-  unreadNotifications,
+export function AdminTopbar({
   mobileMenuOpen,
   onToggleMobileMenu,
 }: {
-  unreadNotifications: number;
   mobileMenuOpen?: boolean;
   onToggleMobileMenu?: () => void;
 }) {
@@ -33,38 +18,23 @@ export function DashboardTopbar({
   const router = useRouter();
   const [query, setQuery] = useState("");
 
-  const title =
-    PAGE_TITLES[pathname] ??
-    (pathname.startsWith("/dashboard/messages")
-      ? "پیام‌ها"
-      : pathname.startsWith("/dashboard/browse")
-        ? "مرور پست‌ها"
-        : "داشبورد");
+  const title = ADMIN_NAV_ITEMS.find((item) => item.href === pathname)?.label ?? "پیشخوان مدیریت دوتامیت";
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    router.push(query.trim() ? `/dashboard/browse?query=${encodeURIComponent(query.trim())}` : "/dashboard/browse");
+    if (query.trim()) router.push(`/admin/search?q=${encodeURIComponent(query.trim())}`);
   }
 
   return (
     <header className="flex h-[80px] w-full shrink-0 items-center justify-between border-b border-border bg-bg-alt px-6 py-5 md:px-10">
       <div className="flex items-center gap-4">
-        <div className="relative flex size-10 items-center justify-center rounded-full border-2 border-success">
+        <div className="rounded-full border-2 border-primary">
           <AccountMenu size={36} />
         </div>
 
-        <Link
-          href="/dashboard/notifications"
-          className="relative flex size-10 items-center justify-center rounded-[8px] border border-border bg-surface-alt hover:bg-white/5"
-          aria-label="اعلان‌ها"
-        >
+        <div className="flex size-10 items-center justify-center rounded-[8px] border border-border bg-surface-alt">
           <Bell size={18} className="text-text-dim" />
-          {unreadNotifications > 0 && (
-            <span className="absolute -left-1 -top-1 flex size-4 items-center justify-center rounded-full bg-danger text-[10px] font-bold text-white">
-              {unreadNotifications > 9 ? "۹+" : unreadNotifications}
-            </span>
-          )}
-        </Link>
+        </div>
 
         <form
           onSubmit={handleSearch}
@@ -72,8 +42,8 @@ export function DashboardTopbar({
         >
           <input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="جستجوی لابی، بازیکن یا شناسه..."
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="جستجو بر اساس نام، آیدی یا شناسه..."
             dir="auto"
             className="w-full bg-transparent text-[13px] text-text placeholder:text-text-dim/60 focus:outline-none"
           />

@@ -9,7 +9,7 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 
 import { Button } from "@/components/ui/button";
-import { HeroAvatar } from "@/components/general/heroAvatar";
+import { AccountMenu } from "@/components/general/accountMenu";
 import { useAuth } from "@/app/stores/useAuth";
 
 const NAV_ITEMS = [
@@ -25,11 +25,13 @@ export function Navbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const { user, status, fetchMe } = useAuth();
-  const isDashboard = pathname.startsWith("/dashboard");
+  const isDashboard = pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
 
   useEffect(() => {
-    if (status === "idle" && !isDashboard) fetchMe();
-  }, [status, fetchMe, isDashboard]);
+    // Fetches even on dashboard routes (where Navbar itself renders null)
+    // so the shared useAuth store is populated for AccountMenu there too.
+    if (status === "idle") fetchMe();
+  }, [status, fetchMe]);
 
   useEffect(() => {
     function closeOnDesktop() {
@@ -84,15 +86,12 @@ export function Navbar() {
 
         <div className="hidden items-center gap-4 lg:flex">
           {status === "authenticated" && user ? (
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-3 rounded-[8px] border border-border px-3 py-2 transition-colors hover:bg-white/5"
-            >
+            <div className="flex items-center gap-3 rounded-[8px] border border-border px-3 py-2">
               <span className="text-sm font-bold text-text" dir="auto">
                 {user.displayName}
               </span>
-              <HeroAvatar name={user.displayName} size={32} round />
-            </Link>
+              <AccountMenu size={32} />
+            </div>
           ) : (
             <>
               <Button asChild size="sm">

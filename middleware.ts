@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
 
-const PROTECTED_PREFIX = "/dashboard";
+const PROTECTED_PREFIXES = ["/dashboard", "/admin"];
 const GUEST_ONLY_PATHS = ["/login", "/signup"];
 
 export async function middleware(request: NextRequest) {
@@ -10,7 +10,7 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const session = token ? await verifySession(token) : null;
 
-  if (pathname.startsWith(PROTECTED_PREFIX) && !session) {
+  if (PROTECTED_PREFIXES.some((p) => pathname.startsWith(p)) && !session) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
@@ -24,5 +24,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/signup"],
+  matcher: ["/dashboard/:path*", "/admin/:path*", "/login", "/signup"],
 };
