@@ -65,7 +65,7 @@ export function DashboardTopbar({
         >
           <Bell size={18} className="text-text-dim" />
           {unreadNotifications > 0 && (
-            <span className="absolute -left-1 -top-1 flex size-4 items-center justify-center rounded-full bg-[#bf2e1a] text-[10px] font-bold text-white">
+            <span className="absolute -left-1 -top-1 flex size-4 items-center justify-center rounded-full bg-danger text-[10px] font-bold text-white">
               {unreadNotifications > 9 ? "۹+" : unreadNotifications}
             </span>
           )}

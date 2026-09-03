@@ -12,6 +12,7 @@
   --color-primary-hover: #5158e2;
   --color-accent: #8e7bff;
   --color-success: #22c55e;
+  --color-danger: #bf2e1a;
   --color-danger-soft: rgba(255, 87, 87, 0.1);
 }
 
@@ -27,6 +28,7 @@
   --color-primary-hover: var(--color-primary-hover);
   --color-accent: var(--color-accent);
   --color-success: var(--color-success);
+  --color-danger: var(--color-danger);
   --color-danger-soft: var(--color-danger-soft);
   --font-sans: var(--font-vazirmatn);
 }

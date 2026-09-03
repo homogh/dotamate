@@ -47,7 +47,7 @@ export function DashboardShell({
   }, [mobileOpen]);
 
   return (
-    <div className="flex w-full flex-col lg:flex-row-reverse">
+    <div className="flex w-full flex-col lg:flex-row">
       <DashboardSidebar user={user} unreadMessages={unreadMessages} unreadNotifications={unreadNotifications} />
 
       <div className="flex min-w-0 flex-1 flex-col">

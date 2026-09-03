@@ -85,7 +85,7 @@ export function DashboardSidebar({
               }`}
             >
               {!!item.badge && (
-                <span className="rounded-full bg-[#bf2e1a] px-2 py-0.5 text-[11px] font-bold text-white">
+                <span className="rounded-full bg-danger px-2 py-0.5 text-[11px] font-bold text-white">
                   {item.badge}
                 </span>
               )}
