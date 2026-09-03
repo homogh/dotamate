@@ -13,6 +13,8 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => null);
   const reportedUserId = Number(body?.reportedUserId) || null;
+  const reportedPostId = Number(body?.reportedPostId) || null;
+  const context = typeof body?.context === "string" ? body.context.slice(0, 100) : null;
   const reason = String(body?.reason ?? "").trim();
 
   if (!reason) {
@@ -20,7 +22,7 @@ export async function POST(request: NextRequest) {
   }
 
   await prisma.report.create({
-    data: { reporterId: session.id, reportedUserId, reason: reason.slice(0, 1000) },
+    data: { reporterId: session.id, reportedUserId, reportedPostId, context, reason: reason.slice(0, 1000) },
   });
 
   return NextResponse.json<ApiResponse>({ status: "success", message: "گزارش شما ثبت شد.", data: null });

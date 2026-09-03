@@ -94,7 +94,7 @@ export default function MessageThreadPage() {
     await fetch("/api/reports", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reportedUserId: thread.other.id, reason }),
+      body: JSON.stringify({ reportedUserId: thread.other.id, reason, context: "پیام مستقیم" }),
     });
     alert("گزارش شما ثبت شد.");
   }
