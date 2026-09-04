@@ -1,18 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Send, Copy, Check } from "lucide-react";
 
+import { useConfirm } from "@/app/stores/useConfirm";
+import { useToast } from "@/app/stores/useToast";
 import { Card } from "@/components/general/card";
-import { HeroAvatar } from "@/components/general/heroAvatar";
+import { UserAvatar } from "@/components/general/userAvatar";
 import { POSITION_LABEL, type PositionValue } from "@/components/dashboard/positionMeta";
 import { RANK_LABEL } from "@/components/dashboard/postLabels";
 
 interface Detail {
   id: number;
   isAuthor: boolean;
-  author: { id: number; displayName: string; rank: string; rankTier: number | null };
+  author: { id: number; displayName: string; avatarUrl: string | null; rank: string; rankTier: number | null };
   position: string;
   description: string;
   hasVoice: boolean;
@@ -21,8 +24,8 @@ interface Detail {
   status: string;
   createdAt: string;
   memberCount: number;
-  accepted: { memberId: number; userId: number; displayName: string; rank: string; rankTier: number | null; position: string | null }[];
-  pending: { memberId: number; userId: number; displayName: string; rank: string; rankTier: number | null }[];
+  accepted: { memberId: number; userId: number; displayName: string; avatarUrl: string | null; rank: string; rankTier: number | null; position: string | null }[];
+  pending: { memberId: number; userId: number; displayName: string; avatarUrl: string | null; rank: string; rankTier: number | null }[];
 }
 
 interface ChatMessage {
@@ -39,6 +42,8 @@ export default function PostDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const postId = params.id;
+  const confirmAction = useConfirm();
+  const toast = useToast();
 
   const [detail, setDetail] = useState<Detail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -105,9 +110,15 @@ export default function PostDetailPage() {
   }
 
   async function handleDelete() {
-    if (!confirm("مطمئنی می‌خوای این پست رو حذف کنی؟")) return;
-    await fetch(`/api/posts/${postId}`, { method: "DELETE" });
-    router.push("/dashboard/my-posts");
+    if (!(await confirmAction({ message: "مطمئنی می‌خوای این پست رو حذف کنی؟", danger: true, confirmLabel: "حذف" }))) return;
+    const res = await fetch(`/api/posts/${postId}`, { method: "DELETE" });
+    if (res.ok) {
+      toast.success("پست حذف شد.");
+      router.push("/dashboard/my-posts");
+    } else {
+      const json = await res.json().catch(() => null);
+      toast.error(json?.message ?? "حذف پست با خطا مواجه شد.");
+    }
   }
 
   function handleCopyLink() {
@@ -146,7 +157,7 @@ export default function PostDetailPage() {
               </span>
               <div className="size-2 rounded-full bg-success" />
             </div>
-            <div className="flex items-center gap-3">
+            <Link href={`/dashboard/profile/${detail.author.id}`} className="flex items-center gap-3">
               <div className="flex flex-col items-end gap-1">
                 <p className="text-[16px] font-black text-text" dir="auto">
                   {detail.author.displayName}
@@ -155,8 +166,8 @@ export default function PostDetailPage() {
                   میزبان لابی • {RANK_LABEL[detail.author.rank]} {detail.author.rankTier ?? ""}
                 </p>
               </div>
-              <HeroAvatar name={detail.author.displayName} size={48} round />
-            </div>
+              <UserAvatar name={detail.author.displayName} avatarUrl={detail.author.avatarUrl} size={48} round />
+            </Link>
           </div>
 
           <p className="w-full text-right text-[15px] leading-[1.6] text-text-dim" dir="auto">
@@ -185,14 +196,18 @@ export default function PostDetailPage() {
           <div className="flex w-full flex-col gap-2.5">
             <MemberRow
               badge="میزبان"
+              userId={detail.author.id}
               name={detail.author.displayName}
+              avatarUrl={detail.author.avatarUrl}
               rank={`${RANK_LABEL[detail.author.rank]} ${detail.author.rankTier ?? ""} • ${POSITION_LABEL[detail.position as PositionValue]}`}
             />
             {detail.accepted.map((m) => (
               <MemberRow
                 key={m.memberId}
                 badge="عضو پارتی"
+                userId={m.userId}
                 name={m.displayName}
+                avatarUrl={m.avatarUrl}
                 rank={`${RANK_LABEL[m.rank]} ${m.rankTier ?? ""}${m.position ? ` • ${POSITION_LABEL[m.position as PositionValue]}` : ""}`}
               />
             ))}
@@ -200,7 +215,9 @@ export default function PostDetailPage() {
               detail.pending.map((p) => (
                 <MemberRow
                   key={p.memberId}
+                  userId={p.userId}
                   name={p.displayName}
+                  avatarUrl={p.avatarUrl}
                   rank={`${RANK_LABEL[p.rank]} ${p.rankTier ?? ""}`}
                   actions={
                     <div className="flex gap-2">
@@ -344,12 +361,16 @@ export default function PostDetailPage() {
 
 function MemberRow({
   badge,
+  userId,
   name,
+  avatarUrl,
   rank,
   actions,
 }: {
   badge?: string;
+  userId: number;
   name: string;
+  avatarUrl?: string | null;
   rank: string;
   actions?: React.ReactNode;
 }) {
@@ -360,7 +381,7 @@ function MemberRow({
           {badge}
         </span>
       )}
-      <div className="flex items-center gap-3">
+      <Link href={`/dashboard/profile/${userId}`} className="flex items-center gap-3">
         <div className="flex flex-col items-end gap-0.5">
           <p className="text-[14px] font-bold text-text" dir="auto">
             {name}
@@ -369,8 +390,8 @@ function MemberRow({
             {rank}
           </p>
         </div>
-        <HeroAvatar name={name} size={32} round />
-      </div>
+        <UserAvatar name={name} avatarUrl={avatarUrl} size={32} round />
+      </Link>
     </div>
   );
 }

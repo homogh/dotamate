@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { GameMode, Prisma, Rank, Region } from "@prisma/client";
+import type { GameMode, Position, Prisma, Rank, Region } from "@prisma/client";
 
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
@@ -41,16 +41,13 @@ const GAME_MODE_LABEL: Record<string, string> = {
 
 const PAGE_SIZE = 6;
 
+// Public counterpart of /api/dashboard/browse — same real Post data, but
+// reachable without a session (guests browsing /search-lobby before signup).
+// A session, if present, still gets myRequestStatus so a logged-in visitor
+// who lands here instead of /dashboard/browse sees accurate button state.
 export async function GET(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const session = token ? await verifySession(token) : null;
-
-  if (!session) {
-    return NextResponse.json<ApiResponse>(
-      { status: "error", message: "وارد نشدی.", data: null },
-      { status: 401 },
-    );
-  }
 
   const searchParams = request.nextUrl.searchParams;
   const query = searchParams.get("query")?.trim() ?? "";
@@ -59,18 +56,17 @@ export async function GET(request: NextRequest) {
   const gameMode = searchParams.get("gameMode") ?? "";
   const region = searchParams.get("region") ?? "";
   const rank = searchParams.get("rank") ?? "";
-  const tab = searchParams.get("tab") ?? "lobbies";
+  const position = searchParams.get("position") ?? "";
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
 
   const where: Prisma.PostWhereInput = {
     status: "ACTIVE",
-    authorId: { not: session.id },
-    ...(tab === "requests" ? { members: { some: { userId: session.id } } } : {}),
     ...(onlyNow ? { sessionType: "NOW" as const } : {}),
     ...(hasVoice ? { hasVoice: true } : {}),
     ...(gameMode ? { gameMode: gameMode as GameMode } : {}),
     ...(region ? { region: region as Region } : {}),
     ...(rank ? { rank: rank as Rank } : {}),
+    ...(position ? { position: position as Position } : {}),
     ...(query
       ? {
           OR: [
@@ -110,11 +106,13 @@ export async function GET(request: NextRequest) {
       createdAt: post.createdAt,
       memberCount: post.members.filter((m) => m.status === "ACCEPTED").length + 1,
       partySize: post.partySize,
-      myRequestStatus: post.members.find((m) => m.userId === session.id)?.status ?? null,
+      isSelf: session ? post.authorId === session.id : false,
+      myRequestStatus: session ? (post.members.find((m) => m.userId === session.id)?.status ?? null) : null,
     })),
     page,
     pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)),
     total,
+    isLoggedIn: Boolean(session),
   };
 
   return NextResponse.json<ApiResponse>({ status: "success", message: "ok", data });

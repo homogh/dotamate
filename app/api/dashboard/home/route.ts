@@ -86,6 +86,7 @@ export async function GET(request: NextRequest) {
   const data = {
     user: {
       displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
       rank: user.rank,
       rankLabel: RANK_LABEL[user.rank],
       rankTier: user.rankTier,
@@ -111,7 +112,9 @@ export async function GET(request: NextRequest) {
     activePostCount,
     recommendedPosts: recommendedPosts.map((post) => ({
       id: post.id,
+      authorId: post.author.id,
       authorName: post.author.displayName,
+      authorAvatarUrl: post.author.avatarUrl,
       authorRank: RANK_LABEL[post.rank],
       authorRankTier: post.author.rankTier,
       position: POSITION_LABEL[post.position],
@@ -119,6 +122,7 @@ export async function GET(request: NextRequest) {
       memberCount: post.members.filter((m) => m.status === "ACCEPTED").length + 1,
       partySize: post.partySize,
       createdAt: post.createdAt,
+      myRequestStatus: post.members.find((m) => m.userId === userId)?.status ?? null,
     })),
     upcomingSessions: upcomingSessions.map((member) => ({
       id: member.post.id,

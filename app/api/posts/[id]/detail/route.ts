@@ -51,6 +51,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     author: {
       id: post.author.id,
       displayName: post.author.displayName,
+      avatarUrl: post.author.avatarUrl,
       rank: post.author.rank,
       rankTier: post.author.rankTier,
     },
@@ -71,6 +72,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       memberId: m.id,
       userId: m.user.id,
       displayName: m.user.displayName,
+      avatarUrl: m.user.avatarUrl,
       rank: m.user.rank,
       rankTier: m.user.rankTier,
       position: m.position,
@@ -80,6 +82,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           memberId: m.id,
           userId: m.user.id,
           displayName: m.user.displayName,
+          avatarUrl: m.user.avatarUrl,
           rank: m.user.rank,
           rankTier: m.user.rankTier,
         }))

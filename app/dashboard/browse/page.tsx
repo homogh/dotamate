@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { ChevronDown, X, Swords, Volume2, Search } from "lucide-react";
 
 import { Card } from "@/components/general/card";
-import { HeroAvatar } from "@/components/general/heroAvatar";
+import { UserAvatar } from "@/components/general/userAvatar";
 import { Switch } from "@/components/ui/switch";
 import { Pagination } from "@/components/general/pagination";
 import { DashboardFadeIn } from "@/components/dashboard/fadeIn";
@@ -42,7 +42,9 @@ const RANK_OPTIONS = [
 
 interface FeedPost {
   id: number;
+  authorId: number;
   authorName: string;
+  authorAvatarUrl: string | null;
   authorRank: string;
   authorRankTier: number | null;
   position: string;
@@ -304,7 +306,7 @@ export default function BrowseFeedPage() {
                   ) : (
                     <span className="text-[12px] text-text-dim">{timeLabel(post)}</span>
                   )}
-                  <div className="flex items-center gap-3">
+                  <Link href={`/dashboard/profile/${post.authorId}`} className="flex items-center gap-3">
                     <div className="flex flex-col items-end gap-0.5">
                       <p className="text-[14px] font-black text-text" dir="auto">
                         {post.authorName}
@@ -316,9 +318,9 @@ export default function BrowseFeedPage() {
                     <div
                       className={`rounded-full border-2 ${post.sessionType === "NOW" ? "border-danger" : "border-success"}`}
                     >
-                      <HeroAvatar name={post.authorName} size={36} round />
+                      <UserAvatar name={post.authorName} avatarUrl={post.authorAvatarUrl} size={36} round />
                     </div>
-                  </div>
+                  </Link>
                 </div>
 
                 <div className="flex w-full flex-col items-end gap-2.5">

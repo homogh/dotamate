@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Award, Clock, Users, Swords } from "lucide-react";
 
 import { Card } from "@/components/general/card";
-import { HeroAvatar } from "@/components/general/heroAvatar";
+import { UserAvatar } from "@/components/general/userAvatar";
 import { DashboardFadeIn } from "@/components/dashboard/fadeIn";
 import { POSITION_ICON } from "@/components/dashboard/positionMeta";
 
@@ -22,7 +22,9 @@ interface HomeData {
   activePostCount: number;
   recommendedPosts: {
     id: number;
+    authorId: number;
     authorName: string;
+    authorAvatarUrl: string | null;
     authorRank: string;
     authorRankTier: number | null;
     position: string;
@@ -30,6 +32,7 @@ interface HomeData {
     memberCount: number;
     partySize: number;
     createdAt: string;
+    myRequestStatus: "PENDING" | "ACCEPTED" | "DECLINED" | "REMOVED" | null;
   }[];
   upcomingSessions: { id: number; title: string; gameMode: string; startAt: string | null }[];
 }
@@ -54,15 +57,42 @@ function timeAgo(iso: string) {
 export default function DashboardHomePage() {
   const [data, setData] = useState<HomeData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [joiningId, setJoiningId] = useState<number | null>(null);
 
-  useEffect(() => {
-    fetch("/api/dashboard/home", { cache: "no-store" })
+  function load() {
+    return fetch("/api/dashboard/home", { cache: "no-store" })
       .then((res) => res.json())
       .then((json) => {
         if (json.status === "success") setData(json.data);
       })
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    load();
   }, []);
+
+  async function handleJoin(postId: number) {
+    setJoiningId(postId);
+    try {
+      const res = await fetch(`/api/posts/${postId}/join`, { method: "POST" });
+      const json = await res.json();
+      if (json.status === "success") {
+        setData((prev) =>
+          prev
+            ? {
+                ...prev,
+                recommendedPosts: prev.recommendedPosts.map((p) =>
+                  p.id === postId ? { ...p, myRequestStatus: "PENDING" } : p,
+                ),
+              }
+            : prev,
+        );
+      }
+    } finally {
+      setJoiningId(null);
+    }
+  }
 
   return (
     <div className="flex w-full flex-col gap-7 p-6 md:p-10">
@@ -212,7 +242,7 @@ export default function DashboardHomePage() {
                             <Clock size={12} className="text-text-dim" />
                             <p className="text-[12px] text-text-dim">{timeAgo(post.createdAt)}</p>
                           </div>
-                          <div className="flex items-center gap-2.5">
+                          <Link href={`/dashboard/profile/${post.authorId}`} className="flex items-center gap-2.5">
                             <div className="flex flex-col items-end gap-0.5">
                               <p className="text-[14px] font-bold text-text" dir="auto">
                                 {post.authorName}
@@ -221,8 +251,8 @@ export default function DashboardHomePage() {
                                 {post.authorRank} {post.authorRankTier ?? ""}
                               </p>
                             </div>
-                            <HeroAvatar name={post.authorName} size={36} round />
-                          </div>
+                            <UserAvatar name={post.authorName} avatarUrl={post.authorAvatarUrl} size={36} round />
+                          </Link>
                         </div>
 
                         <div className="flex w-full flex-col items-end gap-2">
@@ -240,16 +270,35 @@ export default function DashboardHomePage() {
                           </div>
                         </div>
 
-                        <Link
-                          href={`/dashboard/post/${post.id}`}
-                          className={`flex w-full items-center justify-center rounded-[8px] px-4 py-2.5 text-[13px] font-bold ${
-                            i === 0
-                              ? "bg-primary text-white hover:bg-primary-hover"
-                              : "border border-border bg-surface-alt text-text hover:bg-white/5"
-                          }`}
-                        >
-                          درخواست عضویت سریع
-                        </Link>
+                        <div className="flex w-full items-center gap-2">
+                          <button
+                            disabled={post.myRequestStatus !== null || joiningId === post.id}
+                            onClick={() => handleJoin(post.id)}
+                            className={`flex flex-1 items-center justify-center rounded-[8px] px-4 py-2.5 text-[13px] font-bold disabled:opacity-60 ${
+                              i === 0
+                                ? "bg-primary text-white hover:enabled:bg-primary-hover"
+                                : "border border-border bg-surface-alt text-text hover:enabled:bg-white/5"
+                            }`}
+                            dir="auto"
+                          >
+                            {post.myRequestStatus === "ACCEPTED"
+                              ? "عضو این لابی هستی"
+                              : post.myRequestStatus === "PENDING"
+                                ? "درخواست ارسال شد"
+                                : post.myRequestStatus === "DECLINED"
+                                  ? "درخواست رد شد"
+                                  : joiningId === post.id
+                                    ? "در حال ارسال..."
+                                    : "درخواست عضویت سریع"}
+                          </button>
+                          <Link
+                            href={`/dashboard/post/${post.id}`}
+                            className="flex shrink-0 items-center justify-center rounded-[8px] border border-border bg-surface-alt px-4 py-2.5 text-[13px] font-bold text-text hover:bg-white/5"
+                            dir="auto"
+                          >
+                            مشاهده
+                          </Link>
+                        </div>
                       </Card>
                     );
                   })}
