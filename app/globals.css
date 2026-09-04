@@ -102,3 +102,24 @@ body {
     opacity: 0.6;
   }
 }
+
+/* Every scrollable panel site-wide (dropdowns, modals, chat panes, the
+   sidebar nav, ...) scrolls without the browser's own visible scrollbar
+   track — targets Tailwind's own overflow utilities directly so this
+   applies everywhere that pattern is used, now and later, with no
+   per-component opt-in needed. The page's own root scroll is untouched
+   since body/html never carry these classes. */
+.overflow-y-auto,
+.overflow-auto,
+.overflow-y-scroll,
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.overflow-y-auto::-webkit-scrollbar,
+.overflow-auto::-webkit-scrollbar,
+.overflow-y-scroll::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
