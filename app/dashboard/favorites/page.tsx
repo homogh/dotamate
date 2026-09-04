@@ -4,14 +4,16 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 
+import { useToast } from "@/app/stores/useToast";
 import { Card } from "@/components/general/card";
-import { HeroAvatar } from "@/components/general/heroAvatar";
+import { UserAvatar } from "@/components/general/userAvatar";
 import { DashboardFadeIn } from "@/components/dashboard/fadeIn";
 
 interface FavoriteItem {
   favoriteId: number;
   userId: number;
   displayName: string;
+  avatarUrl: string | null;
   rank: string;
   rankTier: number | null;
   mainPosition: string | null;
@@ -34,6 +36,7 @@ function lastPlayedLabel(iso: string | null) {
 
 export default function FavoritesPage() {
   const router = useRouter();
+  const toast = useToast();
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [myActivePost, setMyActivePost] = useState<{ id: number; hasOpenSlot: boolean } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,7 +81,8 @@ export default function FavoritesPage() {
     });
     const json = await res.json();
     setBusyId(null);
-    alert(json.message);
+    if (json.status === "success") toast.success(json.message);
+    else toast.error(json.message);
   }
 
   const filtered = favorites.filter((f) => f.displayName.toLowerCase().includes(query.toLowerCase()));
@@ -137,7 +141,7 @@ export default function FavoritesPage() {
                     </p>
                   </div>
                   <div className={`rounded-full border-2 ${f.online ? "border-success" : "border-transparent"}`}>
-                    <HeroAvatar name={f.displayName} size={48} round />
+                    <UserAvatar name={f.displayName} avatarUrl={f.avatarUrl} size={48} round />
                   </div>
                 </div>
               </div>

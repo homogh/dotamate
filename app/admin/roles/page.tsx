@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { useConfirm } from "@/app/stores/useConfirm";
+import { useToast } from "@/app/stores/useToast";
 import { Card } from "@/components/general/card";
 
 interface AdminRole {
@@ -35,6 +37,8 @@ const LEVEL_STYLE: Record<string, string> = {
 const NEXT_LEVEL: Record<string, string> = { NONE: "VIEW", VIEW: "EDIT", EDIT: "NONE" };
 
 export default function AdminRolesPage() {
+  const confirmAction = useConfirm();
+  const toast = useToast();
   const [roles, setRoles] = useState<AdminRole[]>([]);
   const [resources, setResources] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,15 +102,17 @@ export default function AdminRolesPage() {
   }
 
   async function handleDeleteRole(role: AdminRole) {
-    if (!confirm(`مطمئنی می‌خوای نقش «${role.name}» رو حذف کنی؟`)) return;
+    if (!(await confirmAction({ message: `مطمئنی می‌خوای نقش «${role.name}» رو حذف کنی؟`, danger: true, confirmLabel: "حذف" })))
+      return;
     setBusy(true);
     const res = await fetch(`/api/admin/roles/${role.id}`, { method: "DELETE" });
     const json = await res.json().catch(() => null);
     setBusy(false);
     if (!res.ok) {
-      alert(json?.message ?? "حذف نقش با خطا مواجه شد.");
+      toast.error(json?.message ?? "حذف نقش با خطا مواجه شد.");
       return;
     }
+    toast.success(json?.message ?? "نقش حذف شد.");
     load();
   }
 

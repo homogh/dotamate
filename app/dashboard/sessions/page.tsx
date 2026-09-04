@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
+import { useConfirm } from "@/app/stores/useConfirm";
+import { useToast } from "@/app/stores/useToast";
 import { Card } from "@/components/general/card";
 import { Switch } from "@/components/ui/switch";
 import { DashboardFadeIn } from "@/components/dashboard/fadeIn";
@@ -29,6 +31,8 @@ function formatWhen(iso: string | null) {
 }
 
 export default function SessionsPage() {
+  const confirmAction = useConfirm();
+  const toast = useToast();
   const [hosted, setHosted] = useState<SessionItem[]>([]);
   const [joined, setJoined] = useState<SessionItem[]>([]);
   const [reminderEnabled, setReminderEnabled] = useState(true);
@@ -65,14 +69,16 @@ export default function SessionsPage() {
   }
 
   async function handleCancel(id: number) {
-    if (!confirm("مطمئنی می‌خوای این جلسه رو لغو کنی؟")) return;
+    if (!(await confirmAction({ message: "مطمئنی می‌خوای این جلسه رو لغو کنی؟", danger: true, confirmLabel: "لغو جلسه" }))) return;
     setBusyId(id);
-    await fetch(`/api/posts/${id}`, {
+    const res = await fetch(`/api/posts/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "CANCELLED" }),
     });
     setBusyId(null);
+    if (res.ok) toast.success("جلسه لغو شد.");
+    else toast.error("لغو جلسه با خطا مواجه شد.");
     load();
   }
 
@@ -88,10 +94,12 @@ export default function SessionsPage() {
   }
 
   async function handleLeave(id: number) {
-    if (!confirm("مطمئنی می‌خوای از این جلسه خارج بشی؟")) return;
+    if (!(await confirmAction({ message: "مطمئنی می‌خوای از این جلسه خارج بشی؟", danger: true, confirmLabel: "خروج" }))) return;
     setBusyId(id);
-    await fetch(`/api/posts/${id}/leave`, { method: "DELETE" });
+    const res = await fetch(`/api/posts/${id}/leave`, { method: "DELETE" });
     setBusyId(null);
+    if (res.ok) toast.success("از جلسه خارج شدی.");
+    else toast.error("خروج از جلسه با خطا مواجه شد.");
     load();
   }
 

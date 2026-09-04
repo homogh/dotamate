@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { PlusCircle } from "lucide-react";
 
+import { useConfirm } from "@/app/stores/useConfirm";
+import { useToast } from "@/app/stores/useToast";
 import { Card } from "@/components/general/card";
 import { DashboardFadeIn } from "@/components/dashboard/fadeIn";
 import { POSITION_LABEL } from "@/components/dashboard/positionMeta";
@@ -44,6 +46,8 @@ function timeAgo(iso: string) {
 }
 
 export default function MyPostsPage() {
+  const confirmAction = useConfirm();
+  const toast = useToast();
   const [tab, setTab] = useState<Tab>("active");
   const [posts, setPosts] = useState<MyPost[]>([]);
   const [counts, setCounts] = useState({ total: 0, active: 0, completed: 0, expired: 0 });
@@ -69,10 +73,13 @@ export default function MyPostsPage() {
   }, [load]);
 
   async function handleDelete(id: number) {
-    if (!confirm("مطمئنی می‌خوای این پست رو حذف کنی؟")) return;
+    if (!(await confirmAction({ message: "مطمئنی می‌خوای این پست رو حذف کنی؟", danger: true, confirmLabel: "حذف" }))) return;
     setBusyId(id);
-    await fetch(`/api/posts/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/posts/${id}`, { method: "DELETE" });
+    const json = await res.json().catch(() => null);
     setBusyId(null);
+    if (res.ok) toast.success(json?.message ?? "پست حذف شد.");
+    else toast.error(json?.message ?? "حذف پست با خطا مواجه شد.");
     load();
   }
 
@@ -94,9 +101,10 @@ export default function MyPostsPage() {
     const json = await res.json();
     setBusyId(null);
     if (json.status === "success") {
+      toast.success(json.message);
       setTab("active");
     } else {
-      alert(json.message);
+      toast.error(json.message);
     }
   }
 

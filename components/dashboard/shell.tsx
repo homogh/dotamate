@@ -4,12 +4,14 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { useNotifications } from "@/app/stores/useNotifications";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardTopbar } from "@/components/dashboard/topbar";
 
 interface ShellUser {
   displayName: string;
   rankLabel: string;
+  avatarUrl: string | null;
 }
 
 const MOBILE_NAV_ITEMS = [
@@ -38,6 +40,7 @@ export function DashboardShell({
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const setInitialCounts = useNotifications((s) => s.setInitialCounts);
 
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? "hidden" : "";
@@ -46,17 +49,21 @@ export function DashboardShell({
     };
   }, [mobileOpen]);
 
+  useEffect(() => {
+    // Seeds the store with the SSR-accurate value so the badge never flashes
+    // 0 before NotificationsProvider's own poll (mounted at the root layout)
+    // resolves.
+    setInitialCounts(unreadNotifications, unreadMessages);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="flex w-full flex-col lg:flex-row">
-      <DashboardSidebar user={user} unreadMessages={unreadMessages} unreadNotifications={unreadNotifications} />
+      <DashboardSidebar user={user} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="sticky top-0 z-20">
-          <DashboardTopbar
-            unreadNotifications={unreadNotifications}
-            mobileMenuOpen={mobileOpen}
-            onToggleMobileMenu={() => setMobileOpen((v) => !v)}
-          />
+          <DashboardTopbar mobileMenuOpen={mobileOpen} onToggleMobileMenu={() => setMobileOpen((v) => !v)} />
 
           {mobileOpen && (
             <div className="flex flex-col gap-1 border-b border-border bg-surface-alt px-4 py-4 lg:hidden">

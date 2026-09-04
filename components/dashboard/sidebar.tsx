@@ -15,11 +15,13 @@ import {
   Settings,
 } from "lucide-react";
 
-import { HeroAvatar } from "@/components/general/heroAvatar";
+import { useNotifications } from "@/app/stores/useNotifications";
+import { UserAvatar } from "@/components/general/userAvatar";
 
 interface SidebarUser {
   displayName: string;
   rankLabel: string;
+  avatarUrl: string | null;
 }
 
 interface NavItem {
@@ -44,16 +46,10 @@ function buildNavItems(unreadMessages: number, unreadNotifications: number): Nav
   ];
 }
 
-export function DashboardSidebar({
-  user,
-  unreadMessages,
-  unreadNotifications,
-}: {
-  user: SidebarUser;
-  unreadMessages: number;
-  unreadNotifications: number;
-}) {
+export function DashboardSidebar({ user }: { user: SidebarUser }) {
   const pathname = usePathname();
+  const unreadMessages = useNotifications((s) => s.unreadMessages);
+  const unreadNotifications = useNotifications((s) => s.unreadNotifications);
   const navItems = buildNavItems(unreadMessages, unreadNotifications);
 
   return (
@@ -109,7 +105,7 @@ export function DashboardSidebar({
               {user.rankLabel}
             </p>
           </div>
-          <HeroAvatar name={user.displayName} size={40} round />
+          <UserAvatar name={user.displayName} avatarUrl={user.avatarUrl} size={40} round />
         </Link>
       </div>
     </aside>

@@ -14,6 +14,16 @@ async function guardAccess(postId: number, userId: number) {
   return null;
 }
 
+async function otherPartyIds(postId: number, authorId: number, senderId: number) {
+  const accepted = await prisma.postMember.findMany({
+    where: { postId, status: "ACCEPTED" },
+    select: { userId: true },
+  });
+  const ids = new Set([authorId, ...accepted.map((m) => m.userId)]);
+  ids.delete(senderId);
+  return [...ids];
+}
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const session = token ? await verifySession(token) : null;
@@ -73,6 +83,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const message = await prisma.message.create({
     data: { postId, senderId: session.id, body: text.slice(0, 1000) },
   });
+
+  const recipients = await otherPartyIds(postId, post.authorId, session.id);
+  if (recipients.length > 0) {
+    await prisma.notification.createMany({
+      data: recipients.map((userId) => ({
+        userId,
+        type: "NEW_MESSAGE" as const,
+        title: `پیام جدید از ${session.displayName}`,
+        body: text.slice(0, 200),
+        link: `/dashboard/post/${postId}`,
+      })),
+    });
+  }
 
   return NextResponse.json<ApiResponse>({ status: "success", message: "ارسال شد.", data: { id: message.id } });
 }

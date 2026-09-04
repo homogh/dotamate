@@ -10,6 +10,7 @@ import { useGSAP } from "@gsap/react";
 
 import { Button } from "@/components/ui/button";
 import { AccountMenu } from "@/components/general/accountMenu";
+import { NotificationBell } from "@/components/general/notificationBell";
 import { useAuth } from "@/app/stores/useAuth";
 
 const NAV_ITEMS = [
@@ -86,12 +87,15 @@ export function Navbar() {
 
         <div className="hidden items-center gap-4 lg:flex">
           {status === "authenticated" && user ? (
-            <div className="flex items-center gap-3 rounded-[8px] border border-border px-3 py-2">
-              <span className="text-sm font-bold text-text" dir="auto">
-                {user.displayName}
-              </span>
-              <AccountMenu size={32} />
-            </div>
+            <>
+              <NotificationBell align="left" />
+              <div className="flex items-center gap-3 rounded-[8px] border border-border px-3 py-2">
+                <span className="text-sm font-bold text-text" dir="auto">
+                  {user.displayName}
+                </span>
+                <AccountMenu size={32} />
+              </div>
+            </>
           ) : (
             <>
               <Button asChild size="sm">

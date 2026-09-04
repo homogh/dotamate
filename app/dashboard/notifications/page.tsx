@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UserPlus, Clock, MessageSquare, CheckCircle, Shield, Bell } from "lucide-react";
 
+import { useNotifications } from "@/app/stores/useNotifications";
 import { DashboardFadeIn } from "@/components/dashboard/fadeIn";
 
 type NotifType = "POST_REQUEST" | "REQUEST_ACCEPTED" | "REQUEST_DECLINED" | "NEW_MESSAGE" | "SESSION_REMINDER" | "SYSTEM";
@@ -51,33 +52,23 @@ function matchesFilter(n: NotificationItem, filter: Filter) {
 
 export default function NotificationsPage() {
   const router = useRouter();
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [loading, setLoading] = useState(true);
-
-  const load = useCallback(() => {
-    fetch("/api/dashboard/notifications", { cache: "no-store" })
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.status === "success") setNotifications(json.data);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const notifications = useNotifications((s) => s.items) as NotificationItem[];
+  const loadItems = useNotifications((s) => s.loadItems);
+  const markAllRead = useNotifications((s) => s.markAllRead);
+  const markRead = useNotifications((s) => s.markRead);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    loadItems().finally(() => setLoading(false));
+  }, [loadItems]);
 
   async function handleMarkAllRead() {
-    await fetch("/api/dashboard/notifications", { method: "PATCH" });
-    load();
+    await markAllRead();
   }
 
   async function handleClick(n: NotificationItem) {
-    if (!n.read) {
-      await fetch(`/api/notifications/${n.id}`, { method: "PATCH" });
-      load();
-    }
+    if (!n.read) await markRead(n.id);
     if (n.link) router.push(n.link);
   }
 

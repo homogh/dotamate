@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { useConfirm } from "@/app/stores/useConfirm";
+import { useToast } from "@/app/stores/useToast";
 import { Card } from "@/components/general/card";
 import { GAME_MODE_OPTIONS } from "@/components/dashboard/postLabels";
 
@@ -25,6 +27,8 @@ const STATUS_OPTIONS = [
 ];
 
 export default function AdminSessionsPage() {
+  const confirmAction = useConfirm();
+  const toast = useToast();
   const [gameMode, setGameMode] = useState("");
   const [status, setStatus] = useState("");
   const [sessions, setSessions] = useState<AdminSession[]>([]);
@@ -52,10 +56,13 @@ export default function AdminSessionsPage() {
   }, [load]);
 
   async function handleCancel(id: number) {
-    if (!confirm("مطمئنی می‌خوای این جلسه رو لغو کنی؟")) return;
+    if (!(await confirmAction({ message: "مطمئنی می‌خوای این جلسه رو لغو کنی؟", danger: true, confirmLabel: "لغو جلسه" }))) return;
     setBusyId(id);
-    await fetch(`/api/admin/sessions/${id}`, { method: "PATCH" });
+    const res = await fetch(`/api/admin/sessions/${id}`, { method: "PATCH" });
+    const json = await res.json().catch(() => null);
     setBusyId(null);
+    if (res.ok) toast.success(json?.message ?? "جلسه لغو شد.");
+    else toast.error(json?.message ?? "لغو جلسه با خطا مواجه شد.");
     load();
   }
 

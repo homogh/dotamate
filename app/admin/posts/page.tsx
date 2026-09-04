@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useConfirm } from "@/app/stores/useConfirm";
+import { useToast } from "@/app/stores/useToast";
 import { Card } from "@/components/general/card";
 
 interface AdminPost {
@@ -33,6 +35,8 @@ function timeAgo(iso: string) {
 
 export default function AdminPostsPage() {
   const router = useRouter();
+  const confirmAction = useConfirm();
+  const toast = useToast();
   const [status, setStatus] = useState("");
   const [posts, setPosts] = useState<AdminPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,10 +58,14 @@ export default function AdminPostsPage() {
   }, [load]);
 
   async function handleForceDelete(id: number) {
-    if (!confirm("مطمئنی می‌خوای این پست رو به‌صورت اجباری حذف کنی؟")) return;
+    if (!(await confirmAction({ message: "مطمئنی می‌خوای این پست رو به‌صورت اجباری حذف کنی؟", danger: true, confirmLabel: "حذف" })))
+      return;
     setBusyId(id);
-    await fetch(`/api/admin/posts/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/admin/posts/${id}`, { method: "DELETE" });
+    const json = await res.json().catch(() => null);
     setBusyId(null);
+    if (res.ok) toast.success(json?.message ?? "پست حذف شد.");
+    else toast.error(json?.message ?? "حذف پست با خطا مواجه شد.");
     load();
   }
 

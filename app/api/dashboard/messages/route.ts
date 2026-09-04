@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
         conversationId: p.conversation.id,
         userId: other.id,
         displayName: other.displayName,
+        avatarUrl: other.avatarUrl,
         rank: other.rank,
         rankTier: other.rankTier,
         lastMessage: lastMessage?.body ?? "هنوز پیامی رد و بدل نشده",

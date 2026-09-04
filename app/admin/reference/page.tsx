@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { useConfirm } from "@/app/stores/useConfirm";
+import { useToast } from "@/app/stores/useToast";
 import { Card } from "@/components/general/card";
 
 interface RefEntry {
@@ -21,6 +23,8 @@ const SECTIONS = [
 ];
 
 export default function AdminReferencePage() {
+  const confirmAction = useConfirm();
+  const toast = useToast();
   const [data, setData] = useState<Record<string, RefEntry[]>>({});
   const [loading, setLoading] = useState(true);
 
@@ -61,8 +65,11 @@ export default function AdminReferencePage() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm("مطمئنی می‌خوای این مورد رو حذف کنی؟")) return;
-    await fetch(`/api/admin/reference/${id}`, { method: "DELETE" });
+    if (!(await confirmAction({ message: "مطمئنی می‌خوای این مورد رو حذف کنی؟", danger: true, confirmLabel: "حذف" }))) return;
+    const res = await fetch(`/api/admin/reference/${id}`, { method: "DELETE" });
+    const json = await res.json().catch(() => null);
+    if (res.ok) toast.success(json?.message ?? "حذف شد.");
+    else toast.error(json?.message ?? "حذف با خطا مواجه شد.");
     load();
   }
 

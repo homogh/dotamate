@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { useConfirm } from "@/app/stores/useConfirm";
+import { useToast } from "@/app/stores/useToast";
 import { Card } from "@/components/general/card";
 
 interface AdminBlogPost {
@@ -26,6 +28,8 @@ const STATUS_STYLE: Record<string, string> = {
 const STATUS_LABEL: Record<string, string> = { PUBLISHED: "منتشرشده", DRAFT: "پیش‌نویس", SCHEDULED: "زمان‌بندی‌شده" };
 
 export default function AdminBlogPage() {
+  const confirmAction = useConfirm();
+  const toast = useToast();
   const [posts, setPosts] = useState<AdminBlogPost[]>([]);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [loading, setLoading] = useState(true);
@@ -75,8 +79,11 @@ export default function AdminBlogPage() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm("مطمئنی می‌خوای این مقاله رو حذف کنی؟")) return;
-    await fetch(`/api/admin/blog/${id}`, { method: "DELETE" });
+    if (!(await confirmAction({ message: "مطمئنی می‌خوای این مقاله رو حذف کنی؟", danger: true, confirmLabel: "حذف" }))) return;
+    const res = await fetch(`/api/admin/blog/${id}`, { method: "DELETE" });
+    const json = await res.json().catch(() => null);
+    if (res.ok) toast.success(json?.message ?? "مقاله حذف شد.");
+    else toast.error(json?.message ?? "حذف مقاله با خطا مواجه شد.");
     load();
   }
 

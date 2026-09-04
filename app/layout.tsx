@@ -5,7 +5,11 @@ import "./globals.css";
 import { Navbar } from "@/components/header/navbar";
 import { Footer } from "@/components/footer/footer";
 import { AmbientCorners } from "@/components/general/ambientCorners";
+import { CursorGlow } from "@/components/general/cursorGlow";
 import { SiteBanner } from "@/components/general/siteBanner";
+import { NotificationsProvider } from "@/components/general/notificationsProvider";
+import { ToastContainer } from "@/components/general/toastContainer";
+import { ConfirmModalHost } from "@/components/general/confirmModalHost";
 
 const vazirmatn = Vazirmatn({
   variable: "--font-vazirmatn",
@@ -24,6 +28,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="fa" dir="rtl" className={`${vazirmatn.variable} antialiased`}>
       <body className="flex min-h-screen flex-col bg-bg">
         <AmbientCorners />
+        <CursorGlow />
+        <NotificationsProvider />
+        <ToastContainer />
+        <ConfirmModalHost />
         <SiteBanner />
         <Navbar />
         <main className="flex flex-1 flex-col items-center">{children}</main>

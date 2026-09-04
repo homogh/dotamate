@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
@@ -25,11 +26,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json<ApiResponse>({ status: "error", message: "دسترسی نداری.", data: null }, { status: 403 });
   }
 
-  const messages = await prisma.message.findMany({
-    where: { conversationId },
-    orderBy: { createdAt: "asc" },
-    take: 300,
-  });
+  const [messages, otherParticipant] = await Promise.all([
+    prisma.message.findMany({
+      where: { conversationId },
+      orderBy: { createdAt: "asc" },
+      take: 300,
+    }),
+    prisma.conversationParticipant.findFirst({
+      where: { conversationId, userId: { not: session.id } },
+      select: { lastReadAt: true },
+    }),
+  ]);
 
   await prisma.conversationParticipant.update({
     where: { id: participant.id },
@@ -39,7 +46,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   return NextResponse.json<ApiResponse>({
     status: "success",
     message: "ok",
-    data: messages.map((m) => ({ id: m.id, body: m.body, createdAt: m.createdAt, senderId: m.senderId })),
+    data: {
+      messages: messages.map((m) => ({ id: m.id, body: m.body, createdAt: m.createdAt, senderId: m.senderId })),
+      otherLastReadAt: otherParticipant?.lastReadAt ?? null,
+    },
   });
 }
 
@@ -83,10 +93,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json<ApiResponse>({ status: "error", message: "پیام خالیه.", data: null }, { status: 400 });
   }
 
-  const [message] = await prisma.$transaction([
+  const ops: Prisma.PrismaPromise<unknown>[] = [
     prisma.message.create({ data: { conversationId, senderId: session.id, body: text.slice(0, 1000) } }),
     prisma.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } }),
-  ]);
+  ];
+  if (other) {
+    ops.push(
+      prisma.notification.create({
+        data: {
+          userId: other.userId,
+          type: "NEW_MESSAGE",
+          title: `پیام جدید از ${session.displayName}`,
+          body: text.slice(0, 200),
+          link: `/dashboard/messages/${conversationId}`,
+        },
+      }),
+    );
+  }
+  const [message] = await prisma.$transaction(ops);
 
-  return NextResponse.json<ApiResponse>({ status: "success", message: "ارسال شد.", data: { id: message.id } });
+  return NextResponse.json<ApiResponse>({ status: "success", message: "ارسال شد.", data: { id: (message as { id: number }).id } });
 }

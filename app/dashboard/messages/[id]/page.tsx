@@ -2,14 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Send } from "lucide-react";
+import { Check, CheckCheck, Send } from "lucide-react";
 
-import { HeroAvatar } from "@/components/general/heroAvatar";
+import { useConfirm } from "@/app/stores/useConfirm";
+import { useNotifications } from "@/app/stores/useNotifications";
+import { useToast } from "@/app/stores/useToast";
+import { UserAvatar } from "@/components/general/userAvatar";
 import { RANK_LABEL } from "@/components/dashboard/postLabels";
 
 interface ThreadInfo {
   id: number;
-  other: { id: number; displayName: string; rank: string; rankTier: number | null };
+  other: { id: number; displayName: string; avatarUrl: string | null; rank: string; rankTier: number | null };
   blocked: boolean;
   blockedByMe: boolean;
 }
@@ -28,10 +31,14 @@ export default function MessageThreadPage() {
 
   const [thread, setThread] = useState<ThreadInfo | null>(null);
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
+  const [otherLastReadAt, setOtherLastReadAt] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const pollSummary = useNotifications((s) => s.pollSummary);
+  const confirmAction = useConfirm();
+  const toast = useToast();
 
   const loadThread = useCallback(() => {
     fetch(`/api/conversations/${conversationId}`, { cache: "no-store" })
@@ -46,10 +53,13 @@ export default function MessageThreadPage() {
   }, [conversationId]);
 
   const loadMessages = useCallback(() => {
-    fetch(`/api/conversations/${conversationId}/messages`, { cache: "no-store" })
+    return fetch(`/api/conversations/${conversationId}/messages`, { cache: "no-store" })
       .then((res) => res.json())
       .then((json) => {
-        if (json.status === "success") setMessages(json.data);
+        if (json.status === "success") {
+          setMessages(json.data.messages);
+          setOtherLastReadAt(json.data.otherLastReadAt);
+        }
       });
   }, [conversationId]);
 
@@ -59,9 +69,10 @@ export default function MessageThreadPage() {
 
   useEffect(() => {
     if (forbidden) return;
-    loadMessages();
+    loadMessages().then(pollSummary);
     const interval = setInterval(loadMessages, 4000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadMessages, forbidden]);
 
   useEffect(() => {
@@ -82,8 +93,16 @@ export default function MessageThreadPage() {
 
   async function handleBlock() {
     if (!thread) return;
-    if (!confirm(`مطمئنی می‌خوای ${thread.other.displayName} رو مسدود کنی؟`)) return;
+    if (thread.blockedByMe) {
+      await fetch(`/api/users/${thread.other.id}/block`, { method: "DELETE" });
+      toast.success("رفع مسدودیت شد.");
+      loadThread();
+      return;
+    }
+    if (!(await confirmAction({ message: `مطمئنی می‌خوای ${thread.other.displayName} رو مسدود کنی؟`, danger: true, confirmLabel: "مسدود کن" })))
+      return;
     await fetch(`/api/users/${thread.other.id}/block`, { method: "POST" });
+    toast.success(`${thread.other.displayName} مسدود شد.`);
     loadThread();
   }
 
@@ -96,7 +115,7 @@ export default function MessageThreadPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reportedUserId: thread.other.id, reason, context: "پیام مستقیم" }),
     });
-    alert("گزارش شما ثبت شد.");
+    toast.success("گزارش شما ثبت شد.");
   }
 
   if (loading) {
@@ -147,7 +166,7 @@ export default function MessageThreadPage() {
             </div>
           </div>
           <button onClick={() => router.push(`/dashboard/profile/${thread.other.id}`)}>
-            <HeroAvatar name={thread.other.displayName} size={44} round />
+            <UserAvatar name={thread.other.displayName} avatarUrl={thread.other.avatarUrl} size={44} round />
           </button>
         </div>
       </header>
@@ -160,6 +179,7 @@ export default function MessageThreadPage() {
         ) : (
           messages.map((m) => {
             const mine = m.senderId !== thread.other.id;
+            const seen = mine && otherLastReadAt && new Date(m.createdAt) <= new Date(otherLastReadAt);
             return (
               <div key={m.id} className={`flex w-full ${mine ? "justify-start" : "justify-end"}`}>
                 <div
@@ -170,9 +190,12 @@ export default function MessageThreadPage() {
                   <p className="w-full text-right text-[14px] leading-[1.6] text-text" dir="auto">
                     {m.body}
                   </p>
-                  <p className="text-[10px] text-text-dim">
-                    {new Date(m.createdAt).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}
-                  </p>
+                  <div className="flex items-center gap-1">
+                    {mine && (seen ? <CheckCheck size={13} className="text-accent" /> : <Check size={13} className="text-text-dim" />)}
+                    <p className="text-[10px] text-text-dim">
+                      {new Date(m.createdAt).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
                 </div>
               </div>
             );

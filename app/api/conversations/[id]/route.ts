@@ -41,7 +41,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     message: "ok",
     data: {
       id: conversation.id,
-      other: { id: other.id, displayName: other.displayName, rank: other.rank, rankTier: other.rankTier },
+      other: { id: other.id, displayName: other.displayName, avatarUrl: other.avatarUrl, rank: other.rank, rankTier: other.rankTier },
       blocked: Boolean(isBlocked),
       blockedByMe: isBlocked?.blockerId === session.id,
     },

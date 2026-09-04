@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Menu, Search, X } from "lucide-react";
+import { Menu, Search, X } from "lucide-react";
 
 import { AccountMenu } from "@/components/general/accountMenu";
+import { NotificationBell } from "@/components/general/notificationBell";
 
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "پنل مدیریت هم‌تیمی",
@@ -21,11 +21,9 @@ const PAGE_TITLES: Record<string, string> = {
 };
 
 export function DashboardTopbar({
-  unreadNotifications,
   mobileMenuOpen,
   onToggleMobileMenu,
 }: {
-  unreadNotifications: number;
   mobileMenuOpen?: boolean;
   onToggleMobileMenu?: () => void;
 }) {
@@ -53,18 +51,7 @@ export function DashboardTopbar({
           <AccountMenu size={36} />
         </div>
 
-        <Link
-          href="/dashboard/notifications"
-          className="relative flex size-10 items-center justify-center rounded-[8px] border border-border bg-surface-alt hover:bg-white/5"
-          aria-label="اعلان‌ها"
-        >
-          <Bell size={18} className="text-text-dim" />
-          {unreadNotifications > 0 && (
-            <span className="absolute -left-1 -top-1 flex size-4 items-center justify-center rounded-full bg-danger text-[10px] font-bold text-white">
-              {unreadNotifications > 9 ? "۹+" : unreadNotifications}
-            </span>
-          )}
-        </Link>
+        <NotificationBell />
 
         <form
           onSubmit={handleSearch}

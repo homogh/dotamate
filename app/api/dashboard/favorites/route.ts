@@ -72,6 +72,7 @@ export async function GET(request: NextRequest) {
         favoriteId: fav.id,
         userId: target.id,
         displayName: target.displayName,
+        avatarUrl: target.avatarUrl,
         rank: RANK_LABEL[target.rank],
         rankTier: target.rankTier,
         mainPosition: target.mainPosition ? POSITION_LABEL[target.mainPosition] : null,

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 
 import { Card } from "@/components/general/card";
-import { HeroAvatar } from "@/components/general/heroAvatar";
+import { UserAvatar } from "@/components/general/userAvatar";
 import { DashboardFadeIn } from "@/components/dashboard/fadeIn";
 import { RANK_LABEL } from "@/components/dashboard/postLabels";
 
@@ -13,6 +13,7 @@ interface ConversationItem {
   conversationId: number;
   userId: number;
   displayName: string;
+  avatarUrl: string | null;
   rank: string;
   rankTier: number | null;
   lastMessage: string;
@@ -107,7 +108,7 @@ export default function MessagesInboxPage() {
                 </p>
               </div>
 
-              <HeroAvatar name={c.displayName} size={44} round />
+              <UserAvatar name={c.displayName} avatarUrl={c.avatarUrl} size={44} round />
             </button>
           ))}
         </DashboardFadeIn>

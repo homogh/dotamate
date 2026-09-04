@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, Check } from "lucide-react";
 
 import { Card } from "@/components/general/card";
-import { HeroAvatar } from "@/components/general/heroAvatar";
+import { UserAvatar } from "@/components/general/userAvatar";
 import { Switch } from "@/components/ui/switch";
 import { POSITIONS, POSITION_ICON, POSITION_LABEL, POSITION_LABEL_FA, type PositionValue } from "@/components/dashboard/positionMeta";
 import { RANK_OPTIONS, REGION_OPTIONS, GAME_MODE_OPTIONS, RANK_LABEL, REGION_LABEL } from "@/components/dashboard/postLabels";
@@ -17,6 +17,7 @@ export default function CreatePostPage() {
   const [checkingActive, setCheckingActive] = useState(true);
   const [hasActivePost, setHasActivePost] = useState(false);
   const [displayName, setDisplayName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const [step, setStep] = useState(1);
   const [position, setPosition] = useState<PositionValue | null>(null);
@@ -39,6 +40,7 @@ export default function CreatePostPage() {
         if (json.status === "success") {
           setHasActivePost(json.data.activePostCount > 0);
           setDisplayName(json.data.user.displayName);
+          setAvatarUrl(json.data.user.avatarUrl);
         }
       })
       .finally(() => setCheckingActive(false));
@@ -169,7 +171,7 @@ export default function CreatePostPage() {
                     </p>
                   </div>
                   <div className="rounded-full border-[1.5px] border-success">
-                    <HeroAvatar name={displayName || "شما"} size={36} round />
+                    <UserAvatar name={displayName || "شما"} avatarUrl={avatarUrl} size={36} round />
                   </div>
                 </div>
               </div>
