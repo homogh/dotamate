@@ -5,13 +5,15 @@ import { useParams, useRouter } from "next/navigation";
 import { BadgeCheck } from "lucide-react";
 
 import { Card } from "@/components/general/card";
-import { HeroAvatar } from "@/components/general/heroAvatar";
+import { UserAvatar } from "@/components/general/userAvatar";
 import { RANK_LABEL, REGION_LABEL, GAME_MODE_LABEL } from "@/components/dashboard/postLabels";
 import { POSITION_LABEL, type PositionValue } from "@/components/dashboard/positionMeta";
 
 interface ProfileData {
   id: number;
   displayName: string;
+  avatarUrl: string | null;
+  steamProfileUrl: string | null;
   bio: string | null;
   country: string | null;
   languages: string[];
@@ -23,6 +25,22 @@ interface ProfileData {
   isFavorited: boolean;
   stats: { teammatesFound: number; activePosts: number; totalPosts: number };
   recentPosts: { id: number; position: string; region: string; gameMode: string; status: string; createdAt: string }[];
+  dotaStats: {
+    wins: number;
+    losses: number;
+    winRate: number;
+    lastSyncedAt: string | null;
+    matches: {
+      matchId: number;
+      heroName: string;
+      win: boolean;
+      duration: number;
+      startAt: string;
+      kills: number;
+      deaths: number;
+      assists: number;
+    }[];
+  } | null;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -139,20 +157,74 @@ export default function PublicProfilePage() {
           <p className="w-full text-right text-[14px] leading-[1.7] text-text-dim" dir="auto">
             {profile.bio || "این بازیکن هنوز بایو ننوشته."}
           </p>
+          {profile.steamProfileUrl && (
+            <a
+              href={profile.steamProfileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[12px] text-text-dim underline"
+              dir="ltr"
+            >
+              پروفایل استیم
+            </a>
+          )}
         </div>
 
         <div className="rounded-full border-2 border-primary">
-          <HeroAvatar name={profile.displayName} size={80} round />
+          <UserAvatar name={profile.displayName} avatarUrl={profile.avatarUrl} size={80} round />
         </div>
       </Card>
 
       <div className="flex w-full flex-col gap-6 lg:flex-row">
         <div className="flex flex-1 flex-col gap-6">
-          <div className="grid w-full grid-cols-3 gap-4">
+          <div className={`grid w-full gap-4 ${profile.dotaStats ? "grid-cols-4" : "grid-cols-3"}`}>
             <StatTile value={profile.stats.teammatesFound} label="هم‌تیمی یافته" />
             <StatTile value={profile.stats.activePosts} label="پست فعال" />
             <StatTile value={profile.stats.totalPosts} label="کل پست‌ها" />
+            {profile.dotaStats && <StatTile value={profile.dotaStats.winRate} label="درصد وین" suffix="%" />}
           </div>
+
+          {profile.dotaStats && (
+            <Card tone="surface" noHover className="w-full gap-4 p-6">
+              <div className="flex w-full items-center justify-between">
+                <span className="text-[12px] text-text-dim" dir="auto">
+                  {profile.dotaStats.wins.toLocaleString("fa-IR")} برد / {profile.dotaStats.losses.toLocaleString("fa-IR")} باخت
+                </span>
+                <p className="text-[16px] font-black text-text" dir="auto">
+                  ۱۰ مچ اخیر
+                </p>
+              </div>
+              {profile.dotaStats.matches.length === 0 ? (
+                <p className="w-full py-4 text-center text-[13px] text-text-dim" dir="auto">
+                  مچی برای نمایش پیدا نشد.
+                </p>
+              ) : (
+                <div className="flex w-full flex-col gap-2">
+                  {profile.dotaStats.matches.map((m) => (
+                    <div key={m.matchId} className="flex w-full items-center justify-between rounded-[8px] bg-surface-alt p-3">
+                      <span className="text-[12px] text-text-dim">
+                        {Math.floor(m.duration / 60)}:{String(m.duration % 60).padStart(2, "0")}
+                      </span>
+                      <div className="flex items-center gap-3 text-[13px]">
+                        <span className="text-text-dim" dir="ltr">
+                          {m.kills}/{m.deaths}/{m.assists}
+                        </span>
+                        <span className="font-bold text-text" dir="auto">
+                          {m.heroName}
+                        </span>
+                        <span
+                          className={`rounded-[4px] px-2 py-0.5 text-[11px] font-bold ${m.win ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}
+                          dir="auto"
+                        >
+                          {m.win ? "برد" : "باخت"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
 
           <Card tone="surface" noHover className="w-full gap-4 p-6">
             <p className="w-full text-right text-[16px] font-black text-text" dir="auto">
@@ -202,10 +274,13 @@ export default function PublicProfilePage() {
   );
 }
 
-function StatTile({ value, label }: { value: number; label: string }) {
+function StatTile({ value, label, suffix }: { value: number; label: string; suffix?: string }) {
   return (
     <div className="flex flex-col items-center gap-2 rounded-[12px] border border-border bg-surface-alt p-5">
-      <p className="text-[28px] font-black text-accent">{value.toLocaleString("fa-IR")}</p>
+      <p className="text-[28px] font-black text-accent">
+        {value.toLocaleString("fa-IR")}
+        {suffix}
+      </p>
       <p className="text-[13px] text-text-dim" dir="auto">
         {label}
       </p>

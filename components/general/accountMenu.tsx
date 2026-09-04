@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { LayoutGrid, ShieldCheck, LogOut, User } from "lucide-react";
 
 import { useAuth } from "@/app/stores/useAuth";
-import { HeroAvatar } from "@/components/general/heroAvatar";
+import { UserAvatar } from "@/components/general/userAvatar";
 
 export function AccountMenu({ size = 36 }: { size?: number }) {
   const { user, role, fetchRole, logout } = useAuth();
@@ -43,7 +43,7 @@ export function AccountMenu({ size = 36 }: { size?: number }) {
         className="flex items-center justify-center rounded-full transition-opacity hover:opacity-80"
         aria-label="منوی حساب کاربری"
       >
-        <HeroAvatar name={user.displayName} size={size} round />
+        <UserAvatar name={user.displayName} avatarUrl={user.avatarUrl} size={size} round />
       </button>
 
       {open && (

@@ -11,12 +11,14 @@ import type { AdminResource } from "@/app/lib/permissions";
 
 export function AdminShell({
   displayName,
+  avatarUrl,
   roleName,
   isFullAccess,
   permissions,
   children,
 }: {
   displayName: string;
+  avatarUrl: string | null;
   roleName: string;
   isFullAccess: boolean;
   permissions: Record<AdminResource, string>;
@@ -38,7 +40,7 @@ export function AdminShell({
 
   return (
     <div className="flex w-full flex-col lg:flex-row">
-      <AdminSidebar displayName={displayName} roleName={roleName} isFullAccess={isFullAccess} permissions={permissions} />
+      <AdminSidebar displayName={displayName} avatarUrl={avatarUrl} roleName={roleName} isFullAccess={isFullAccess} permissions={permissions} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="sticky top-0 z-20">

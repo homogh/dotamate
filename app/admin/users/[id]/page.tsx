@@ -5,13 +5,14 @@ import { useParams, useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
 import { Card } from "@/components/general/card";
-import { HeroAvatar } from "@/components/general/heroAvatar";
+import { UserAvatar } from "@/components/general/userAvatar";
 import { RANK_LABEL } from "@/components/dashboard/postLabels";
 import { POSITION_LABEL, type PositionValue } from "@/components/dashboard/positionMeta";
 
 interface UserDetail {
   id: number;
   displayName: string;
+  avatarUrl: string | null;
   email: string | null;
   country: string | null;
   languages: string | null;
@@ -27,6 +28,10 @@ interface UserDetail {
   roleId: number | null;
   roleName: string | null;
   roles: { id: number; name: string }[];
+  steamId: string | null;
+  matchDataVerified: boolean;
+  matchGateOverride: boolean;
+  profileCompletedAt: string | null;
   posts: { id: number; description: string; status: string; gameMode: string; createdAt: string }[];
   reports: { id: number; reason: string; status: string; severity: string; reporterName: string; createdAt: string }[];
   auditLogs: { id: number; action: string; detail: string | null; actorName: string; createdAt: string }[];
@@ -41,6 +46,7 @@ const ACTION_LABEL: Record<string, string> = {
   VERIFY_USER: "تایید رنک",
   UNVERIFY_USER: "لغو تایید رنک",
   ASSIGN_ROLE: "تغییر نقش کاربری",
+  OVERRIDE_MATCH_GATE: "تغییر استثنای تایید مچ استیم",
 };
 
 type Tab = "posts" | "sessions" | "reports" | "history";
@@ -124,6 +130,42 @@ export default function AdminUserDetailPage() {
                 </option>
               ))}
             </select>
+          </Card>
+
+          <Card tone="surface" noHover className="w-full gap-4 p-6">
+            <p className="w-full text-right text-[16px] font-black text-text" dir="auto">
+              گیت تایید استیم
+            </p>
+            <div className="flex w-full items-center justify-between">
+              <span
+                className={`rounded-[4px] px-2.5 py-1 text-[11px] font-bold ${
+                  user.matchDataVerified || user.matchGateOverride ? "bg-success/10 text-success" : "bg-danger/10 text-danger"
+                }`}
+                dir="auto"
+              >
+                {user.matchDataVerified ? "مچ‌ها تایید شده" : user.matchGateOverride ? "استثنای دستی فعاله" : "تایید نشده"}
+              </span>
+              <p className="text-[13px] text-text-dim" dir="auto">
+                {user.steamId ? "استیم وصل شده" : "استیم وصل نیست"}
+              </p>
+            </div>
+            <div className="flex w-full items-center justify-between">
+              <button
+                disabled={busy}
+                onClick={() => act("toggleMatchGateOverride")}
+                className={`relative h-5 w-9 rounded-full transition-colors ${
+                  user.matchGateOverride ? "bg-primary" : "border border-border bg-surface-alt"
+                }`}
+              >
+                <span
+                  className="absolute top-0.5 size-4 rounded-full bg-white transition-[right] duration-200"
+                  style={{ right: user.matchGateOverride ? 18 : 2 }}
+                />
+              </button>
+              <p className="text-[13px] text-text" dir="auto">
+                استثنای دستی (عبور بدون تایید مچ)
+              </p>
+            </div>
           </Card>
 
           <Card tone="surface" noHover className="w-full gap-4 p-6">
@@ -257,7 +299,7 @@ export default function AdminUserDetailPage() {
                   </span>
                 </div>
               </div>
-              <HeroAvatar name={user.displayName} size={80} round />
+              <UserAvatar name={user.displayName} avatarUrl={user.avatarUrl} size={80} round />
             </div>
           </Card>
 

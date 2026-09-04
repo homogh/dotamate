@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
       mainPosition: true,
       rankVerification: true,
       steamProfileUrl: true,
+      avatarUrl: true,
       notifyBell: true,
       notifyEmail: true,
       notifyPush: true,

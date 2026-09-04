@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
 import { Card } from "@/components/general/card";
-import { HeroAvatar } from "@/components/general/heroAvatar";
+import { UserAvatar } from "@/components/general/userAvatar";
 import { Switch } from "@/components/ui/switch";
 import { RANK_OPTIONS } from "@/components/dashboard/postLabels";
 import { POSITIONS, POSITION_LABEL, type PositionValue } from "@/components/dashboard/positionMeta";
@@ -27,6 +27,7 @@ interface SettingsData {
   rank: string;
   rankTier: number | null;
   steamProfileUrl: string | null;
+  avatarUrl: string | null;
   notifyBell: boolean;
   notifyEmail: boolean;
   notifyPush: boolean;
@@ -86,7 +87,7 @@ export default function SettingsPage() {
 
       {tab === "account" && <AccountTab data={data} onSave={save} saving={saving} saved={saved} />}
       {tab === "notifications" && <NotificationsTab data={data} onSave={save} />}
-      {tab === "steam" && <SteamTab data={data} onSave={save} />}
+      {tab === "steam" && <SteamTab />}
       {tab === "privacy" && <PrivacyTab />}
     </div>
   );
@@ -117,13 +118,13 @@ function AccountTab({
       <div className="flex w-full items-center justify-end gap-4">
         <div className="flex flex-col items-end gap-1">
           <p className="text-[12px] text-text-dim" dir="auto">
-            آواتار از روی نامت خودکار ساخته می‌شه
+            {data.avatarUrl ? "آواتار از پروفایل استیمت گرفته شده" : "آواتار از روی نامت خودکار ساخته می‌شه"}
           </p>
           <p className="text-[11px] text-text-dim/70" dir="auto">
-            برای شخصی‌سازی، اسم نمایشیت رو تغییر بده
+            {data.avatarUrl ? "برای عوض کردنش، از تب اتصال استیم اکانتت رو تغییر بده" : "برای شخصی‌سازی، اسم نمایشیت رو تغییر بده"}
           </p>
         </div>
-        <HeroAvatar name={displayName || data.displayName} size={64} round />
+        <UserAvatar name={displayName || data.displayName} avatarUrl={data.avatarUrl} size={64} round />
       </div>
 
       <div className="flex w-full flex-col gap-2">
@@ -299,42 +300,142 @@ function NotificationsTab({ data, onSave }: { data: SettingsData; onSave: (p: Pa
   );
 }
 
-function SteamTab({ data, onSave }: { data: SettingsData; onSave: (p: Partial<SettingsData>) => void }) {
-  const [url, setUrl] = useState(data.steamProfileUrl ?? "");
+interface OnboardingStatus {
+  steamConnected: boolean;
+  matchDataVerified: boolean;
+  matchGateOverride: boolean;
+  steamName: string | null;
+  steamAvatar: string | null;
+}
+
+function SteamTab() {
+  const [status, setStatus] = useState<OnboardingStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [manualInput, setManualInput] = useState("");
+  const [manualBusy, setManualBusy] = useState(false);
+  const [manualError, setManualError] = useState<string | null>(null);
+
+  function load() {
+    fetch("/api/onboarding/status", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.status === "success") setStatus(json.data);
+      })
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function handleSync() {
+    setSyncing(true);
+    setSyncMessage(null);
+    const res = await fetch("/api/onboarding/steam/verify", { method: "POST" });
+    const json = await res.json();
+    setSyncing(false);
+    setSyncMessage(json.message ?? null);
+    load();
+  }
+
+  async function handleReconnect() {
+    if (!manualInput.trim()) return;
+    setManualBusy(true);
+    setManualError(null);
+    const res = await fetch("/api/onboarding/steam/manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ input: manualInput.trim() }),
+    });
+    const json = await res.json();
+    setManualBusy(false);
+    if (json.status !== "success") {
+      setManualError(json.message ?? "اتصال ناموفق بود.");
+      return;
+    }
+    setManualInput("");
+    load();
+    handleSync();
+  }
+
+  if (loading || !status) {
+    return <div className="flex h-32 w-full items-center justify-center text-sm text-text-dim">در حال بارگذاری...</div>;
+  }
+
+  const verified = status.matchDataVerified || status.matchGateOverride;
 
   return (
     <Card tone="surface" noHover className="w-full gap-5 p-8">
       <p className="w-full text-right text-[16px] font-black text-text" dir="auto">
         اتصال استیم
       </p>
-      <div className="w-full rounded-[8px] bg-surface-alt p-4">
-        <p className={`text-[13px] ${data.steamProfileUrl ? "text-success" : "text-text-dim"}`} dir="auto">
-          وضعیت: {data.steamProfileUrl ? "لینک پروفایل استیم ثبت شده" : "متصل نیست"}
-        </p>
-        <p className="mt-1 text-[12px] text-text-dim" dir="auto">
-          دوتامیت به استیم متصل نمی‌شه و رنک رو خودکار دریافت نمی‌کنه — رنکت رو خودت توی هر پست اعلام می‌کنی.
-        </p>
+
+      <div className="flex w-full items-center justify-between rounded-[8px] bg-surface-alt p-4">
+        <span className={`rounded-[4px] px-2.5 py-1 text-[11px] font-bold ${verified ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`} dir="auto">
+          {verified ? "متصل و تایید شده" : status.steamConnected ? "متصل، در انتظار تایید مچ‌ها" : "متصل نیست"}
+        </span>
+        <div className="flex items-center gap-2">
+          {status.steamAvatar && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={status.steamAvatar} alt={status.steamName ?? ""} className="size-8 rounded-full" />
+          )}
+          {status.steamName && (
+            <p className="text-[13px] font-bold text-text" dir="auto">
+              {status.steamName}
+            </p>
+          )}
+        </div>
       </div>
-      <div className="flex w-full flex-col gap-2">
+
+      {status.steamConnected && (
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="rounded-[8px] border border-border bg-surface-alt px-5 py-2.5 text-[13px] font-bold text-text disabled:opacity-50"
+            dir="auto"
+          >
+            {syncing ? "در حال همگام‌سازی..." : "همگام‌سازی مجدد مچ‌ها"}
+          </button>
+          {syncMessage && (
+            <p className="text-[12px] text-text-dim" dir="auto">
+              {syncMessage}
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="flex w-full flex-col gap-2 border-t border-border pt-5">
         <p className="text-[13px] text-text-dim" dir="auto">
-          لینک پروفایل استیم (اختیاری)
+          {status.steamConnected ? "تغییر اکانت استیم" : "اتصال با لینک/آیدی استیم"}
         </p>
         <div className="flex gap-2">
           <input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            value={manualInput}
+            onChange={(e) => setManualInput(e.target.value)}
             placeholder="https://steamcommunity.com/id/..."
             dir="ltr"
             className="flex-1 rounded-[8px] border border-border bg-surface-alt p-3 text-[13px] text-text placeholder:text-text-dim/60 focus:outline-none"
           />
           <button
-            onClick={() => onSave({ steamProfileUrl: url })}
-            className="rounded-[8px] bg-primary px-6 py-3 text-[13px] font-bold text-white"
+            onClick={handleReconnect}
+            disabled={manualBusy}
+            className="rounded-[8px] bg-primary px-6 py-3 text-[13px] font-bold text-white disabled:opacity-50"
             dir="auto"
           >
-            ذخیره
+            {manualBusy ? "..." : "اتصال"}
           </button>
         </div>
+        {manualError && (
+          <p className="text-[12px] text-danger" dir="auto">
+            {manualError}
+          </p>
+        )}
+        <a href="/api/auth/steam/login" className="mt-1 text-center text-[12px] text-text-dim underline" dir="auto">
+          یا ورود مستقیم با استیم
+        </a>
       </div>
     </Card>
   );

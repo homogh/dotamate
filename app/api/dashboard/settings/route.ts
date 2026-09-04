@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
       rank: user.rank,
       rankTier: user.rankTier,
       steamProfileUrl: user.steamProfileUrl,
+      avatarUrl: user.avatarUrl,
       notifyBell: user.notifyBell,
       notifyEmail: user.notifyEmail,
       notifyPush: user.notifyPush,
@@ -52,7 +53,6 @@ export async function PATCH(request: NextRequest) {
     languages?: string | null;
     mainPosition?: Position | null;
     rank?: Rank;
-    steamProfileUrl?: string | null;
     notifyBell?: boolean;
     notifyEmail?: boolean;
     notifyPush?: boolean;
@@ -68,7 +68,6 @@ export async function PATCH(request: NextRequest) {
   if (["UNRANKED", "HERALD", "GUARDIAN", "CRUSADER", "ARCHON", "LEGEND", "ANCIENT", "DIVINE", "IMMORTAL"].includes(body?.rank)) {
     data.rank = body.rank;
   }
-  if (typeof body?.steamProfileUrl === "string") data.steamProfileUrl = body.steamProfileUrl.trim().slice(0, 300) || null;
   if (typeof body?.notifyBell === "boolean") data.notifyBell = body.notifyBell;
   if (typeof body?.notifyEmail === "boolean") data.notifyEmail = body.notifyEmail;
   if (typeof body?.notifyPush === "boolean") data.notifyPush = body.notifyPush;

@@ -54,6 +54,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     mainPosition: user.mainPosition,
     rankVerification: user.rankVerification,
     steamProfileUrl: user.steamProfileUrl,
+    avatarUrl: user.avatarUrl,
+    steamId: user.steamId,
+    matchDataVerified: user.matchDataVerified,
+    matchGateOverride: user.matchGateOverride,
+    profileCompletedAt: user.profileCompletedAt,
     banned: user.banned,
     bannedAt: user.bannedAt,
     banReason: user.banReason,
@@ -173,6 +178,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       auditAction = "ASSIGN_ROLE";
       break;
     }
+    case "toggleMatchGateOverride":
+      updates.matchGateOverride = !target.matchGateOverride;
+      auditDetail = updates.matchGateOverride ? "فعال‌سازی دسترسی بدون تایید مچ‌های استیم" : "غیرفعال‌سازی این استثنا";
+      auditAction = "OVERRIDE_MATCH_GATE";
+      break;
     default:
       return NextResponse.json<ApiResponse>({ status: "error", message: "عملیات نامعتبره.", data: null }, { status: 400 });
   }

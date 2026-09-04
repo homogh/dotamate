@@ -16,7 +16,7 @@ import {
   Terminal,
 } from "lucide-react";
 
-import { HeroAvatar } from "@/components/general/heroAvatar";
+import { UserAvatar } from "@/components/general/userAvatar";
 import { ADMIN_NAV_ITEMS } from "@/components/admin/navItems";
 import type { AdminResource } from "@/app/lib/permissions";
 
@@ -36,11 +36,13 @@ const ICONS: Record<string, typeof LayoutGrid> = {
 
 export function AdminSidebar({
   displayName,
+  avatarUrl,
   roleName,
   isFullAccess,
   permissions,
 }: {
   displayName: string;
+  avatarUrl: string | null;
   roleName: string;
   isFullAccess: boolean;
   permissions: Record<AdminResource, string>;
@@ -100,7 +102,7 @@ export function AdminSidebar({
               {isFullAccess ? "سطح دسترسی تام" : roleName}
             </p>
           </div>
-          <HeroAvatar name={displayName} size={40} round />
+          <UserAvatar name={displayName} avatarUrl={avatarUrl} size={40} round />
         </div>
       </div>
     </aside>

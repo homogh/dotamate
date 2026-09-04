@@ -41,7 +41,13 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   const isFullAccess = ALL_RESOURCES.every((r) => admin.permissions[r] === "EDIT");
 
   return (
-    <AdminShell displayName={user.displayName} roleName={admin.roleName} isFullAccess={isFullAccess} permissions={admin.permissions}>
+    <AdminShell
+      displayName={user.displayName}
+      avatarUrl={user.avatarUrl}
+      roleName={admin.roleName}
+      isFullAccess={isFullAccess}
+      permissions={admin.permissions}
+    >
       {children}
     </AdminShell>
   );

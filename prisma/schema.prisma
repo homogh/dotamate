@@ -172,6 +172,7 @@ enum AuditAction {
   UPDATE_REFERENCE_DATA
   CLOSE_TICKET
   REPLY_TICKET
+  OVERRIDE_MATCH_GATE
 }
 
 model User {
@@ -189,6 +190,11 @@ model User {
   rankVerification RankVerification  @default(SELF_DECLARED)
   steamProfileUrl  String?
   steamId          String?           @unique
+  avatarUrl        String?
+  matchDataVerified Boolean          @default(false)
+  matchGateOverride Boolean          @default(false)
+  profileCompletedAt DateTime?
+  matchStats       DotaMatchStats?
   notifyBell       Boolean           @default(true)
   notifyEmail      Boolean           @default(true)
   notifyPush       Boolean           @default(false)
@@ -465,6 +471,18 @@ model TicketMessage {
   createdAt DateTime @default(now())
 
   @@index([ticketId])
+}
+
+model DotaMatchStats {
+  id           Int       @id @default(autoincrement())
+  userId       Int       @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wins         Int       @default(0)
+  losses       Int       @default(0)
+  rankTierHint Int?
+  matches      Json
+  lastSyncedAt DateTime?
+  updatedAt    DateTime  @updatedAt
 }
 
 model ReferenceEntry {

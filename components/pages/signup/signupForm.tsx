@@ -47,7 +47,7 @@ export function SignupForm() {
       }
 
       await fetchMe();
-      router.push("/dashboard");
+      router.push("/signup/steam");
       router.refresh();
     } catch {
       setError("مشکلی در ارتباط با سرور پیش اومد.");
@@ -112,8 +112,8 @@ export function SignupForm() {
         </Button>
 
         <p className="text-center text-xs leading-[1.7] text-text-dim" dir="auto">
-          اتصال پروفایل استیم اختیاری‌ست و بعد از ثبت‌نام از تنظیمات حساب انجام
-          می‌شه — نیازی به لاگین با استیم نیست.
+          مرحله‌ی بعد، اتصال پروفایل استیمت هست — دوتامیت از روی رزومه‌ی
+          واقعی بازی‌هات هم‌تیمی پیدا می‌کنه.
         </p>
       </form>
     </AuthShell>

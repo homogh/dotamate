@@ -12,6 +12,7 @@ export interface AuthUser {
   mainPosition: string | null;
   rankVerification: string;
   steamProfileUrl: string | null;
+  avatarUrl: string | null;
   notifyBell: boolean;
   notifyEmail: boolean;
   notifyPush: boolean;

@@ -37,6 +37,13 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
     redirect("/login");
   }
 
+  if (!user.profileCompletedAt) {
+    if (!user.steamId || (!user.matchDataVerified && !user.matchGateOverride)) {
+      redirect("/signup/steam");
+    }
+    redirect("/signup/profile");
+  }
+
   const [unreadNotifications, participants] = await Promise.all([
     prisma.notification.count({ where: { userId: user.id, read: false } }),
     prisma.conversationParticipant.findMany({
@@ -57,7 +64,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
 
   return (
     <DashboardShell
-      user={{ displayName: user.displayName, rankLabel }}
+      user={{ displayName: user.displayName, rankLabel, avatarUrl: user.avatarUrl }}
       unreadMessages={unreadMessages}
       unreadNotifications={unreadNotifications}
     >
