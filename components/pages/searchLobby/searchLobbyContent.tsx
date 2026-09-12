@@ -186,11 +186,12 @@ export function SearchLobbyContent() {
   }
 
   return (
-    <div ref={containerRef} className="flex w-full flex-col items-center">
+    <div ref={containerRef} className="search-lobby-page flex w-full flex-col items-center">
       <PageBanner
         eyebrow="لابی‌های زنده و پارتی‌های آماده بازی"
         title="جستجوی لابی و هم‌تیمی"
         subtitle="لابی‌های فعال بازیکنان دوتا ۲ رو پیدا کن و درخواست عضویت بده. با استفاده از فیلترهای هوشمند رنک و پوزیشن، دقیقاً همون هم‌تیمی که نیاز داری رو پیدا کن."
+        imageSrc="/images/search-lobby-banner.png"
       />
 
       <div className="w-full px-6 py-10 md:px-[100px]">

@@ -10,7 +10,7 @@ import { FloatingCta } from "@/components/general/floatingCta";
 
 export default function Home() {
   return (
-    <div className="flex w-full flex-col items-center">
+    <div className="landing-page flex w-full flex-col items-center">
       <Hero />
       <Problems />
       <HowItWorks />

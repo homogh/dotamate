@@ -1,201 +1,57 @@
 "use client";
 
-import { useRef, type MouseEvent } from "react";
-import Image from "next/image";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { useGSAP } from "@gsap/react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/general/card";
+import { UserAvatar } from "@/components/general/userAvatar";
 import { SectionHeading } from "@/components/general/sectionHeading";
 
-gsap.registerPlugin(useGSAP, ScrollTrigger);
+interface LatestLobby {
+  id: number; authorName: string; authorAvatarUrl: string | null; rank: string;
+  position: string; region: string; hasVoice: boolean; description: string;
+  createdAt: string; memberCount: number; partySize: number;
+}
 
-const TAGS = [
-  { label: "دیسکورد فعال", accent: false },
-  { label: "ریجن: اروپا شرقی", accent: false },
-  { label: "پوزیشن ۳ و ۵", accent: true },
-];
-const FILLED_SLOTS = 3;
-const TOTAL_SLOTS = 4;
-
-const SHADOW_RADIUS = 22;
-const SHADOW_BLUR = "60px";
-const SHADOW_COLOR = "rgba(75,80,230,0.5)";
-const GROUND_SHADOW = "0px 34px 80px rgba(0,0,0,0.8)";
+function relativeTime(value: string) {
+  const minutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60_000));
+  if (minutes < 1) return "همین الان";
+  if (minutes < 60) return `${minutes} دقیقه پیش`;
+  const hours = Math.floor(minutes / 60);
+  return hours < 24 ? `${hours} ساعت پیش` : `${Math.floor(hours / 24)} روز پیش`;
+}
 
 export function LivePreview() {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const cardRef = useRef<HTMLDivElement>(null);
-  const dotRef = useRef<HTMLSpanElement>(null);
+  const [lobby, setLobby] = useState<LatestLobby | null | undefined>(undefined);
 
-  useGSAP(
-    () => {
-      const mm = gsap.matchMedia();
-
-      // The signature moment on this page: the proof card that shows a real
-      // party post arrives with more weight than a plain scroll fade, since
-      // it's the one thing here that has to earn trust on sight.
-      mm.add("(prefers-reduced-motion: no-preference)", () => {
-        gsap.from(wrapRef.current, {
-          autoAlpha: 0,
-          y: 28,
-          scale: 0.97,
-          duration: 0.8,
-          ease: "expo.out",
-          scrollTrigger: {
-            trigger: wrapRef.current,
-            start: "top 80%",
-            toggleActions: "play none none none",
-          },
-        });
-
-        // Ambient pulse on the "live now" dot — communicates the post is
-        // actually live, not a static screenshot.
-        gsap.to(dotRef.current, {
-          scale: 1.6,
-          autoAlpha: 0.35,
-          duration: 1,
-          ease: "sine.inOut",
-          repeat: -1,
-          yoyo: true,
-        });
-
-        // The card's own glow shadow orbits slowly around it — no extra
-        // colored layer, just the existing shadow drifting in a circle.
-        const proxy = { angle: 0 };
-        gsap.to(proxy, {
-          angle: 360,
-          duration: 8,
-          repeat: -1,
-          ease: "none",
-          onUpdate: () => {
-            const rad = (proxy.angle * Math.PI) / 180;
-            const x = (Math.cos(rad) * SHADOW_RADIUS).toFixed(1);
-            const y = (Math.sin(rad) * SHADOW_RADIUS).toFixed(1);
-            if (cardRef.current) {
-              cardRef.current.style.boxShadow = `${x}px ${y}px ${SHADOW_BLUR} ${SHADOW_COLOR}, ${GROUND_SHADOW}`;
-            }
-          },
-        });
-      });
-
-      return () => mm.revert();
-    },
-    { scope: wrapRef }
-  );
-
-  function handleMouseMove(e: MouseEvent<HTMLDivElement>) {
-    const rect = cardRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    cardRef.current?.style.setProperty("--mx", `${e.clientX - rect.left}px`);
-    cardRef.current?.style.setProperty("--my", `${e.clientY - rect.top}px`);
-  }
+  useEffect(() => {
+    fetch("/api/landing", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json) => setLobby(json.status === "success" ? json.data.latestLobby : null))
+      .catch(() => setLobby(null));
+  }, []);
 
   return (
     <section className="flex w-full flex-col items-start gap-14 bg-bg px-6 py-20 md:px-[100px]">
-      <SectionHeading
-        eyebrow="پست‌های زنده"
-        title="نمونه پارتی‌های در حال تشکیل"
-        subtitle="همین حالا ببین کیا دنبال هم‌تیمی هستن"
-      />
+      <SectionHeading eyebrow="پست‌های زنده" title="آخرین پارتیِ در حال تشکیل" subtitle="این کارت مستقیماً از آخرین لابی فعال دوتامیت به‌روزرسانی می‌شود" />
 
-      <div className="flex w-full flex-col items-center">
-        <div ref={wrapRef} className="relative w-full max-w-[600px]">
-          <Card
-            ref={cardRef}
-            highlighted
-            noHover
-            onMouseMove={handleMouseMove}
-            className="group relative w-full gap-6 overflow-hidden transition-transform duration-300 hover:-translate-y-1"
-          >
-            {/* Mouse-tracking spotlight, only visible on hover */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 rounded-[12px] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-              style={{
-                background:
-                  "radial-gradient(360px circle at var(--mx, 50%) var(--my, 50%), rgba(142,123,255,0.18), transparent 70%)",
-              }}
-            />
-
-            <div className="relative flex w-full items-center justify-between">
-              <div className="flex items-center gap-2">
-                <p className="text-xs text-text-dim" dir="auto">
-                  ۱۲ دقیقه پیش
-                </p>
-                <span className="relative flex size-2">
-                  <span
-                    ref={dotRef}
-                    className="absolute inline-flex size-full rounded-full bg-success"
-                  />
-                  <span className="relative inline-flex size-2 rounded-full bg-success" />
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex flex-col items-start gap-1">
-                  <p className="text-base font-black text-text" dir="auto">
-                    سینا (Arise)
-                  </p>
-                  <p className="text-xs font-bold text-accent" dir="auto">
-                    رنک: Legend ۴
-                  </p>
-                </div>
-                <Image
-                  src="/images/landing/avatar-sina.png"
-                  alt=""
-                  width={48}
-                  height={48}
-                  className="rounded-full object-cover"
-                />
-              </div>
+      <div className="flex w-full justify-center">
+        {lobby === undefined ? (
+          <Card className="w-full max-w-[680px] items-center py-12 text-center"><span className="size-8 animate-pulse rounded-full bg-primary/40" /><p className="text-sm font-bold text-text-dim">در حال دریافت آخرین لابی…</p></Card>
+        ) : lobby ? (
+          <Card highlighted className="w-full max-w-[680px] gap-6" dir="rtl">
+            <div className="flex w-full items-center justify-between">
+              <div className="flex items-center gap-2 text-xs text-text-dim"><span className="relative flex size-2.5"><span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" /><span className="relative inline-flex size-2.5 rounded-full bg-success" /></span><span>{relativeTime(lobby.createdAt)}</span></div>
+              <div className="flex items-center gap-3"><div className="text-right"><p className="text-base font-black text-text">{lobby.authorName}</p><p className="mt-1 text-xs font-bold text-accent">رنک: {lobby.rank}</p></div><UserAvatar name={lobby.authorName} avatarUrl={lobby.authorAvatarUrl} size={48} /></div>
             </div>
-
-            <p
-              className="relative w-full text-right text-base leading-[1.6] text-text-dim"
-              dir="auto"
-            >
-              دنبال یک هاردساپورت باسابقه و تانکی آف‌لین برای لابی رنکد رول اروپا
-              می‌گردیم. تیم وویس دیسکورده، لطفاً پلیرهای جدی درخواست بدن.
-            </p>
-
-            <div className="relative flex w-full flex-wrap items-start justify-end gap-2">
-              {TAGS.map((tag) => (
-                <span
-                  key={tag.label}
-                  className={
-                    tag.accent
-                      ? "rounded-full border border-accent bg-primary/15 px-3 py-1.5 text-xs font-bold text-accent"
-                      : "rounded-full border border-border bg-surface-alt px-3 py-1.5 text-xs font-bold text-text"
-                  }
-                  dir="auto"
-                >
-                  {tag.label}
-                </span>
-              ))}
-            </div>
-
-            <div className="relative flex w-full items-center justify-between border-t border-border pt-4">
-              <Button size="sm">درخواست عضویت در پارتی</Button>
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-extrabold text-text" dir="auto">
-                  {FILLED_SLOTS} از {TOTAL_SLOTS} نفر پر شده
-                </p>
-                <div className="flex items-start gap-1">
-                  {Array.from({ length: TOTAL_SLOTS }).map((_, i) => (
-                    <span
-                      key={i}
-                      className={`size-2 rounded-[4px] ${
-                        i < FILLED_SLOTS ? "bg-accent" : "bg-white/[0.08]"
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
+            <p className="w-full text-right text-base leading-[1.8] text-text-dim">{lobby.description}</p>
+            <div className="flex w-full flex-wrap justify-end gap-2"><span className="rounded-full border border-accent/60 bg-primary/15 px-3 py-1.5 text-xs font-bold text-accent">{lobby.position}</span><span className="rounded-full border border-border bg-surface-alt px-3 py-1.5 text-xs font-bold text-text">ریجن: {lobby.region}</span>{lobby.hasVoice && <span className="rounded-full border border-success/30 bg-success/10 px-3 py-1.5 text-xs font-bold text-success">وویس فعال</span>}</div>
+            <div className="flex w-full items-center justify-between border-t border-border pt-4"><Button asChild size="sm"><Link href={`/dashboard/post/${lobby.id}`}>مشاهده و درخواست عضویت</Link></Button><p className="text-sm font-extrabold text-text">{lobby.memberCount} از {lobby.partySize} نفر</p></div>
           </Card>
-        </div>
+        ) : (
+          <Card className="w-full max-w-[680px] items-center gap-5 border-dashed py-12 text-center" dir="rtl"><div className="flex size-16 items-center justify-center rounded-2xl border border-accent/30 bg-primary/10 text-3xl">⚔</div><div><p className="text-xl font-black text-text">هنوز لابی فعالی تشکیل نشده</p><p className="mt-2 text-sm leading-7 text-text-dim">اولین پارتی امروز را خودت بساز و هم‌تیمی‌های مناسب پیدا کن.</p></div><Button asChild><Link href="/dashboard/create-post">ساخت لابی جدید</Link></Button></Card>
+        )}
       </div>
     </section>
   );

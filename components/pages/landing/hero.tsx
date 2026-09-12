@@ -47,23 +47,27 @@ export function Hero() {
   return (
     <section
       ref={ref}
-      className="relative flex w-full flex-col items-center gap-10 overflow-hidden px-6 py-20 md:px-[100px] md:py-[120px]"
+      className="relative flex min-h-[620px] w-full flex-col items-center justify-center gap-10 overflow-hidden px-6 py-24 md:px-[100px] md:py-[150px]"
       style={{
         backgroundImage:
-          "radial-gradient(ellipse 720px 270px at 50% 50%, rgba(61,60,206,0.15) 0%, rgba(18,19,23,0) 80%), linear-gradient(90deg, #121317 0%, #121317 100%)",
+          "radial-gradient(ellipse 720px 330px at 50% 48%, rgba(61,60,206,0.32) 0%, rgba(18,19,23,0) 75%), linear-gradient(90deg, #121317 0%, rgba(18,19,23,0.72) 46%, rgba(18,19,23,0.15) 100%)",
       }}
     >
-      <div className="pointer-events-none absolute inset-0 opacity-35">
+      <div className="pointer-events-none absolute inset-0 opacity-60">
         <Image
-          src="/images/landing/hero-atmosphere-bg.png"
+          src="/images/landing/dota-party-hero-v2.png"
           alt=""
           fill
-          className="object-cover"
-          priority
+          className="object-cover object-[68%_center]"
+          sizes="100vw"
+          preload
         />
       </div>
 
-      <div className="relative flex w-full max-w-[800px] flex-col items-center gap-5">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-bg/45 via-transparent to-bg" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-bg via-bg/30 to-transparent" />
+
+      <div className="relative flex w-full max-w-[800px] flex-col items-center gap-5 rounded-3xl border border-white/[0.12] bg-bg/45 px-5 py-6 shadow-[0_18px_70px_rgba(0,0,0,0.32)] backdrop-blur-xl md:px-10 md:py-8">
         <div data-hero-badge>
           <BadgePulse>پلتفرم تخصصی هماهنگی پارتی Dota 2</BadgePulse>
         </div>

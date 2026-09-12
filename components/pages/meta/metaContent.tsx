@@ -208,18 +208,19 @@ export function MetaContent() {
   const total = filteredHeroes.length;
 
   return (
-    <div ref={containerRef} className="flex w-full flex-col items-center">
+    <div ref={containerRef} className="content-page flex w-full flex-col items-center">
       <PageBanner
         eyebrow="متای زنده"
         title="متای پچ فعلی"
         subtitle="وین‌ریت و پیک‌ریت واقعی هیروها بر اساس آمار زنده‌ی OpenDota — نه دستچین‌شده، مستقیم از بازی‌های واقعی."
+        imageSrc="/images/meta-banner.png"
       />
 
       <div className="w-full px-6 py-14 md:px-[100px]">
         <div className="flex w-full flex-col gap-6">
           <div
             data-filter-card
-            className="flex w-full flex-col gap-4 rounded-[12px] border border-border bg-surface p-6"
+            className="flex w-full flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-[0_14px_44px_rgba(0,0,0,0.16)]"
           >
             <div className="flex w-full items-center justify-between">
               <p className="text-[15px] font-black text-text">فیلتر بر اساس رنک</p>
@@ -236,7 +237,7 @@ export function MetaContent() {
 
           <div
             data-filter-card
-            className="flex w-full flex-col gap-4 rounded-[12px] border border-border bg-surface p-6"
+            className="flex w-full flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-[0_14px_44px_rgba(0,0,0,0.16)]"
           >
             <p className="text-[15px] font-black text-text">فیلتر بر اساس پز</p>
             <div className="flex flex-wrap gap-2">

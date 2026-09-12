@@ -1,4 +1,5 @@
 import { Card } from "@/components/general/card";
+import Image from "next/image";
 import { SectionHeading } from "@/components/general/sectionHeading";
 import { RevealGroup } from "@/components/general/revealGroup";
 
@@ -53,6 +54,22 @@ export function HowItWorks() {
           </Card>
         ))}
       </RevealGroup>
+
+      <div className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-surface-alt shadow-2xl">
+        <div className="absolute inset-0 z-10 bg-gradient-to-r from-bg-alt via-bg-alt/20 to-transparent" />
+        <Image
+          src="/images/landing/dota-squad-varied.png"
+          alt="یک تیم متنوع از هیروهای دوتا ۲ آمادهٔ هماهنگی برای مسابقه"
+          width={1940}
+          height={810}
+          sizes="(max-width: 768px) 100vw, 85vw"
+          className="h-52 w-full object-cover object-center md:h-72"
+        />
+        <div className="absolute inset-y-0 left-0 z-20 flex max-w-sm flex-col justify-center p-6 md:p-10">
+          <p className="text-sm font-extrabold text-accent" dir="auto">پارتی خوب از هماهنگی شروع می‌شه</p>
+          <p className="mt-2 text-xl font-black text-text md:text-2xl" dir="auto">هر نقش، کنار هم‌تیمی درستش</p>
+        </div>
+      </div>
     </section>
   );
 }

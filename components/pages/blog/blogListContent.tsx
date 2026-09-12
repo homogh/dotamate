@@ -72,16 +72,17 @@ export function BlogListContent() {
   }
 
   return (
-    <div ref={containerRef} className="flex w-full flex-col items-center">
+    <div ref={containerRef} className="content-page flex w-full flex-col items-center">
       <PageBanner
         eyebrow="آخرین مطالب و مقالات"
         title="وبلاگ دوتامیت"
         subtitle="آموزش‌ها، تحلیل پچ‌ها و ترفندهای صعود در رنکد دوتا ۲"
+        imageSrc="/images/blog-banner.png"
       />
 
       <div className="w-full px-6 py-14 md:px-[100px]">
         <div className="flex w-full flex-col gap-8">
-          <div data-filter-card className="flex w-full flex-wrap justify-center gap-2">
+          <div data-filter-card className="flex w-full flex-wrap justify-center gap-2 rounded-2xl border border-border bg-surface/70 p-4 shadow-[0_14px_44px_rgba(0,0,0,0.16)]">
             {FILTERS.map((f) => (
               <Chip key={f} active={category === f} onClick={() => handleCategory(f)}>
                 {f}

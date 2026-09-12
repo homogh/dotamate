@@ -38,6 +38,22 @@ body {
   color: var(--color-text);
 }
 
+/* Landing backgrounds remain full-bleed, while every section's actual
+   content stays readable on wide / zoomed-out displays. */
+.landing-page > section {
+  padding-inline: max(1.5rem, calc((100% - 1200px) / 2));
+}
+
+/* Like the landing page, the lobby page preserves full-bleed backgrounds
+   while keeping every content block at a calm, readable maximum width. */
+.search-lobby-page > * {
+  padding-inline: max(1.5rem, calc((100% - 1200px) / 2));
+}
+
+.content-page > * {
+  padding-inline: max(1.5rem, calc((100% - 1200px) / 2));
+}
+
 ::selection {
   background: var(--color-primary);
   color: white;

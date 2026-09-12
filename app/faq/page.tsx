@@ -10,11 +10,12 @@ export const metadata: Metadata = {
 
 export default function FaqPage() {
   return (
-    <div className="flex w-full flex-col items-center">
+    <div className="content-page flex w-full flex-col items-center">
       <PageBanner
         eyebrow="مرکز پشتیبانی و سوالات کاربران"
         title="سوالات متداول"
         subtitle="پاسخ سریع به رایج‌ترین ابهامات و پرسش‌های بازیکنان دربارهٔ روند کارکرد، قوانین و امنیت دوتامیت"
+        imageSrc="/images/support-banner.png"
       />
 
       <div className="w-full px-6 py-14 md:px-[100px]">

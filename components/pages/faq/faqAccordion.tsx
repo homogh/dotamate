@@ -96,7 +96,7 @@ function FaqItem({
   );
 
   return (
-    <div className="w-full rounded-[12px] border border-border bg-surface-alt p-6">
+    <div className={`w-full rounded-2xl border bg-surface-alt p-6 transition-colors ${open ? "border-primary/60 shadow-[0_10px_36px_rgba(61,60,206,0.12)]" : "border-border hover:border-white/15"}`}>
       <button
         type="button"
         onClick={onToggle}
