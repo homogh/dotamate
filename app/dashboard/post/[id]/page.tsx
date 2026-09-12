@@ -101,11 +101,19 @@ export default function PostDetailPage() {
   }
 
   async function handleAction(memberId: number, action: "accept" | "reject") {
-    await fetch(`/api/posts/${postId}/members/${memberId}`, {
+    const res = await fetch(`/api/posts/${postId}/members/${memberId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action }),
     });
+
+    if (res.ok) {
+      toast.success(action === "accept" ? "درخواست قبول شد." : "درخواست رد شد.");
+    } else {
+      const json = await res.json().catch(() => null);
+      toast.error(json?.message ?? "مشکلی پیش اومد.");
+    }
+
     loadDetail();
   }
 
@@ -118,6 +126,18 @@ export default function PostDetailPage() {
     } else {
       const json = await res.json().catch(() => null);
       toast.error(json?.message ?? "حذف پست با خطا مواجه شد.");
+    }
+  }
+
+  async function handleLeave() {
+    if (!(await confirmAction({ message: "مطمئنی می‌خوای از این پارتی خارج بشی؟", danger: true, confirmLabel: "خارج شدن" }))) return;
+    const res = await fetch(`/api/posts/${postId}/leave`, { method: "DELETE" });
+    if (res.ok) {
+      toast.success("شما از پارتی خارج شدید.");
+      router.push("/dashboard/my-posts");
+    } else {
+      const json = await res.json().catch(() => null);
+      toast.error(json?.message ?? "مشکلی پیش اومده نتونستی خارج بشی.");
     }
   }
 
@@ -292,6 +312,18 @@ export default function PostDetailPage() {
               dir="auto"
             >
               ویرایش پست
+            </button>
+          </div>
+        )}
+
+        {!detail.isAuthor && (
+          <div className="flex w-full gap-3">
+            <button
+              onClick={handleLeave}
+              className="flex flex-1 items-center justify-center rounded-[8px] bg-danger p-4 text-[14px] font-bold text-white"
+              dir="auto"
+            >
+              رفتن از پارتی
             </button>
           </div>
         )}

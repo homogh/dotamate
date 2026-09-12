@@ -34,6 +34,37 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     );
   }
 
+  
+  const ownPost = await prisma.post.findFirst({
+    where: {
+      authorId: session.id,
+      status: { in: ["ACTIVE", "FULL"] },
+    },
+  });
+
+  if (ownPost) {
+    return NextResponse.json<ApiResponse>(
+      { status: "error", message: "شما الان یه پارتی فعال دارید.", data: null },
+      { status: 409 },
+    );
+  }
+
+
+  const otherMembership = await prisma.postMember.findFirst({
+    where: {
+      userId: session.id,
+      status: "ACCEPTED",
+      post: { status: { in: ["ACTIVE", "FULL"] } },
+    },
+  });
+
+  if (otherMembership) {
+    return NextResponse.json<ApiResponse>(
+      { status: "error", message: "شما در حال حاضر عضو یه پارتی هستید.", data: null },
+      { status: 409 },
+    );
+  }
+
   const existing = await prisma.postMember.findUnique({
     where: { postId_userId: { postId, userId: session.id } },
   });

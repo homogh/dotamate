@@ -45,6 +45,32 @@ export async function PATCH(
     );
   }
 
+
+  if (action === "ACCEPTED") {
+    const otherMembership = await prisma.postMember.findFirst({
+      where: {
+        userId: member.userId,
+        status: "ACCEPTED",
+        post: { status: { in: ["ACTIVE", "FULL"] } },
+        NOT: { id: member.id },
+      },
+    });
+
+    if (otherMembership) {
+
+      await prisma.postMember.update({
+        where: { id: member.id },
+        data: { status: "DECLINED" },
+      });
+
+      return NextResponse.json<ApiResponse>(
+        { status: "error", message: "این پلیر هم اکنون عضو یه پارتی دیگست.", data: null },
+        { status: 409 },
+      );
+    }
+  }
+
+
   await prisma.$transaction([
     prisma.postMember.update({ where: { id: member.id }, data: { status: action } }),
     prisma.notification.create({
@@ -59,10 +85,22 @@ export async function PATCH(
   ]);
 
   if (action === "ACCEPTED") {
-    const acceptedCount = await prisma.postMember.count({ where: { postId: post.id, status: "ACCEPTED" } });
+    const acceptedCount = await prisma.postMember.count({
+      where: { postId: post.id, status: "ACCEPTED" },
+    });
+
     if (acceptedCount + 1 >= post.partySize) {
       await prisma.post.update({ where: { id: post.id }, data: { status: "FULL" } });
     }
+
+    await prisma.postMember.updateMany({
+      where: {
+        userId: member.userId,
+        status: "PENDING",
+        NOT: { postId: post.id },
+      },
+      data: { status: "DECLINED" },
+    });
   }
 
   return NextResponse.json<ApiResponse>({ status: "success", message: "انجام شد.", data: null });

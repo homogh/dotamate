@@ -18,4 +18,5 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { label: "اعلامیه‌ها", href: "/admin/announcements", resource: "ANNOUNCEMENTS" },
   { label: "نقش‌ها و دسترسی‌ها", href: "/admin/roles", resource: "ROLES" },
   { label: "لاگ عملیات", href: "/admin/audit-log", resource: "AUDIT_LOG" },
+  { label: "رفتن به پنل کلاینت", href: "/dashboard", resource: null },
 ];

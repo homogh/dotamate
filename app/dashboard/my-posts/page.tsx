@@ -169,6 +169,11 @@ export default function MyPostsPage() {
                       >
                         ویرایش
                       </button>
+                      <Link href={`/dashboard/post/${activePost.id}`}
+                        className="rounded-[8px] bg-primary px-4 py-2 text-[13px] font-bold text-white hover:bg-primary-hover"
+                      >
+                        مشاهده
+                      </Link>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="flex flex-col items-end gap-1">

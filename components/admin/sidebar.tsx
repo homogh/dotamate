@@ -55,7 +55,7 @@ export function AdminSidebar({
 
   return (
     <aside className="sticky top-0 hidden h-screen w-[260px] shrink-0 flex-col items-start gap-8 overflow-y-auto border-l border-border bg-surface-alt px-5 py-8 lg:flex">
-      <div className="flex w-full items-center justify-center gap-3">
+      <Link href="/" className="flex w-full items-center justify-center gap-3">
         <span
           className={`rounded-[4px] border px-2 py-0.5 text-[11px] font-black ${
             isFullAccess ? "border-danger bg-danger/[0.12] text-danger" : "border-[#ff9f0a] bg-[#ff9f0a]/[0.12] text-[#ff9f0a]"
@@ -70,7 +70,7 @@ export function AdminSidebar({
         <div className="flex size-8 items-center justify-center rounded-[8px] bg-primary">
           <Shield size={18} className="text-white" />
         </div>
-      </div>
+      </Link>
 
       <nav className="flex w-full flex-1 flex-col gap-1.5 overflow-y-auto">
         {visibleItems.map((item) => {

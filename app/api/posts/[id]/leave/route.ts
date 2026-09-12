@@ -30,5 +30,5 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     await prisma.post.update({ where: { id: postId }, data: { status: "ACTIVE" } });
   }
 
-  return NextResponse.json<ApiResponse>({ status: "success", message: "از جلسه خارج شدی.", data: null });
+  return NextResponse.json<ApiResponse>({ status: "success", message: "از پارتی خارج شدی.", data: null });
 }
