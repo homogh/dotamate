@@ -28,6 +28,7 @@ interface UserDetail {
   roleId: number | null;
   roleName: string | null;
   roles: { id: number; name: string }[];
+  canManageRoles: boolean;
   steamId: string | null;
   matchDataVerified: boolean;
   matchGateOverride: boolean;
@@ -117,7 +118,7 @@ export default function AdminUserDetailPage() {
               نقش کاربری
             </p>
             <select
-              disabled={busy}
+              disabled={busy || !user.canManageRoles}
               value={user.roleId ?? ""}
               onChange={(e) => handleRoleChange(e.target.value)}
               className="w-full rounded-[8px] border border-border bg-surface-alt p-3 text-[14px] text-text disabled:opacity-50"
@@ -130,6 +131,11 @@ export default function AdminUserDetailPage() {
                 </option>
               ))}
             </select>
+            {!user.canManageRoles && (
+              <p className="w-full text-right text-[12px] text-text-dim" dir="auto">
+                فقط مدیرانی که به بخش «نقش‌ها» دسترسی ویرایش دارن می‌تونن نقش کاربران رو تغییر بدن.
+              </p>
+            )}
           </Card>
 
           <Card tone="surface" noHover className="w-full gap-4 p-6">

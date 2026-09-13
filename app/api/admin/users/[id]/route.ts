@@ -68,6 +68,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     roleId: user.roleId,
     roleName: user.role?.name ?? null,
     roles,
+    canManageRoles: hasAccess(admin, "ROLES", "EDIT"),
     posts: posts.map((p) => ({
       id: p.id,
       description: p.description,
@@ -164,6 +165,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       auditAction = "UNVERIFY_USER";
       break;
     case "assignRole": {
+      if (!hasAccess(admin, "ROLES", "EDIT")) {
+        return NextResponse.json<ApiResponse>({ status: "error", message: "برای تغییر نقش کاربران دسترسی نداری.", data: null }, { status: 403 });
+      }
       const roleId = body?.roleId === null ? null : Number(body?.roleId);
       if (roleId === null) {
         auditDetail = "حذف نقش از کاربر";

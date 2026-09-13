@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
       severity: r.severity,
       severityLabel: SEVERITY_LABEL[r.severity],
       context: r.context ?? (r.reportedPostId ? "پست/لابی" : "پروفایل کاربر"),
+      hasConversation: r.reportedConversationId !== null,
       reason: r.reason,
       status: r.status,
       action: r.action,

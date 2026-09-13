@@ -113,7 +113,7 @@ export default function MessageThreadPage() {
     await fetch("/api/reports", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reportedUserId: thread.other.id, reason, context: "پیام مستقیم" }),
+      body: JSON.stringify({ reportedUserId: thread.other.id, reason, context: "پیام مستقیم", conversationId: thread.id }),
     });
     toast.success("گزارش شما ثبت شد.");
   }

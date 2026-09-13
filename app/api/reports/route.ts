@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const reportedUserId = Number(body?.reportedUserId) || null;
   const reportedPostId = Number(body?.reportedPostId) || null;
+  const conversationId = Number(body?.conversationId) || null;
   const context = typeof body?.context === "string" ? body.context.slice(0, 100) : null;
   const reason = String(body?.reason ?? "").trim();
 
@@ -21,8 +22,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json<ApiResponse>({ status: "error", message: "دلیل گزارش رو بنویس.", data: null }, { status: 400 });
   }
 
+  let reportedConversationId: number | null = null;
+  if (conversationId) {
+    const isParticipant = await prisma.conversationParticipant.findFirst({
+      where: { conversationId, userId: session.id },
+    });
+    if (isParticipant) reportedConversationId = conversationId;
+  }
+
   await prisma.report.create({
-    data: { reporterId: session.id, reportedUserId, reportedPostId, context, reason: reason.slice(0, 1000) },
+    data: { reporterId: session.id, reportedUserId, reportedPostId, reportedConversationId, context, reason: reason.slice(0, 1000) },
   });
 
   return NextResponse.json<ApiResponse>({ status: "success", message: "گزارش شما ثبت شد.", data: null });

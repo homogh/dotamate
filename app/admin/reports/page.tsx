@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, UserX, CheckCircle } from "lucide-react";
+import { AlertTriangle, UserX, CheckCircle, MessageSquareText, ChevronDown } from "lucide-react";
 
 import { Card } from "@/components/general/card";
 
@@ -13,10 +13,19 @@ interface AdminReport {
   severity: string;
   severityLabel: string;
   context: string;
+  hasConversation: boolean;
   reason: string;
   status: string;
   action: string;
   createdAt: string;
+}
+
+interface ReportMessage {
+  id: number;
+  body: string;
+  createdAt: string;
+  senderId: number;
+  senderName: string;
 }
 
 const SEVERITY_STYLE: Record<string, string> = {
@@ -41,6 +50,9 @@ export default function AdminReportsPage() {
   const [reports, setReports] = useState<AdminReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [conversations, setConversations] = useState<Record<number, ReportMessage[]>>({});
+  const [conversationLoadingId, setConversationLoadingId] = useState<number | null>(null);
 
   const load = useCallback(() => {
     return fetch(`/api/admin/reports?tab=${tab}`, { cache: "no-store" })
@@ -57,6 +69,23 @@ export default function AdminReportsPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function toggleConversation(id: number) {
+    if (expandedId === id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(id);
+    if (conversations[id]) return;
+
+    setConversationLoadingId(id);
+    const res = await fetch(`/api/admin/reports/${id}/messages`, { cache: "no-store" });
+    const json = await res.json().catch(() => null);
+    if (json?.status === "success") {
+      setConversations((prev) => ({ ...prev, [id]: json.data.messages }));
+    }
+    setConversationLoadingId(null);
+  }
 
   async function act(id: number, action: "ban" | "suspend" | "dismiss") {
     setBusyId(id);
@@ -150,6 +179,52 @@ export default function AdminReportsPage() {
               <p className="w-full text-right text-[14px] leading-[1.6] text-text-dim" dir="auto">
                 علت گزارش: {r.reason}
               </p>
+
+              {r.hasConversation && (
+                <div className="w-full">
+                  <button
+                    onClick={() => toggleConversation(r.id)}
+                    className="flex w-full items-center justify-between rounded-[6px] border border-border bg-surface-alt px-3 py-2 text-[12px] font-bold text-accent"
+                    dir="auto"
+                  >
+                    <ChevronDown size={14} className={`transition-transform ${expandedId === r.id ? "rotate-180" : ""}`} />
+                    <span className="flex items-center gap-1.5">
+                      <MessageSquareText size={13} />
+                      مشاهده گفتگو
+                    </span>
+                  </button>
+
+                  {expandedId === r.id && (
+                    <div className="mt-2 flex max-h-72 w-full flex-col gap-2 overflow-y-auto rounded-[8px] border border-border bg-surface-alt/50 p-3">
+                      {conversationLoadingId === r.id ? (
+                        <p className="w-full text-center text-[12px] text-text-dim">در حال بارگذاری گفتگو...</p>
+                      ) : !conversations[r.id]?.length ? (
+                        <p className="w-full text-center text-[12px] text-text-dim">پیامی پیدا نشد.</p>
+                      ) : (
+                        conversations[r.id].map((m) => (
+                          <div
+                            key={m.id}
+                            className={`flex w-full flex-col gap-1 rounded-[8px] border p-2.5 ${
+                              m.senderId === r.reportedUserId ? "border-danger/30 bg-danger/[0.07]" : "border-border bg-surface"
+                            }`}
+                          >
+                            <div className="flex w-full items-center justify-between">
+                              <p className="text-[10px] text-text-dim">{new Date(m.createdAt).toLocaleString("fa-IR")}</p>
+                              <p className={`text-[11px] font-bold ${m.senderId === r.reportedUserId ? "text-danger" : "text-text"}`} dir="auto">
+                                {m.senderName}
+                                {m.senderId === r.reportedUserId ? " (کاربر متخلف)" : ""}
+                              </p>
+                            </div>
+                            <p className="w-full text-right text-[13px] text-text" dir="auto">
+                              {m.body}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="flex w-full items-center justify-between border-t border-border pt-3">
                 {tab === "pending" ? (
