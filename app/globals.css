@@ -14,6 +14,26 @@
   --color-success: #22c55e;
   --color-danger: #bf2e1a;
   --color-danger-soft: rgba(255, 87, 87, 0.1);
+
+  /* shadcn/ui semantic tokens, bridged onto the palette above so components
+     added via the shadcn CLI inherit this site's look instead of the
+     library's own gray default theme. */
+  --background: var(--color-bg);
+  --foreground: var(--color-text);
+  --card: var(--color-surface);
+  --card-foreground: var(--color-text);
+  --popover: var(--color-surface-alt);
+  --popover-foreground: var(--color-text);
+  --primary-foreground: #ffffff;
+  --secondary: var(--color-surface-alt);
+  --secondary-foreground: var(--color-text);
+  --muted: var(--color-surface-alt);
+  --muted-foreground: var(--color-text-dim);
+  --accent-foreground: #ffffff;
+  --destructive: var(--color-danger);
+  --destructive-foreground: #ffffff;
+  --input: var(--color-border);
+  --ring: var(--color-accent);
 }
 
 @theme inline {
@@ -31,6 +51,23 @@
   --color-danger: var(--color-danger);
   --color-danger-soft: var(--color-danger-soft);
   --font-sans: var(--font-vazirmatn);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 }
 
 body {

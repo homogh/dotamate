@@ -31,25 +31,23 @@ export function PageBanner({ eyebrow, title, subtitle, children, imageSrc }: Pag
 
   useGSAP(
     () => {
-      const mm = gsap.matchMedia();
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-      mm.add("(prefers-reduced-motion: no-preference)", () => {
-        const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-        if (eyebrow) {
-          tl.from("[data-banner-badge]", { autoAlpha: 0, y: 14, duration: 0.5 });
-        }
-        tl.from(
-          "[data-banner-title]",
-          { autoAlpha: 0, y: 18, duration: 0.6 },
-          eyebrow ? "-=0.3" : undefined
-        )
-          .from("[data-banner-subtitle]", { autoAlpha: 0, y: 14, duration: 0.5 }, "-=0.35")
-          .from("[data-banner-extra]", { autoAlpha: 0, y: 14, duration: 0.5 }, "-=0.3");
+      const targets = ["[data-banner-title]", "[data-banner-subtitle]", "[data-banner-extra]"].filter(
+        (selector) => ref.current?.querySelector(selector)
+      );
+      if (eyebrow) targets.unshift("[data-banner-badge]");
+
+      gsap.set(targets, { autoAlpha: 0, y: 14 });
+      gsap.to(targets, {
+        autoAlpha: 1,
+        y: 0,
+        duration: 0.6,
+        ease: "power3.out",
+        stagger: 0.12,
       });
-
-      return () => mm.revert();
     },
-    { scope: ref }
+    { scope: ref, dependencies: [eyebrow, title, subtitle] }
   );
 
   return (

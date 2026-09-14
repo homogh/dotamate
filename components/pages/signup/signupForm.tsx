@@ -59,6 +59,9 @@ export function SignupForm() {
     <AuthShell
       title="ساخت حساب دوتامیت"
       subtitle="کمتر از یک دقیقه ثبت‌نام کن و وارد دنیای پارتی‌های هماهنگ شو."
+      imageSrc="/images/landing/dota-rank-banner-v2.png"
+      imagePosition="50% center"
+      tagline="به جمع بازیکنان باانگیزه دوتامیت بپیوند"
       footer={
         <>
           قبلاً حساب ساختی؟{" "}
