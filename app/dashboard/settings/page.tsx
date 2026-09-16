@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { Card } from "@/components/general/card";
 import { UserAvatar } from "@/components/general/userAvatar";
 import { Switch } from "@/components/ui/switch";
-import { RANK_OPTIONS } from "@/components/dashboard/postLabels";
+import { RANK_LABEL } from "@/components/dashboard/postLabels";
 import { POSITIONS, POSITION_LABEL, type PositionValue } from "@/components/dashboard/positionMeta";
 
 type Tab = "privacy" | "notifications" | "steam" | "account";
@@ -26,6 +26,7 @@ interface SettingsData {
   mainPosition: string | null;
   rank: string;
   rankTier: number | null;
+  rankVerification: string;
   steamProfileUrl: string | null;
   avatarUrl: string | null;
   notifyBell: boolean;
@@ -107,7 +108,6 @@ function AccountTab({
   const [displayName, setDisplayName] = useState(data.displayName);
   const [bio, setBio] = useState(data.bio ?? "");
   const [mainPosition, setMainPosition] = useState(data.mainPosition ?? "");
-  const [rank, setRank] = useState(data.rank);
 
   return (
     <Card tone="surface" noHover className="w-full gap-6 p-8">
@@ -176,22 +176,20 @@ function AccountTab({
 
         <div className="flex flex-1 flex-col gap-2">
           <p className="text-[13px] text-text-dim" dir="auto">
-            رنک فعلی
+            رنک فعلی (بر اساس دوتا ۲، غیرقابل ویرایش)
           </p>
-          <div className="relative">
-            <select
-              value={rank}
-              onChange={(e) => setRank(e.target.value)}
-              className="w-full appearance-none rounded-[8px] border border-border bg-surface-alt p-3 pl-8 text-[14px] text-text focus:outline-none"
+          <div className="flex w-full items-center justify-between rounded-[8px] border border-border bg-surface-alt p-3">
+            <span
+              className={`rounded-[4px] px-2 py-0.5 text-[11px] font-bold ${
+                data.rankVerification === "VERIFIED" ? "bg-success/10 text-success" : "bg-white/[0.06] text-text-dim"
+              }`}
+              dir="auto"
             >
-              <option value="UNRANKED">بدون رنک</option>
-              {RANK_OPTIONS.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-text-dim" />
+              {data.rankVerification === "VERIFIED" ? "تایید‌شده" : "هنوز تایید نشده"}
+            </span>
+            <span className="text-[14px] font-bold text-text" dir="auto">
+              {RANK_LABEL[data.rank]} {data.rankTier ?? ""}
+            </span>
           </div>
         </div>
       </div>
@@ -203,7 +201,6 @@ function AccountTab({
               displayName,
               bio,
               mainPosition: mainPosition ? (mainPosition as PositionValue) : null,
-              rank,
             })
           }
           disabled={saving}

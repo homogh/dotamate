@@ -4,7 +4,6 @@ import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
 import type { ApiResponse } from "@/app/types/api";
 
-const VALID_RANKS = ["UNRANKED", "HERALD", "GUARDIAN", "CRUSADER", "ARCHON", "LEGEND", "ANCIENT", "DIVINE", "IMMORTAL"];
 const VALID_POSITIONS = ["POS1", "POS2", "POS3", "POS4", "POS5"];
 
 export async function POST(request: NextRequest) {
@@ -26,20 +25,18 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => null);
-  const rank = String(body?.rank ?? "");
   const mainPosition = String(body?.mainPosition ?? "");
-  const rankTier = body?.rankTier != null ? Number(body.rankTier) : null;
 
-  if (!VALID_RANKS.includes(rank) || !VALID_POSITIONS.includes(mainPosition)) {
-    return NextResponse.json<ApiResponse>({ status: "error", message: "رنک و پز رو درست انتخاب کن.", data: null }, { status: 400 });
+  if (!VALID_POSITIONS.includes(mainPosition)) {
+    return NextResponse.json<ApiResponse>({ status: "error", message: "پز اصلیت رو انتخاب کن.", data: null }, { status: 400 });
   }
 
+  // Rank itself is never accepted here — it's derived from OpenDota
+  // (see /api/onboarding/steam/verify and /api/users/[id]), never self-declared.
   await prisma.user.update({
     where: { id: session.id },
     data: {
-      rank: rank as never,
       mainPosition: mainPosition as never,
-      rankTier: rankTier && rankTier >= 1 && rankTier <= 5 ? rankTier : null,
       profileCompletedAt: new Date(),
     },
   });

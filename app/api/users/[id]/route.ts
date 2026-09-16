@@ -1,9 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
-import { getHeroLookup, type OpenDotaMatch } from "@/app/lib/opendota";
+import {
+  getHeroLookup,
+  refreshOpenDotaPlayer,
+  syncOpenDotaPlayer,
+  decodeOpenDotaRankTier,
+  type OpenDotaMatch,
+  type OpenDotaRatingPoint,
+  type OpenDotaTotals,
+  type OpenDotaHeroPlayed,
+} from "@/app/lib/opendota";
+import { steamId64ToAccountId } from "@/app/lib/steam";
+import { RANK_LABEL } from "@/components/dashboard/postLabels";
 import type { ApiResponse } from "@/app/types/api";
+
+// Re-pull OpenDota stats at most this often per profile — keeps every
+// profile view reasonably fresh without hitting OpenDota on every request.
+const STATS_STALE_MS = 10 * 60 * 1000;
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
@@ -20,7 +36,63 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json<ApiResponse>({ status: "error", message: "کاربر پیدا نشد.", data: null }, { status: 404 });
   }
 
-  const heroes = user.matchStats ? await getHeroLookup() : {};
+  let matchStats = user.matchStats;
+  let rank = user.rank;
+  let rankTier = user.rankTier;
+  let rankVerification = user.rankVerification;
+
+  if (user.steamId && user.matchDataVerified) {
+    const isStale = !matchStats?.lastSyncedAt || Date.now() - matchStats.lastSyncedAt.getTime() > STATS_STALE_MS;
+
+    if (isStale) {
+      const accountId = steamId64ToAccountId(user.steamId);
+      refreshOpenDotaPlayer(accountId); // best-effort, not awaited — asks OpenDota to pull fresh matches for next time
+      const sync = await syncOpenDotaPlayer(accountId).catch(() => null);
+
+      if (sync) {
+        matchStats = await prisma.dotaMatchStats.upsert({
+          where: { userId: user.id },
+          create: {
+            userId: user.id,
+            wins: sync.wins,
+            losses: sync.losses,
+            rankTierHint: sync.rankTierHint,
+            matches: sync.matches as unknown as Prisma.InputJsonValue,
+            ratings: sync.ratings as unknown as Prisma.InputJsonValue,
+            totals: sync.totals as unknown as Prisma.InputJsonValue,
+            heroesPlayed: sync.heroesPlayed as unknown as Prisma.InputJsonValue,
+            lastSyncedAt: new Date(),
+          },
+          update: {
+            wins: sync.wins,
+            losses: sync.losses,
+            rankTierHint: sync.rankTierHint,
+            matches: sync.matches as unknown as Prisma.InputJsonValue,
+            ratings: sync.ratings as unknown as Prisma.InputJsonValue,
+            totals: sync.totals as unknown as Prisma.InputJsonValue,
+            heroesPlayed: sync.heroesPlayed as unknown as Prisma.InputJsonValue,
+            lastSyncedAt: new Date(),
+          },
+        });
+      }
+
+      // Rank is derived from OpenDota, never self-declared — every stale
+      // view re-checks it here so a rank-up or rank-down shows immediately.
+      const decoded = sync?.rankTierHint != null ? decodeOpenDotaRankTier(sync.rankTierHint) : null;
+      if (decoded) {
+        const updatedUser = await prisma.user.update({
+          where: { id: user.id },
+          data: { rank: decoded.rank, rankTier: decoded.star, rankVerification: "VERIFIED" },
+          select: { rank: true, rankTier: true, rankVerification: true },
+        });
+        rank = updatedUser.rank;
+        rankTier = updatedUser.rankTier;
+        rankVerification = updatedUser.rankVerification;
+      }
+    }
+  }
+
+  const heroes = matchStats ? await getHeroLookup() : {};
 
   const [teammatesAsHost, teammatesAsMember, activePostCount, recentPosts, isFavorited] = await Promise.all([
     prisma.postMember.count({ where: { post: { authorId: userId }, status: "ACCEPTED" } }),
@@ -44,10 +116,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     bio: user.bio,
     country: user.country,
     languages: user.languages ? user.languages.split(",").map((l) => l.trim()).filter(Boolean) : [],
-    rank: user.rank,
-    rankTier: user.rankTier,
+    rank,
+    rankTier,
     mainPosition: user.mainPosition,
-    rankVerification: user.rankVerification,
+    rankVerification,
     createdAt: user.createdAt,
     isSelf: session.id === userId,
     isFavorited,
@@ -64,19 +136,30 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       status: p.status,
       createdAt: p.createdAt,
     })),
-    dotaStats: user.matchStats
+    dotaStats: matchStats
       ? {
-          wins: user.matchStats.wins,
-          losses: user.matchStats.losses,
+          wins: matchStats.wins,
+          losses: matchStats.losses,
           winRate:
-            user.matchStats.wins + user.matchStats.losses > 0
-              ? Math.round((user.matchStats.wins / (user.matchStats.wins + user.matchStats.losses)) * 100)
+            matchStats.wins + matchStats.losses > 0
+              ? Math.round((matchStats.wins / (matchStats.wins + matchStats.losses)) * 100)
               : 0,
-          lastSyncedAt: user.matchStats.lastSyncedAt,
-          matches: (user.matchStats.matches as unknown as OpenDotaMatch[]).map((m) => ({
+          lastSyncedAt: matchStats.lastSyncedAt,
+          matches: (matchStats.matches as unknown as OpenDotaMatch[]).map((m) => ({
             ...m,
             heroName: heroes[m.heroId]?.localizedName ?? `Hero ${m.heroId}`,
+            heroIcon: heroes[m.heroId]?.icon ?? "",
+            heroImg: heroes[m.heroId]?.img ?? "",
           })),
+          ratings: ((matchStats.ratings as unknown as OpenDotaRatingPoint[] | null) ?? []).map((r) => {
+            const decoded = decodeOpenDotaRankTier(r.rankTier);
+            return {
+              ...r,
+              rankLabel: decoded ? `${RANK_LABEL[decoded.rank]}${decoded.star ? ` ${decoded.star}` : ""}` : `${r.rankTier}`,
+            };
+          }),
+          totals: (matchStats.totals as unknown as OpenDotaTotals | null) ?? null,
+          heroesPlayed: (matchStats.heroesPlayed as unknown as OpenDotaHeroPlayed[] | null) ?? [],
         }
       : null,
   };

@@ -16,30 +16,32 @@ export function Hero() {
 
   useGSAP(
     () => {
-      const mm = gsap.matchMedia();
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-      mm.add("(prefers-reduced-motion: no-preference)", () => {
-        gsap
-          .timeline({ defaults: { ease: "power3.out" } })
-          .from("[data-hero-badge]", { autoAlpha: 0, y: 16, duration: 0.6 })
-          .from(
-            "[data-hero-title]",
-            { autoAlpha: 0, y: 20, duration: 0.7 },
-            "-=0.35"
-          )
-          .from(
-            "[data-hero-desc]",
-            { autoAlpha: 0, y: 16, duration: 0.6 },
-            "-=0.4"
-          )
-          .from(
-            "[data-hero-cta]",
-            { autoAlpha: 0, y: 16, duration: 0.6, stagger: 0.1 },
-            "-=0.35"
-          );
-      });
+      gsap.set(
+        ["[data-hero-badge]", "[data-hero-title]", "[data-hero-desc]", "[data-hero-cta]"],
+        { autoAlpha: 0, y: 16 }
+      );
+      gsap.set("[data-hero-title]", { y: 20 });
 
-      return () => mm.revert();
+      gsap
+        .timeline({ defaults: { ease: "power3.out" } })
+        .to("[data-hero-badge]", { autoAlpha: 1, y: 0, duration: 0.6 })
+        .to(
+          "[data-hero-title]",
+          { autoAlpha: 1, y: 0, duration: 0.7 },
+          "-=0.35"
+        )
+        .to(
+          "[data-hero-desc]",
+          { autoAlpha: 1, y: 0, duration: 0.6 },
+          "-=0.4"
+        )
+        .to(
+          "[data-hero-cta]",
+          { autoAlpha: 1, y: 0, duration: 0.6, stagger: 0.1 },
+          "-=0.35"
+        );
     },
     { scope: ref }
   );

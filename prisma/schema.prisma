@@ -431,19 +431,25 @@ model Announcement {
 }
 
 model BlogPost {
-  id          Int        @id @default(autoincrement())
-  title       String
-  slug        String     @unique
-  category    String
-  excerpt     String?    @db.Text
-  body        String     @db.Text
-  coverSeed   String?
-  status      BlogStatus @default(DRAFT)
-  authorId    Int
-  author      User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  publishedAt DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id              Int        @id @default(autoincrement())
+  title           String
+  slug            String     @unique
+  categories      String
+  heroIds         String?
+  tags            String?
+  excerpt         String?    @db.Text
+  body            Json
+  coverSeed       String?
+  coverImageUrl   String?
+  coverImageAlt   String?
+  metaTitle       String?
+  metaDescription String?    @db.Text
+  status          BlogStatus @default(DRAFT)
+  authorId        Int
+  author          User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  publishedAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
   @@index([status])
 }
@@ -485,6 +491,9 @@ model DotaMatchStats {
   losses       Int       @default(0)
   rankTierHint Int?
   matches      Json
+  ratings      Json?
+  totals       Json?
+  heroesPlayed Json?
   lastSyncedAt DateTime?
   updatedAt    DateTime  @updatedAt
 }

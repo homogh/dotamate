@@ -18,9 +18,18 @@ const vazirmatn = Vazirmatn({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"),
   title: "دوتامیت | پیدا کردن هم‌تیمی Dota 2",
   description:
     "دوتامیت پلتفرمی بومی و ایرانی برای پیدا کردن هم‌تیمی در Dota 2 است. بازیکنان باانگیزه و متناسب با رنک خودت رو پیدا کن، وارد پارتی شو و هماهنگ صعود کن.",
+  openGraph: {
+    siteName: "دوتامیت",
+    locale: "fa_IR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

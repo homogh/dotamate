@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Position, Rank } from "@prisma/client";
+import type { Position } from "@prisma/client";
 
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
       mainPosition: user.mainPosition,
       rank: user.rank,
       rankTier: user.rankTier,
+      rankVerification: user.rankVerification,
       steamProfileUrl: user.steamProfileUrl,
       avatarUrl: user.avatarUrl,
       notifyBell: user.notifyBell,
@@ -52,7 +53,6 @@ export async function PATCH(request: NextRequest) {
     country?: string | null;
     languages?: string | null;
     mainPosition?: Position | null;
-    rank?: Rank;
     notifyBell?: boolean;
     notifyEmail?: boolean;
     notifyPush?: boolean;
@@ -65,26 +65,13 @@ export async function PATCH(request: NextRequest) {
   if (body?.mainPosition === null || ["POS1", "POS2", "POS3", "POS4", "POS5"].includes(body?.mainPosition)) {
     data.mainPosition = body.mainPosition;
   }
-  if (["UNRANKED", "HERALD", "GUARDIAN", "CRUSADER", "ARCHON", "LEGEND", "ANCIENT", "DIVINE", "IMMORTAL"].includes(body?.rank)) {
-    data.rank = body.rank;
-  }
   if (typeof body?.notifyBell === "boolean") data.notifyBell = body.notifyBell;
   if (typeof body?.notifyEmail === "boolean") data.notifyEmail = body.notifyEmail;
   if (typeof body?.notifyPush === "boolean") data.notifyPush = body.notifyPush;
 
+  // rank / rankTier are never accepted here — they're derived from OpenDota
+  // (see /api/onboarding/steam/verify and /api/users/[id]), never self-declared.
   await prisma.user.update({ where: { id: session.id }, data });
-
-  // rankTier is isolated in its own update: this field was added after a
-  // Prisma client-generation lock started (see project notes), so on an
-  // un-restarted dev server this write alone may 500 — kept separate so it
-  // can never take the rest of the profile save down with it.
-  if (typeof body?.rankTier === "number" || body?.rankTier === null) {
-    try {
-      await prisma.user.update({ where: { id: session.id }, data: { rankTier: body.rankTier } });
-    } catch {
-      // Swallowed intentionally — see comment above.
-    }
-  }
 
   return NextResponse.json<ApiResponse>({ status: "success", message: "تغییرات ذخیره شد.", data: null });
 }

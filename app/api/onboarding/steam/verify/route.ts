@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
-import { refreshOpenDotaPlayer, syncOpenDotaPlayer } from "@/app/lib/opendota";
+import { refreshOpenDotaPlayer, syncOpenDotaPlayer, decodeOpenDotaRankTier } from "@/app/lib/opendota";
 import { fetchSteamPlayerSummary, steamId64ToAccountId } from "@/app/lib/steam";
 import type { ApiResponse } from "@/app/types/api";
 
@@ -43,6 +43,12 @@ export async function POST(request: NextRequest) {
 
   const verified = sync.matches.length > 0;
   const matchesJson = sync.matches as unknown as Prisma.InputJsonValue;
+  const ratingsJson = sync.ratings as unknown as Prisma.InputJsonValue;
+  const totalsJson = sync.totals as unknown as Prisma.InputJsonValue;
+  const heroesPlayedJson = sync.heroesPlayed as unknown as Prisma.InputJsonValue;
+  // Rank comes from OpenDota, never self-declared — set it as soon as we
+  // have a real rank_tier instead of waiting on whatever ProfileSetup picks.
+  const decodedRank = sync.rankTierHint != null ? decodeOpenDotaRankTier(sync.rankTierHint) : null;
 
   await prisma.$transaction([
     prisma.dotaMatchStats.upsert({
@@ -53,6 +59,9 @@ export async function POST(request: NextRequest) {
         losses: sync.losses,
         rankTierHint: sync.rankTierHint,
         matches: matchesJson,
+        ratings: ratingsJson,
+        totals: totalsJson,
+        heroesPlayed: heroesPlayedJson,
         lastSyncedAt: new Date(),
       },
       update: {
@@ -60,10 +69,19 @@ export async function POST(request: NextRequest) {
         losses: sync.losses,
         rankTierHint: sync.rankTierHint,
         matches: matchesJson,
+        ratings: ratingsJson,
+        totals: totalsJson,
+        heroesPlayed: heroesPlayedJson,
         lastSyncedAt: new Date(),
       },
     }),
-    prisma.user.update({ where: { id: session.id }, data: { matchDataVerified: verified } }),
+    prisma.user.update({
+      where: { id: session.id },
+      data: {
+        matchDataVerified: verified,
+        ...(decodedRank && { rank: decodedRank.rank, rankTier: decodedRank.star, rankVerification: "VERIFIED" }),
+      },
+    }),
   ]);
 
   if (!verified) {

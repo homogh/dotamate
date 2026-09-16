@@ -47,7 +47,7 @@ export function AccountMenu({ size = 36 }: { size?: number }) {
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 z-50 mt-2 w-60 rounded-[10px] border border-border bg-surface p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.5)]">
+        <div className="absolute top-full right-0 z-50 mt-2 w-60 rounded-[10px] border border-border bg-surface p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.5)]">
           <div className="flex flex-col items-end gap-0.5 px-3 py-2.5">
             <p className="text-[13px] font-bold text-text" dir="auto">
               {user.displayName}

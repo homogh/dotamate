@@ -6,7 +6,7 @@ import { ChevronDown, Loader2 } from "lucide-react";
 
 import { AuthShell } from "@/components/general/authShell";
 import { Button } from "@/components/ui/button";
-import { RANK_OPTIONS } from "@/components/dashboard/postLabels";
+import { RANK_LABEL } from "@/components/dashboard/postLabels";
 import { POSITIONS, POSITION_LABEL, type PositionValue } from "@/components/dashboard/positionMeta";
 
 interface Status {
@@ -15,13 +15,14 @@ interface Status {
   profileCompletedAt: string | null;
   steamName: string | null;
   steamAvatar: string | null;
+  rank: string;
+  rankTier: number | null;
 }
 
 export function ProfileSetup() {
   const router = useRouter();
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
-  const [rank, setRank] = useState("UNRANKED");
   const [mainPosition, setMainPosition] = useState<PositionValue>("POS1");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +53,7 @@ export function ProfileSetup() {
     const res = await fetch("/api/onboarding/profile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rank, mainPosition }),
+      body: JSON.stringify({ mainPosition }),
     });
     const json = await res.json();
     setSaving(false);
@@ -75,7 +76,7 @@ export function ProfileSetup() {
   }
 
   return (
-    <AuthShell title="تکمیل پروفایل" subtitle="رنک و پز اصلیت رو انتخاب کن — بقیه‌ی اطلاعات رو از استیمت گرفتیم.">
+    <AuthShell title="تکمیل پروفایل" subtitle="پز اصلیت رو انتخاب کن — رنک و بقیه‌ی اطلاعات رو مستقیم از استیمت گرفتیم.">
       <div className="flex w-full flex-col gap-5">
         {status.steamName && (
           <div className="flex w-full items-center justify-end gap-3 rounded-[8px] border border-border bg-surface-alt p-3">
@@ -91,6 +92,20 @@ export function ProfileSetup() {
 
         <div className="flex flex-col gap-2">
           <p className="text-[13px] text-text-dim" dir="auto">
+            رنک فعلی (بر اساس دوتا ۲)
+          </p>
+          <div className="flex w-full items-center justify-between rounded-[8px] border border-border bg-surface-alt p-3">
+            <span className="rounded-[4px] bg-success/10 px-2 py-0.5 text-[11px] font-bold text-success" dir="auto">
+              تایید‌شده
+            </span>
+            <span className="text-[14px] font-bold text-text" dir="auto">
+              {RANK_LABEL[status.rank]} {status.rankTier ?? ""}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <p className="text-[13px] text-text-dim" dir="auto">
             پز اصلی (Position)
           </p>
           <div className="relative">
@@ -102,27 +117,6 @@ export function ProfileSetup() {
               {POSITIONS.map((p) => (
                 <option key={p} value={p}>
                   {POSITION_LABEL[p]}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-text-dim" />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <p className="text-[13px] text-text-dim" dir="auto">
-            رنک فعلی
-          </p>
-          <div className="relative">
-            <select
-              value={rank}
-              onChange={(e) => setRank(e.target.value)}
-              className="w-full appearance-none rounded-[8px] border border-border bg-surface-alt p-3 pl-8 text-[14px] text-text focus:outline-none"
-            >
-              <option value="UNRANKED">بدون رنک</option>
-              {RANK_OPTIONS.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
                 </option>
               ))}
             </select>

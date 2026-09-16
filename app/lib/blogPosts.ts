@@ -4,362 +4,59 @@ export type ContentBlock =
   | { type: "paragraph"; text: string }
   | { type: "heading"; text: string }
   | { type: "blockquote"; text: string }
-  | { type: "image"; caption: string };
+  | { type: "image"; url: string; alt: string; caption?: string };
 
-export interface BlogPost {
+export interface BlogHeroRef {
+  id: number;
+  name: string;
+  icon: string;
+}
+
+export interface PublicBlogPostSummary {
   slug: string;
   title: string;
   excerpt: string;
-  category: BlogCategory;
-  date: string;
+  categories: string[];
+  tags: string[];
+  heroes: BlogHeroRef[];
+  coverImageUrl: string | null;
+  coverImageAlt: string | null;
   publishedAt: string;
-  readTime: string;
-  author: string;
-  body: ContentBlock[];
-  relatedSlugs: string[];
+  readTimeMinutes: number;
 }
 
 export const BLOG_CATEGORIES: BlogCategory[] = ["راهنما", "آپدیت", "متا", "آموزش"];
 
 export const POSTS_PER_PAGE = 6;
 
-export const BLOG_POSTS: BlogPost[] = [
-  {
-    slug: "patch-735d-analiz",
-    title: "آنالیز کامل پچ جدید 7.35d و تغییرات اساسی هیروها",
-    excerpt:
-      "در این مقاله به بررسی دقیق تغییرات آیتم‌ها، قوی‌ترین هیروهای پچ جدید و بهترین پیک‌ها برای رنکد رول می‌پردازیم.",
-    category: "متا",
-    date: "۲ روز پیش",
-    publishedAt: "۲۴ اسفند ۱۴۰۴",
-    readTime: "۱۲ دقیقه مطالعه",
-    author: "عرفان (Slayer)",
-    relatedSlugs: ["pos5-hedayat", "5-eshtebah-solo", "offlane-divine"],
-    body: [
-      {
-        type: "paragraph",
-        text: "سرانجام ولوم آپدیت میانی پچ 7.35d را عرضه کرد. در این آپدیت تمرکز اصلی روی متعادل‌سازی هیروهایی بوده که در تورنمنت‌های اخیر و بازی‌های سطح بتل‌کاپ نرخ برد غیرمنطقی بالای ۵۵ درصد داشته‌اند. هیروهایی نظیر کریستال میدن و دراگون نایت با تضعیف مواجه شده‌اند در حالی که جگرنات و اسلارک بوف‌های جزئی دریافت کرده‌اند تا در متای فعلی بیشتر دیده شوند.",
-      },
-      { type: "heading", text: "تغییرات کلیدی آیتم‌های فاز اواسط بازی (Mid-Game)" },
-      {
-        type: "paragraph",
-        text: "یکی از مهم‌ترین بخش‌های این آپدیت، ضعیف شدن آیتم Mage Slayer است. این آیتم که در پچ قبلی تقریباً روی تمامی هیروهای پوزیشن ۳ و ۲ ساخته می‌شد، اکنون کاهش تاثیر منفی اسپل دمیج به میزان ۱۰٪ را تجربه کرده است. همچنین قیمت ریپی کلاکی تا حدودی افزایش یافته است تا هیروهای تانکی نتوانند خیلی زود به دفاع جادویی مطلق برسند.",
-      },
-      {
-        type: "blockquote",
-        text: "«برای صعود امن در رنکد رول اروپا، به شدت پیشنهاد می‌شود حداقل یک هیروی تانکی آفلاین هماهنگ با هارد ساپورت لاین خود انتخاب کنید. متای فعلی متای بقا در درگیری‌های طولانی است.»",
-      },
-      { type: "heading", text: "هیروهای برنده در لاین‌آف‌لابی" },
-      {
-        type: "paragraph",
-        text: "با افت شدید وین‌ریت دراگون نایت، سنتاور (Centaur Warrunner) مجدداً به برترین هیروی تانکی پچ بدل شده است. ترکیب این هیرو با سافت‌ساپورتی که قابلیت استان مداوم داشته باشد می‌تواند در همان ۱۰ دقیقه ابتدایی لاین مقابل را کاملاً فلج کند.",
-      },
-      { type: "image", caption: "نمودار مقایسه وین‌ریت هیروهای پوزیشن ۳ پس از اعمال تغییرات جدید" },
-    ],
-  },
-  {
-    slug: "pos5-hedayat",
-    title: "چگونه به عنوان پوزیشن ۵ بازی را هدایت کنیم؟",
-    excerpt:
-      "نقش هارد ساپورت فقط وارد کاشتن نیست. هماهنگی صوتی، کنترل مپ و استک لایت‌کمپ‌ها کلیدهای خروج از رنک لجند هستند.",
-    category: "راهنما",
-    date: "۴ روز پیش",
-    publishedAt: "۲۲ اسفند ۱۴۰۴",
-    readTime: "۸ دقیقه مطالعه",
-    author: "سینا (Arise)",
-    relatedSlugs: ["patch-735d-analiz", "support-warding", "voice-discord-role"],
-    body: [
-      {
-        type: "paragraph",
-        text: "خیلی از بازیکنانی که پوزیشن ۵ بازی می‌کنن فکر می‌کنن کارشون فقط وارد گذاشتنه. اما هارد ساپورت واقعی، کسیه که تصمیم می‌گیره تیم کجا بره، کی بجنگه و کی عقب‌نشینی کنه.",
-      },
-      { type: "heading", text: "کال‌اوت‌های صوتی که فرق ایجاد می‌کنن" },
-      {
-        type: "paragraph",
-        text: "یه کال‌اوت ساده مثل «رون بالا خالیه، برو استک کن» یا «مید تی‌پی نداره، پوش کنیم» می‌تونه یه بازی رو کاملاً عوض کنه. بدون وویس فعال، خیلی از این تصمیم‌ها اصلاً گرفته نمی‌شن.",
-      },
-      {
-        type: "paragraph",
-        text: "کنترل لایت‌کمپ‌ها و استک کردن جنگل برای کری تیم، یکی از کم‌ارزش‌ترین کارهاییه که بیشترین تاثیر رو روی رشد اقتصادی تیم داره — و اکثر پلیرهای این پوزیشن اصلاً بهش توجه نمی‌کنن.",
-      },
-    ],
-  },
-  {
-    slug: "5-eshtebah-solo",
-    title: "۵ اشتباه رایج در سولو کیو که باعث باخت شما می‌شود",
-    excerpt:
-      "چرا با وجود عملکرد خوب شخصی همچنان می‌بازید؟ رفتارهای سمی تیمی و پیک‌های نامتقارن را بشناسید و از آن‌ها دوری کنید.",
-    category: "آموزش",
-    date: "۱ هفته پیش",
-    publishedAt: "۱۷ اسفند ۱۴۰۴",
-    readTime: "۷ دقیقه مطالعه",
-    author: "امیرمهدی",
-    relatedSlugs: ["comeback-mentality", "draft-rankd-roll", "pos5-hedayat"],
-    body: [
-      {
-        type: "paragraph",
-        text: "بعضی وقت‌ها آمار شخصی خوبه ولی بازی رو می‌بازیم. معمولاً دلیلش یکی از این پنج تا اشتباه رایجه که خیلی‌ها حتی متوجهش نمی‌شن.",
-      },
-      { type: "heading", text: "۱. پیک نامتقارن با بقیهٔ تیم" },
-      {
-        type: "paragraph",
-        text: "پیک کردن یه کری دیرجوش وقتی تیمت هیچ ساپورت اولی‌گیم نداره، یعنی از همون فاز درفت باختی. هماهنگی پیک با چت (حتی متنی) واجب‌ترین کاریه که می‌تونی بکنی.",
-      },
-      {
-        type: "paragraph",
-        text: "چهار اشتباه بعدی که در ادامه بررسی می‌کنیم شامل تعقیب بی‌مورد کیل، عدم استفاده از وارد، فارمینگ در زمان اشتباه و نادیده گرفتن آبجکتیوهای نقشه هستن.",
-      },
-    ],
-  },
-  {
-    slug: "offlane-divine",
-    title: "بهترین هیروهای آف‌لین (Pos 3) برای صعود به رنک دیواین",
-    excerpt:
-      "قهرمانان قدرتی و تانکی در متای فعلی دست برتر را دارند. هیروهای Centaur و Doom را بیش از پیش پیک کنید.",
-    category: "متا",
-    date: "۱ هفته پیش",
-    publishedAt: "۱۶ اسفند ۱۴۰۴",
-    readTime: "۹ دقیقه مطالعه",
-    author: "عرفان (Slayer)",
-    relatedSlugs: ["patch-735d-analiz", "draft-rankd-roll", "patch-734-recap"],
-    body: [
-      {
-        type: "paragraph",
-        text: "پوزیشن ۳ توی رنک‌های Legend تا Divine معمولاً بازیکن‌ترین و کم‌درک‌شده‌ترین نقش دوتاست. این‌جا سه تا هیرو رو معرفی می‌کنیم که با کمترین مکانیک، بیشترین تاثیر رو دارن.",
-      },
-      { type: "heading", text: "Centaur Warrunner همچنان پادشاه است" },
-      {
-        type: "paragraph",
-        text: "استن، اسپید، و تانکی بودن ذاتی یعنی حتی با فارم بد هم توی فایت‌های تیمی مفیدی. ترکیبش با یه هیروی جمع‌کننده مثل Enigma می‌تونه بازی رو ۵ به ۰ ببره.",
-      },
-    ],
-  },
-  {
-    slug: "steam-connect-guide",
-    title: "راهنمای جامع اتصال اکانت استیم و احراز رنک خودکار",
-    excerpt:
-      "چگونه بدون نگرانی از امنیت حساب، پروفایل استیم خود را به دوتامیت متصل کنیم تا مدال دوتا ۲ ما به درستی ثبت شود.",
-    category: "راهنما",
-    date: "۲ هفته پیش",
-    publishedAt: "۱۰ اسفند ۱۴۰۴",
-    readTime: "۶ دقیقه مطالعه",
-    author: "سینا (Arise)",
-    relatedSlugs: ["teamspeak-setup", "pos5-hedayat", "hero-pool-tips"],
-    body: [
-      {
-        type: "paragraph",
-        text: "اتصال استیم فقط یه لینک عمومی به پروفایلته — دوتامیت هیچ‌وقت پسورد استیمت رو نمی‌بینه یا نمی‌خواد. در این راهنما مرحله‌به‌مرحله نشون می‌دیم چطور پروفایلت رو وصل کنی.",
-      },
-      {
-        type: "paragraph",
-        text: "بعد از اتصال، رنک و آمار بازی‌هات از منابع عمومی خونده می‌شه و بج «تایید‌شده» کنار پروفایلت نمایش داده می‌شه — که یعنی بقیهٔ پلیرها می‌تونن با اطمینان بیشتری بهت اعتماد کنن.",
-      },
-    ],
-  },
-  {
-    slug: "voice-discord-role",
-    title: "نقش ارتباط صوتی و دیسکورد در موفقیت پارتی‌های دوتا",
-    excerpt:
-      "بازی دوتا ۲ بدون وویس چت مثل چشم بسته راه رفتن است. در این مطلب نحوه راه‌اندازی لابی با دیسکورد دوتامیت را یاد بگیرید.",
-    category: "آموزش",
-    date: "۳ هفته پیش",
-    publishedAt: "۳ اسفند ۱۴۰۴",
-    readTime: "۵ دقیقه مطالعه",
-    author: "امیرمهدی",
-    relatedSlugs: ["teamspeak-setup", "pos5-hedayat", "5-eshtebah-solo"],
-    body: [
-      {
-        type: "paragraph",
-        text: "خیلی از باخت‌های نزدیک ربطی به مکانیک نداره — فقط چون کسی صداش رو نشنیده که بگه «گنک میان مید». هر پارتی دوتامیت به یه سرور صوتی اختصاصی وصله تا این مشکل اصلاً پیش نیاد.",
-      },
-      {
-        type: "paragraph",
-        text: "کافیه به پارتی بپیوندی؛ آدرس سرور و دکمهٔ اتصال مستقیم زیر پستش نمایش داده می‌شه، بدون نیاز به هماهنگی جدا یا اضافه‌کردن دوستی روی دیسکورد شخصیت.",
-      },
-    ],
-  },
-  {
-    slug: "itemization-midgame",
-    title: "ایتم‌بندی صحیح در فاز میانی بازی: چه زمانی بخریم؟",
-    excerpt:
-      "ترتیب خرید آیتم‌ها به‌اندازهٔ خود آیتم‌ها اهمیت داره. اینجا یاد می‌گیریم کی BKB بخریم و کی نه.",
-    category: "آپدیت",
-    date: "۱ ماه پیش",
-    publishedAt: "۲۵ بهمن ۱۴۰۴",
-    readTime: "۷ دقیقه مطالعه",
-    author: "عرفان (Slayer)",
-    relatedSlugs: ["patch-734-recap", "mid-lane-runes", "draft-rankd-roll"],
-    body: [
-      {
-        type: "paragraph",
-        text: "خیلی از پلیرها آیتم درست رو می‌سازن ولی توی زمان اشتباه. تو این مطلب یه چارچوب ساده برای تصمیم‌گیری «الان چی بخرم» می‌دیم.",
-      },
-      {
-        type: "paragraph",
-        text: "قانون کلی: اگه حریفت هیرو دیسیبل داره، اول BKB. اگه بازی کش پیدا کرده و رزوم مهمه، اول آیتم‌های اقتصادی. ساده به نظر می‌رسه ولی اکثر باخت‌ها از همین تصمیم اشتباه شروع می‌شن.",
-      },
-    ],
-  },
-  {
-    slug: "support-warding",
-    title: "اصول وارد گذاری برای سافت و هارد ساپورت",
-    excerpt:
-      "جای وارد گذاشتن به‌اندازهٔ تعدادش مهمه. نقشهٔ کامل جای واردهای استاندارد هر ریجن رو اینجا می‌بینید.",
-    category: "راهنما",
-    date: "۱ ماه پیش",
-    publishedAt: "۲۰ بهمن ۱۴۰۴",
-    readTime: "۶ دقیقه مطالعه",
-    author: "سینا (Arise)",
-    relatedSlugs: ["pos5-hedayat", "mid-lane-runes", "voice-discord-role"],
-    body: [
-      {
-        type: "paragraph",
-        text: "وارد گذاشتن توی جای اشتباه، عملاً هیچ اطلاعاتی به تیم نمی‌ده و فقط طلای مفت به حریف می‌ده. اینجا سه تا اصل ساده برای وارد گذاری مؤثر رو مرور می‌کنیم.",
-      },
-      {
-        type: "paragraph",
-        text: "قبل از هر چیز، همیشه یه وارد برای رون‌های آب بذار — کنترل رون یعنی کنترل کل نیمهٔ ابتدایی بازی، هم برای مید و هم برای کل تیم.",
-      },
-    ],
-  },
-  {
-    slug: "mid-lane-runes",
-    title: "کنترل رون‌ها؛ تفاوت یک مید متوسط با یک مید حرفه‌ای",
-    excerpt:
-      "یک مید خوب همیشه می‌دونه رون بعدی کیه و کجا. این مطلب تایمینگ دقیق رون‌ها رو یادتون می‌ده.",
-    category: "آموزش",
-    date: "۱ ماه پیش",
-    publishedAt: "۱۵ بهمن ۱۴۰۴",
-    readTime: "۵ دقیقه مطالعه",
-    author: "امیرمهدی",
-    relatedSlugs: ["itemization-midgame", "support-warding", "draft-rankd-roll"],
-    body: [
-      {
-        type: "paragraph",
-        text: "رون‌های آب هر ۲ دقیقه توی نقشه ظاهر می‌شن، ولی خیلی از میدها فقط رون‌های نزدیک به خودشون رو چک می‌کنن. این یعنی نصف فرصت‌های ممکن رو از دست می‌دن.",
-      },
-      {
-        type: "paragraph",
-        text: "همیشه دقیقه‌های ۴، ۶، ۸ و به بعد رو تو ذهنت داشته باش و از قبل به سمت رون حرکت کن، نه اینکه بعد از ظاهر شدنش تصمیم بگیری.",
-      },
-    ],
-  },
-  {
-    slug: "patch-734-recap",
-    title: "مرور پچ 7.34: کدام تغییرات هنوز روی متا تاثیر دارن؟",
-    excerpt:
-      "قبل از این‌که سراغ پچ جدید بریم، یه نگاه به میراث پچ قبلی می‌ندازیم که هنوز روی انتخاب‌های درفت اثر داره.",
-    category: "آپدیت",
-    date: "۲ ماه پیش",
-    publishedAt: "۲۸ دی ۱۴۰۴",
-    readTime: "۸ دقیقه مطالعه",
-    author: "عرفان (Slayer)",
-    relatedSlugs: ["patch-735d-analiz", "offlane-divine", "itemization-midgame"],
-    body: [
-      {
-        type: "paragraph",
-        text: "پچ 7.34 با معرفی مجدد سیستم Innate Ability، کل رویکرد به هیرو دیزاین رو عوض کرد. حتی با اومدن پچ‌های جدیدتر، تاثیر این تغییر هنوز کاملاً محو نشده.",
-      },
-      {
-        type: "paragraph",
-        text: "هیروهایی که Innate قوی گرفتن (مثل Bounty Hunter و Spirit Breaker) هنوز جزو پیک‌های امن رنکد رول محسوب می‌شن.",
-      },
-    ],
-  },
-  {
-    slug: "draft-rankd-roll",
-    title: "اصول درفت در رنکد رول؛ چطور کانتر پیک بدیم؟",
-    excerpt:
-      "درفت کردن با غریبه‌ها متفاوت از پارتی دوستانه‌ست. این قوانین ساده رو رعایت کن تا شانس بردت بالا بره.",
-    category: "متا",
-    date: "۲ ماه پیش",
-    publishedAt: "۲۰ دی ۱۴۰۴",
-    readTime: "۷ دقیقه مطالعه",
-    author: "سینا (Arise)",
-    relatedSlugs: ["offlane-divine", "5-eshtebah-solo", "patch-734-recap"],
-    body: [
-      {
-        type: "paragraph",
-        text: "توی رنکد رول، هماهنگی درفت با هم‌تیمی‌های غریبه سخته. برای همین بهتره به‌جای پیک‌های ریسکی، هیروهای انعطاف‌پذیر و امن انتخاب کنی.",
-      },
-      {
-        type: "paragraph",
-        text: "همیشه آخرین پیک رو نگه دار برای کانتر کردن خطرناک‌ترین هیروی تیم حریف — این یه مزیت واقعیه که خیلی‌ها ازش استفاده نمی‌کنن.",
-      },
-    ],
-  },
-  {
-    slug: "comeback-mentality",
-    title: "چطور از بازی‌های باخته برگردیم؟ ذهنیت کامبک",
-    excerpt: "خیلی از بازی‌هایی که «باخته» به‌نظر می‌رسن، هنوز قابل برگشتنن. این ذهنیت رو یاد بگیر.",
-    category: "آموزش",
-    date: "۲ ماه پیش",
-    publishedAt: "۱۲ دی ۱۴۰۴",
-    readTime: "۶ دقیقه مطالعه",
-    author: "امیرمهدی",
-    relatedSlugs: ["5-eshtebah-solo", "draft-rankd-roll", "support-warding"],
-    body: [
-      {
-        type: "paragraph",
-        text: "وقتی ۱۰-۱۵ کیل عقبی، حس می‌کنی بازی تمومه. ولی توی دوتا ۲، تا وقتی که ایمن‌ها سرپان، بازی واقعاً تموم نشده.",
-      },
-      {
-        type: "paragraph",
-        text: "تمرکز رو بذار روی دفاع منظم و گرفتن آبجکتیوهای کوچیک به‌جای فایت‌های همه‌جانبه — کامبک‌های واقعی این‌جوری اتفاق می‌افتن، نه با یه فایت شانسی.",
-      },
-    ],
-  },
-  {
-    slug: "hero-pool-tips",
-    title: "چند هیرو باید بلد باشیم؟ حرف واقعی دربارهٔ هیرو پول",
-    excerpt: "یاد گرفتن ۳۰ تا هیرو بهتره یا تسلط کامل روی ۵ تا؟ جواب شاید تعجب‌آور باشه.",
-    category: "راهنما",
-    date: "۳ ماه پیش",
-    publishedAt: "۱۵ آذر ۱۴۰۴",
-    readTime: "۶ دقیقه مطالعه",
-    author: "عرفان (Slayer)",
-    relatedSlugs: ["draft-rankd-roll", "comeback-mentality", "steam-connect-guide"],
-    body: [
-      {
-        type: "paragraph",
-        text: "خیلی از پلیرهای رنک پایین فکر می‌کنن باید هیرو پول بزرگی داشته باشن تا بهتر بشن. واقعیت اینه که عمق تسلط از عرض هیروها مهم‌تره.",
-      },
-      {
-        type: "paragraph",
-        text: "پیشنهاد ما: ۳ تا ۵ هیرو در هر پوزیشنی که بیشتر بازی می‌کنی رو کامل یاد بگیر — تایمینگ آیتم، کمبوها و ضعف‌هاشون رو حفظ باش. این خیلی موثرتر از دونستن سطحی ۳۰ هیروئه.",
-      },
-    ],
-  },
-  {
-    slug: "teamspeak-setup",
-    title: "راه‌اندازی و تنظیمات پیشرفته سرور تیم‌اسپیک دوتامیت",
-    excerpt: "از push-to-talk تا کاهش نویز میکروفون — همه‌چیزی که برای صدای تمیز توی پارتی لازمه.",
-    category: "راهنما",
-    date: "۳ ماه پیش",
-    publishedAt: "۱۰ آذر ۱۴۰۴",
-    readTime: "۴ دقیقه مطالعه",
-    author: "سینا (Arise)",
-    relatedSlugs: ["voice-discord-role", "steam-connect-guide", "pos5-hedayat"],
-    body: [
-      {
-        type: "paragraph",
-        text: "سرور تیم‌اسپیک دوتامیت به‌محض عضویت توی پارتی برات آماده‌ست. فقط کافیه از کارت پارتی روی «اتصال به سرور» بزنی.",
-      },
-      {
-        type: "paragraph",
-        text: "برای بهترین تجربه، push-to-talk رو فعال کن و سطح حساسیت میکروفونت رو طوری تنظیم کن که صدای کیبورد یا فن سیستم ضبط نشه — تیمت ممنونت می‌شه.",
-      },
-    ],
-  },
-];
+const WORDS_PER_MINUTE = 180;
 
-export function getPagedPosts(page: number, category: BlogCategory | "همه مقالات") {
-  const filtered =
-    category === "همه مقالات" ? BLOG_POSTS : BLOG_POSTS.filter((p) => p.category === category);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / POSTS_PER_PAGE));
+/** Word-count based estimate, shown in both the admin editor and the public article header. */
+export function estimateReadTime(body: ContentBlock[]): number {
+  const wordCount = body.reduce((sum, block) => {
+    if (block.type === "image") return sum;
+    return sum + block.text.trim().split(/\s+/).filter(Boolean).length;
+  }, 0);
+  return Math.max(1, Math.round(wordCount / WORDS_PER_MINUTE));
+}
+
+/**
+ * A post matches a facet filter when it has no selection (facet inactive)
+ * or shares at least one value with the selection — categories and heroes
+ * are combined with AND, each facet's own values with OR.
+ */
+export function matchesFacets(
+  post: { categories: string[]; heroes: BlogHeroRef[] },
+  selectedCategories: string[],
+  selectedHeroIds: number[]
+) {
+  const categoryOk = selectedCategories.length === 0 || post.categories.some((c) => selectedCategories.includes(c));
+  const heroOk = selectedHeroIds.length === 0 || post.heroes.some((h) => selectedHeroIds.includes(h.id));
+  return categoryOk && heroOk;
+}
+
+export function paginate<T>(items: T[], page: number) {
+  const totalPages = Math.max(1, Math.ceil(items.length / POSTS_PER_PAGE));
   const start = (page - 1) * POSTS_PER_PAGE;
-  return {
-    posts: filtered.slice(start, start + POSTS_PER_PAGE),
-    totalPages,
-  };
+  return { items: items.slice(start, start + POSTS_PER_PAGE), totalPages };
 }

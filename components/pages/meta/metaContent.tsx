@@ -165,11 +165,10 @@ export function MetaContent() {
 
   useGSAP(
     () => {
-      const mm = gsap.matchMedia();
-      mm.add("(prefers-reduced-motion: no-preference)", () => {
-        gsap.from("[data-filter-card]", { autoAlpha: 0, y: 16, duration: 0.5, stagger: 0.1, ease: "power2.out" });
-      });
-      return () => mm.revert();
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+      gsap.set("[data-filter-card]", { autoAlpha: 0, y: 16 });
+      gsap.to("[data-filter-card]", { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.1, ease: "power2.out" });
     },
     { scope: containerRef },
   );

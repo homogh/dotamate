@@ -26,20 +26,17 @@ export function DashboardFadeIn({ children, className, ready = true, y = 16 }: D
   useGSAP(
     () => {
       if (!ready || !ref.current) return;
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-      const mm = gsap.matchMedia();
-
-      mm.add("(prefers-reduced-motion: no-preference)", () => {
-        gsap.from(gsap.utils.toArray(ref.current!.children), {
-          autoAlpha: 0,
-          y,
-          duration: 0.45,
-          stagger: 0.07,
-          ease: "power2.out",
-        });
+      const children = gsap.utils.toArray(ref.current.children);
+      gsap.set(children, { autoAlpha: 0, y });
+      gsap.to(children, {
+        autoAlpha: 1,
+        y: 0,
+        duration: 0.45,
+        stagger: 0.07,
+        ease: "power2.out",
       });
-
-      return () => mm.revert();
     },
     { scope: ref, dependencies: [ready] },
   );

@@ -7,11 +7,11 @@ import { Search, Volume2 } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 
-import { cn } from "@/app/lib/utils";
 import { useAuth } from "@/app/stores/useAuth";
 import { PageBanner } from "@/components/general/pageBanner";
 import { Card } from "@/components/general/card";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { UserAvatar } from "@/components/general/userAvatar";
 import { Pagination } from "@/components/general/pagination";
 import { RANK_OPTIONS, REGION_OPTIONS } from "@/components/dashboard/postLabels";
@@ -131,17 +131,16 @@ export function SearchLobbyContent() {
 
   useGSAP(
     () => {
-      const mm = gsap.matchMedia();
-      mm.add("(prefers-reduced-motion: no-preference)", () => {
-        gsap.from("[data-filter-card]", {
-          autoAlpha: 0,
-          y: 16,
-          duration: 0.5,
-          stagger: 0.1,
-          ease: "power2.out",
-        });
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+      gsap.set("[data-filter-card]", { autoAlpha: 0, y: 16 });
+      gsap.to("[data-filter-card]", {
+        autoAlpha: 1,
+        y: 0,
+        duration: 0.5,
+        stagger: 0.1,
+        ease: "power2.out",
       });
-      return () => mm.revert();
     },
     { scope: containerRef },
   );
@@ -221,27 +220,11 @@ export function SearchLobbyContent() {
               <Select value={region} onChange={resetToPageOne(setRegion)} options={REGION_FILTER_OPTIONS} />
             </div>
 
-            <label className="flex cursor-pointer items-center gap-3">
-              <span className="text-[13px] text-text-dim">صدا دارم (دیسکورد/وویس)</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={voiceOnly}
-                onClick={() => resetToPageOne(setVoiceOnly)(!voiceOnly)}
-                className={cn(
-                  "relative h-5 w-9 rounded-full transition-colors",
-                  voiceOnly ? "bg-primary" : "bg-white/10",
-                )}
-              >
-                <span
-                  className={cn(
-                    "absolute top-0.5 size-4 rounded-full bg-white transition-transform",
-                    voiceOnly ? "translate-x-[-18px]" : "translate-x-[-2px]",
-                  )}
-                  style={{ insetInlineEnd: 0 }}
-                />
-              </button>
-            </label>
+            <Switch
+              checked={voiceOnly}
+              onChange={resetToPageOne(setVoiceOnly)}
+              label="صدا دارم (دیسکورد/وویس)"
+            />
           </div>
 
           <div ref={resultsRef} className="flex w-full flex-col gap-6">

@@ -1,23 +1,28 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
 
 import { useConfirm } from "@/app/stores/useConfirm";
 import { useToast } from "@/app/stores/useToast";
 import { Card } from "@/components/general/card";
+import { GeneratedCover } from "@/components/general/generatedCover";
+import { BLOG_CATEGORIES } from "@/app/lib/blogPosts";
 
 interface AdminBlogPost {
   id: number;
   title: string;
   slug: string;
-  category: string;
+  categories: string[];
+  tags: string[];
   status: string;
+  coverImageUrl: string | null;
+  coverSeed: string | null;
   authorName: string;
   publishedAt: string | null;
   createdAt: string;
 }
-
-const CATEGORIES = ["متا", "راهنما", "آموزش", "آپدیت"];
 
 const STATUS_STYLE: Record<string, string> = {
   PUBLISHED: "bg-success/[0.13] border-success text-success",
@@ -33,14 +38,6 @@ export default function AdminBlogPage() {
   const [posts, setPosts] = useState<AdminBlogPost[]>([]);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [loading, setLoading] = useState(true);
-  const [showEditor, setShowEditor] = useState(false);
-
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState(CATEGORIES[0]);
-  const [body, setBody] = useState("");
-  const [scheduleEnabled, setScheduleEnabled] = useState(false);
-  const [scheduledAt, setScheduledAt] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(() => {
     const params = new URLSearchParams();
@@ -57,27 +54,6 @@ export default function AdminBlogPage() {
     load();
   }, [load]);
 
-  async function handleSave(publishNow: boolean) {
-    if (!title.trim() || !body.trim()) return;
-    setSubmitting(true);
-    await fetch("/api/admin/blog", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title,
-        category,
-        body,
-        publishNow,
-        scheduledAt: scheduleEnabled && scheduledAt ? scheduledAt : null,
-      }),
-    });
-    setSubmitting(false);
-    setTitle("");
-    setBody("");
-    setShowEditor(false);
-    load();
-  }
-
   async function handleDelete(id: number) {
     if (!(await confirmAction({ message: "مطمئنی می‌خوای این مقاله رو حذف کنی؟", danger: true, confirmLabel: "حذف" }))) return;
     const res = await fetch(`/api/admin/blog/${id}`, { method: "DELETE" });
@@ -91,9 +67,9 @@ export default function AdminBlogPage() {
     <div className="flex w-full flex-col gap-6 p-6 md:p-8">
       <Card tone="surface" noHover className="w-full flex-row flex-wrap items-center justify-between gap-4 p-4">
         <div className="flex items-center gap-3">
-          <button onClick={() => setShowEditor((v) => !v)} className="rounded-[8px] bg-primary px-5 py-2.5 text-[13px] font-black text-white" dir="auto">
+          <Link href="/admin/blog/new" className="rounded-[8px] bg-primary px-5 py-2.5 text-[13px] font-black text-white" dir="auto">
             + ایجاد مقاله جدید
-          </button>
+          </Link>
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
@@ -101,7 +77,7 @@ export default function AdminBlogPage() {
             dir="auto"
           >
             <option value="">دسته‌بندی: همه</option>
-            {CATEGORIES.map((c) => (
+            {BLOG_CATEGORIES.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
@@ -115,27 +91,29 @@ export default function AdminBlogPage() {
 
       <Card tone="surface" noHover className="w-full gap-4 p-5">
         <div className="w-full overflow-x-auto">
-          <table className="w-full min-w-[760px] text-right">
+          <table className="w-full min-w-[900px] text-right">
             <thead>
               <tr className="bg-surface-alt text-[13px] text-text-dim">
                 <th className="p-3 text-right font-bold">عملیات</th>
                 <th className="p-3 text-right font-bold">تاریخ انتشار</th>
                 <th className="p-3 text-right font-bold">نویسنده</th>
+                <th className="p-3 text-right font-bold">تگ‌ها</th>
                 <th className="p-3 text-right font-bold">دسته‌بندی</th>
                 <th className="p-3 text-right font-bold">وضعیت</th>
                 <th className="p-3 text-right font-bold">عنوان مقاله</th>
+                <th className="p-3 text-right font-bold">کاور</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-[13px] text-text-dim">
+                  <td colSpan={8} className="p-8 text-center text-[13px] text-text-dim">
                     در حال بارگذاری...
                   </td>
                 </tr>
               ) : posts.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-[13px] text-text-dim">
+                  <td colSpan={8} className="p-8 text-center text-[13px] text-text-dim">
                     مقاله‌ای ثبت نشده.
                   </td>
                 </tr>
@@ -143,9 +121,14 @@ export default function AdminBlogPage() {
                 posts.map((p) => (
                   <tr key={p.id} className="border-b border-border text-[13px]">
                     <td className="p-3">
-                      <button onClick={() => handleDelete(p.id)} className="text-danger" dir="auto">
-                        حذف
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <Link href={`/admin/blog/${p.id}`} className="font-bold text-accent" dir="auto">
+                          ویرایش
+                        </Link>
+                        <button onClick={() => handleDelete(p.id)} className="text-danger" dir="auto">
+                          حذف
+                        </button>
+                      </div>
                     </td>
                     <td className="p-3 text-text-dim">
                       {p.publishedAt ? new Date(p.publishedAt).toLocaleDateString("fa-IR") : "—"}
@@ -153,8 +136,23 @@ export default function AdminBlogPage() {
                     <td className="p-3 font-bold text-text" dir="auto">
                       {p.authorName}
                     </td>
-                    <td className="p-3 text-accent" dir="auto">
-                      {p.category}
+                    <td className="p-3">
+                      <div className="flex flex-wrap gap-1">
+                        {p.tags.slice(0, 2).map((t) => (
+                          <span key={t} className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] text-accent" dir="auto">
+                            #{t}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex flex-wrap gap-1">
+                        {p.categories.map((c) => (
+                          <span key={c} className="rounded-[4px] bg-primary/15 px-2 py-0.5 text-[11px] font-bold text-accent" dir="auto">
+                            {c}
+                          </span>
+                        ))}
+                      </div>
                     </td>
                     <td className="p-3">
                       <span className={`rounded-[6px] border px-3 py-1 text-[12px] font-bold ${STATUS_STYLE[p.status]}`} dir="auto">
@@ -164,6 +162,15 @@ export default function AdminBlogPage() {
                     <td className="p-3 font-extrabold text-text" dir="auto">
                       {p.title}
                     </td>
+                    <td className="p-3">
+                      <div className="relative size-11 overflow-hidden rounded-[6px]">
+                        {p.coverImageUrl ? (
+                          <Image src={p.coverImageUrl} alt="" fill sizes="44px" className="object-cover" />
+                        ) : (
+                          <GeneratedCover seed={p.coverSeed ?? p.slug} className="size-11" />
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
@@ -171,89 +178,6 @@ export default function AdminBlogPage() {
           </table>
         </div>
       </Card>
-
-      {showEditor && (
-        <Card tone="surface-alt" noHover className="w-full gap-6 p-7">
-          <p className="w-full text-right text-[18px] font-black text-text" dir="auto">
-            بخش ویرایشگر / ایجاد مقاله جدید
-          </p>
-          <div className="flex w-full flex-col gap-5 md:flex-row">
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="rounded-[8px] border border-border bg-surface-alt p-3 text-[14px] text-text md:w-[220px]"
-              dir="auto"
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="عنوان مقاله"
-              dir="auto"
-              className="flex-1 rounded-[8px] border border-border bg-surface-alt p-3 text-[14px] text-text placeholder:text-text-dim/60 focus:outline-none"
-            />
-          </div>
-
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={7}
-            placeholder="متن کامل مقاله را اینجا بنویسید..."
-            dir="auto"
-            className="w-full resize-none rounded-[8px] border border-border bg-surface-alt p-4 text-[14px] leading-[1.8] text-text placeholder:text-text-dim/60 focus:outline-none"
-          />
-
-          <div className="flex w-full flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <button
-                disabled={submitting}
-                onClick={() => handleSave(false)}
-                className="rounded-[8px] border border-border px-5 py-2.5 text-[13px] font-bold text-text disabled:opacity-50"
-                dir="auto"
-              >
-                ذخیره به صورت پیش‌نویس
-              </button>
-              <button
-                disabled={submitting}
-                onClick={() => handleSave(true)}
-                className="rounded-[8px] bg-primary px-6 py-2.5 text-[13px] font-black text-white disabled:opacity-50"
-                dir="auto"
-              >
-                انتشار نهایی
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {scheduleEnabled && (
-                <input
-                  type="datetime-local"
-                  value={scheduledAt}
-                  onChange={(e) => setScheduledAt(e.target.value)}
-                  className="rounded-[8px] border border-border bg-surface-alt px-3 py-2 text-[13px] text-text"
-                  dir="ltr"
-                />
-              )}
-              <span className="text-[13px] text-text-dim" dir="auto">
-                زمان‌بندی انتشار
-              </span>
-              <button
-                onClick={() => setScheduleEnabled((v) => !v)}
-                className={`relative h-5 w-9 rounded-full transition-colors ${scheduleEnabled ? "bg-primary" : "border border-border bg-surface-alt"}`}
-              >
-                <span className="absolute top-0.5 size-4 rounded-full bg-white transition-[right] duration-200" style={{ right: scheduleEnabled ? 2 : 18 }} />
-              </button>
-              <span className="text-[13px] text-text" dir="auto">
-                انتشار فوری
-              </span>
-            </div>
-          </div>
-        </Card>
-      )}
     </div>
   );
 }

@@ -29,6 +29,8 @@ export async function GET(request: NextRequest) {
       profileCompletedAt: user.profileCompletedAt,
       steamName: steamSummary?.personaname ?? null,
       steamAvatar: steamSummary?.avatarfull ?? null,
+      rank: user.rank,
+      rankTier: user.rankTier,
     },
   });
 }
