@@ -17,11 +17,13 @@ const vazirmatn = Vazirmatn({
   weight: ["400", "500", "600", "700", "800", "900"],
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"),
-  title: "دوتامیت | پیدا کردن هم‌تیمی Dota 2",
+  metadataBase: new URL(SITE_URL),
+  title: "دوتا و دوتا (دوتامیت) | پیدا کردن هم‌تیمی Dota 2",
   description:
-    "دوتامیت پلتفرمی بومی و ایرانی برای پیدا کردن هم‌تیمی در Dota 2 است. بازیکنان باانگیزه و متناسب با رنک خودت رو پیدا کن، وارد پارتی شو و هماهنگ صعود کن.",
+    "دوتا و دوتا (دوتامیت) پلتفرمی بومی و ایرانی برای پیدا کردن هم‌تیمی در Dota 2 است. بازیکنان باانگیزه و متناسب با رنک خودت رو پیدا کن، وارد پارتی شو و هماهنگ صعود کن.",
   openGraph: {
     siteName: "دوتامیت",
     locale: "fa_IR",
@@ -32,10 +34,25 @@ export const metadata: Metadata = {
   },
 };
 
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "دوتامیت",
+  alternateName: ["دوتا و دوتا", "دوتادو"],
+  url: SITE_URL,
+  description:
+    "دوتا و دوتا (دوتامیت) پلتفرمی بومی و ایرانی برای پیدا کردن هم‌تیمی در Dota 2 است.",
+  inLanguage: "fa-IR",
+};
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="fa" dir="rtl" className={`${vazirmatn.variable} antialiased`}>
       <body className="flex min-h-screen flex-col bg-bg">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+        />
         <AmbientCorners />
         <CursorGlow />
         <NotificationsProvider />
