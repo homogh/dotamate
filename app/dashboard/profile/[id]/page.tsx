@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { BadgeCheck, X } from "lucide-react";
+import { BadgeCheck, X, UserPlus } from "lucide-react";
 
 import { Card } from "@/components/general/card";
 import { UserAvatar } from "@/components/general/userAvatar";
@@ -30,6 +30,7 @@ interface ProfileData {
   displayName: string;
   avatarUrl: string | null;
   steamProfileUrl: string | null;
+  steamId: string | null;
   bio: string | null;
   country: string | null;
   languages: string[];
@@ -236,17 +237,29 @@ export default function PublicProfilePage() {
           <p className="w-full text-right text-[14px] leading-[1.7] text-text-dim" dir="auto">
             {profile.bio || "این بازیکن هنوز بایو ننوشته."}
           </p>
-          {profile.steamProfileUrl && (
-            <a
-              href={profile.steamProfileUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[12px] text-text-dim underline"
-              dir="ltr"
-            >
-              پروفایل استیم
-            </a>
-          )}
+          <div className="flex items-center gap-3">
+            {profile.steamProfileUrl && (
+              <a
+                href={profile.steamProfileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[12px] text-text-dim underline"
+                dir="ltr"
+              >
+                پروفایل استیم
+              </a>
+            )}
+            {!profile.isSelf && profile.steamId && (
+              <a
+                href={`steam://friends/add/${profile.steamId}`}
+                className="flex items-center gap-1.5 rounded-[6px] bg-primary px-3 py-1.5 text-[12px] font-bold text-white"
+                dir="auto"
+              >
+                <UserPlus size={13} />
+                افزودن در استیم
+              </a>
+            )}
+          </div>
         </div>
 
         <div className="rounded-full border-2 border-primary">

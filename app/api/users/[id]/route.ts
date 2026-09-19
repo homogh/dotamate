@@ -113,6 +113,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
     steamProfileUrl: user.steamProfileUrl,
+    steamId: user.steamId,
     bio: user.bio,
     country: user.country,
     languages: user.languages ? user.languages.split(",").map((l) => l.trim()).filter(Boolean) : [],

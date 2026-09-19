@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Send, Copy, Check } from "lucide-react";
+import { Send, Copy, Check, UserPlus } from "lucide-react";
 
 import { useConfirm } from "@/app/stores/useConfirm";
 import { useToast } from "@/app/stores/useToast";
@@ -15,7 +15,7 @@ import { RANK_LABEL } from "@/components/dashboard/postLabels";
 interface Detail {
   id: number;
   isAuthor: boolean;
-  author: { id: number; displayName: string; avatarUrl: string | null; rank: string; rankTier: number | null };
+  author: { id: number; displayName: string; avatarUrl: string | null; rank: string; rankTier: number | null; steamId: string | null };
   position: string;
   description: string;
   hasVoice: boolean;
@@ -24,7 +24,7 @@ interface Detail {
   status: string;
   createdAt: string;
   memberCount: number;
-  accepted: { memberId: number; userId: number; displayName: string; avatarUrl: string | null; rank: string; rankTier: number | null; position: string | null }[];
+  accepted: { memberId: number; userId: number; displayName: string; avatarUrl: string | null; rank: string; rankTier: number | null; position: string | null; steamId: string | null }[];
   pending: { memberId: number; userId: number; displayName: string; avatarUrl: string | null; rank: string; rankTier: number | null }[];
 }
 
@@ -258,6 +258,7 @@ export default function PostDetailPage() {
               name={detail.author.displayName}
               avatarUrl={detail.author.avatarUrl}
               rank={`${RANK_LABEL[detail.author.rank]} ${detail.author.rankTier ?? ""} • ${POSITION_LABEL[detail.position as PositionValue]}`}
+              steamId={detail.author.steamId}
             />
             {detail.accepted.map((m) => (
               <MemberRow
@@ -267,6 +268,7 @@ export default function PostDetailPage() {
                 name={m.displayName}
                 avatarUrl={m.avatarUrl}
                 rank={`${RANK_LABEL[m.rank]} ${m.rankTier ?? ""}${m.position ? ` • ${POSITION_LABEL[m.position as PositionValue]}` : ""}`}
+                steamId={m.steamId}
                 actions={
                   detail.isAuthor ? (
                     <button
@@ -455,6 +457,7 @@ function MemberRow({
   avatarUrl,
   rank,
   actions,
+  steamId,
 }: {
   badge?: string;
   userId: number;
@@ -462,14 +465,28 @@ function MemberRow({
   avatarUrl?: string | null;
   rank: string;
   actions?: React.ReactNode;
+  steamId?: string | null;
 }) {
   return (
     <div className="flex w-full items-center justify-between rounded-[8px] border border-border bg-surface-alt p-3">
-      {actions ?? (
-        <span className="rounded-[4px] bg-white/[0.08] px-2.5 py-1 text-[11px] text-text-dim" dir="auto">
-          {badge}
-        </span>
-      )}
+      <div className="flex items-center gap-2">
+        {actions ?? (
+          <span className="rounded-[4px] bg-white/[0.08] px-2.5 py-1 text-[11px] text-text-dim" dir="auto">
+            {badge}
+          </span>
+        )}
+        {steamId && (
+          <a
+            href={`steam://friends/add/${steamId}`}
+            className="flex items-center gap-1 rounded-[4px] border border-border px-2.5 py-1.5 text-[11px] font-bold text-text"
+            dir="auto"
+            title="افزودن به دوستان استیم"
+          >
+            <UserPlus size={12} />
+            استیم
+          </a>
+        )}
+      </div>
       <Link href={`/dashboard/profile/${userId}`} className="flex items-center gap-3">
         <div className="flex flex-col items-end gap-0.5">
           <p className="text-[14px] font-bold text-text" dir="auto">

@@ -54,6 +54,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       avatarUrl: post.author.avatarUrl,
       rank: post.author.rank,
       rankTier: post.author.rankTier,
+      steamId: post.author.steamId,
     },
     position: post.position,
     rank: post.rank,
@@ -76,6 +77,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       rank: m.user.rank,
       rankTier: m.user.rankTier,
       position: m.position,
+      steamId: m.user.steamId,
     })),
     pending: isAuthor
       ? pending.map((m) => ({
