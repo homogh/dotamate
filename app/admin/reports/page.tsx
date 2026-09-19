@@ -106,11 +106,11 @@ export default function AdminReportsPage() {
         <KpiCard icon={CheckCircle} label="بررسی شده امروز" value={counts.reviewedToday} note="بایگانی فعال" noteCls="text-success" />
       </div>
 
-      <div className="flex w-full items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setTab("reviewed")}
-            className={`rounded-[8px] px-5 py-2.5 text-[14px] font-bold ${
+            className={`whitespace-nowrap rounded-[8px] px-5 py-2.5 text-[14px] font-bold ${
               tab === "reviewed" ? "bg-primary text-white" : "border border-border text-text-dim"
             }`}
             dir="auto"
@@ -119,7 +119,7 @@ export default function AdminReportsPage() {
           </button>
           <button
             onClick={() => setTab("pending")}
-            className={`rounded-[8px] px-5 py-2.5 text-[14px] font-bold ${
+            className={`whitespace-nowrap rounded-[8px] px-5 py-2.5 text-[14px] font-bold ${
               tab === "pending" ? "bg-primary text-white" : "border border-border text-text-dim"
             }`}
             dir="auto"
@@ -144,8 +144,8 @@ export default function AdminReportsPage() {
         ) : (
           reports.map((r) => (
             <Card key={r.id} tone="surface" noHover className="w-full gap-4 p-5">
-              <div className="flex w-full flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-4">
+              <div className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                   <div className="flex items-center gap-2">
                     <span className="text-[13px] text-text-dim" dir="auto">
                       کاربر متخلف:
@@ -154,7 +154,7 @@ export default function AdminReportsPage() {
                       {r.reportedUserName}
                     </span>
                   </div>
-                  <div className="h-4 w-px bg-border" />
+                  <div className="hidden h-4 w-px bg-border sm:block" />
                   <div className="flex items-center gap-2">
                     <span className="text-[13px] text-text-dim" dir="auto">
                       گزارش‌دهنده:
@@ -163,14 +163,14 @@ export default function AdminReportsPage() {
                       {r.reporterName}
                     </span>
                   </div>
-                  <div className="h-4 w-px bg-border" />
+                  <div className="hidden h-4 w-px bg-border sm:block" />
                   <span className={`rounded-[6px] border px-2.5 py-1 text-[12px] font-black ${SEVERITY_STYLE[r.severity]}`} dir="auto">
                     {r.severityLabel}
                   </span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <p className="text-[13px] text-text-dim">{timeAgo(r.createdAt)}</p>
-                  <span className="rounded-[4px] bg-surface-alt px-2 py-1 text-[11px] text-accent" dir="auto">
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="whitespace-nowrap text-[13px] text-text-dim">{timeAgo(r.createdAt)}</p>
+                  <span className="whitespace-nowrap rounded-[4px] bg-surface-alt px-2 py-1 text-[11px] text-accent" dir="auto">
                     {r.context}
                   </span>
                 </div>
@@ -226,13 +226,13 @@ export default function AdminReportsPage() {
                 </div>
               )}
 
-              <div className="flex w-full items-center justify-between border-t border-border pt-3">
+              <div className="flex w-full flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between">
                 {tab === "pending" ? (
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <button
                       disabled={busyId === r.id || !r.reportedUserId}
                       onClick={() => act(r.id, "ban")}
-                      className="rounded-[6px] border border-danger bg-danger px-3.5 py-2 text-[13px] font-bold text-white disabled:opacity-40"
+                      className="whitespace-nowrap rounded-[6px] border border-danger bg-danger px-3.5 py-2 text-[13px] font-bold text-white disabled:opacity-40"
                       dir="auto"
                     >
                       مسدود کردن (Ban)
@@ -240,7 +240,7 @@ export default function AdminReportsPage() {
                     <button
                       disabled={busyId === r.id || !r.reportedUserId}
                       onClick={() => act(r.id, "suspend")}
-                      className="rounded-[6px] border border-[#ff9f0a] bg-[#ff9f0a]/[0.12] px-3.5 py-2 text-[13px] font-bold text-[#ff9f0a] disabled:opacity-40"
+                      className="whitespace-nowrap rounded-[6px] border border-[#ff9f0a] bg-[#ff9f0a]/[0.12] px-3.5 py-2 text-[13px] font-bold text-[#ff9f0a] disabled:opacity-40"
                       dir="auto"
                     >
                       تعلیق موقت
@@ -248,7 +248,7 @@ export default function AdminReportsPage() {
                     <button
                       disabled={busyId === r.id}
                       onClick={() => act(r.id, "dismiss")}
-                      className="rounded-[6px] border border-border px-3.5 py-2 text-[13px] font-bold text-text disabled:opacity-40"
+                      className="whitespace-nowrap rounded-[6px] border border-border px-3.5 py-2 text-[13px] font-bold text-text disabled:opacity-40"
                       dir="auto"
                     >
                       رد گزارش

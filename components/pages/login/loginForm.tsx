@@ -53,8 +53,8 @@ export function LoginForm() {
     <AuthShell
       title="ورود به دوتامیت"
       subtitle="خوش برگشتی! برای دیدن لابی‌ها وارد حسابت شو."
-      imageSrc="/images/landing/dota-squad-banner-v2.png"
-      imagePosition="78% center"
+      imageSrc="/images/login-signup/login.png"
+      imagePosition="50% center"
       tagline="لابی‌های فعال منتظرتن، فقط وارد شو"
       footer={
         <>

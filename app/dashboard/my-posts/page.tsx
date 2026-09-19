@@ -151,8 +151,8 @@ export default function MyPostsPage() {
               </p>
               {activePost ? (
                 <Card tone="surface" noHover className="w-full gap-5 p-6">
-                  <div className="flex w-full items-center justify-between">
-                    <div className="flex items-center gap-3">
+                  <div className="flex w-full flex-col-reverse items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex shrink-0 flex-wrap items-center gap-3">
                       <button
                         onClick={() => handleDelete(activePost.id)}
                         disabled={busyId === activePost.id}
@@ -175,9 +175,9 @@ export default function MyPostsPage() {
                         مشاهده
                       </Link>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col items-end gap-1">
-                        <p className="text-[16px] font-black text-text" dir="auto">
+                    <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto">
+                      <div className="flex min-w-0 flex-1 flex-col items-end gap-1">
+                        <p className="w-full break-words text-right text-[16px] font-black text-text" dir="auto">
                           {activePost.description}
                         </p>
                         <p className="text-[13px] text-text-dim" dir="auto">
@@ -239,7 +239,7 @@ export default function MyPostsPage() {
                         </Link>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <p className="text-[13px] text-text-dim" dir="auto">
                         پوزیشن‌های خالی:
                       </p>
@@ -282,22 +282,22 @@ export default function MyPostsPage() {
                   {historyPosts.map((post) => (
                     <div
                       key={post.id}
-                      className="flex w-full items-center justify-between rounded-[8px] border border-border bg-surface-alt p-4 opacity-60 transition-opacity hover:opacity-100"
+                      className="flex w-full flex-col-reverse items-start gap-3 rounded-[8px] border border-border bg-surface-alt p-4 opacity-60 transition-opacity hover:opacity-100 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <button
                         onClick={() => handleRepublish(post.id)}
                         disabled={busyId === post.id}
-                        className="rounded-[6px] border border-border px-4 py-1.5 text-[12px] font-bold text-text disabled:opacity-50"
+                        className="shrink-0 rounded-[6px] border border-border px-4 py-1.5 text-[12px] font-bold text-text disabled:opacity-50"
                         dir="auto"
                       >
                         انتشار مجدد
                       </button>
-                      <div className="flex flex-col items-end gap-1">
-                        <div className="flex items-center gap-2">
+                      <div className="flex w-full min-w-0 flex-col items-end gap-1">
+                        <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-2">
                           <span className="rounded-[4px] bg-primary px-2 py-0.5 text-[11px] text-text-dim" dir="auto">
                             {STATUS_BADGE[post.status]}
                           </span>
-                          <p className="text-[14px] font-bold text-text" dir="auto">
+                          <p className="break-words text-right text-[14px] font-bold text-text" dir="auto">
                             {post.description.slice(0, 48)}
                           </p>
                         </div>

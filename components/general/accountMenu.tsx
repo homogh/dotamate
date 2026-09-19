@@ -8,7 +8,15 @@ import { LayoutGrid, ShieldCheck, LogOut, User } from "lucide-react";
 import { useAuth } from "@/app/stores/useAuth";
 import { UserAvatar } from "@/components/general/userAvatar";
 
-export function AccountMenu({ size = 36 }: { size?: number }) {
+export function AccountMenu({
+  size = 36,
+  label,
+  align = "right",
+}: {
+  size?: number;
+  label?: string;
+  align?: "left" | "right";
+}) {
   const { user, role, fetchRole, logout } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -40,14 +48,29 @@ export function AccountMenu({ size = 36 }: { size?: number }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center justify-center rounded-full transition-opacity hover:opacity-80"
+        className={
+          label
+            ? "flex items-center gap-3 rounded-[8px] border border-border px-3 py-2 transition-colors hover:bg-white/5"
+            : "flex items-center justify-center rounded-full transition-opacity hover:opacity-80"
+        }
         aria-label="منوی حساب کاربری"
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
+        {label && (
+          <span className="text-sm font-bold text-text" dir="auto">
+            {label}
+          </span>
+        )}
         <UserAvatar name={user.displayName} avatarUrl={user.avatarUrl} size={size} round />
       </button>
 
       {open && (
-        <div className="absolute top-full right-0 z-50 mt-2 w-60 rounded-[10px] border border-border bg-surface p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.5)]">
+        <div
+          className={`absolute top-full z-50 mt-2 w-60 rounded-[10px] border border-border bg-surface p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.5)] ${
+            align === "right" ? "right-0" : "left-0"
+          }`}
+        >
           <div className="flex flex-col items-end gap-0.5 px-3 py-2.5">
             <p className="text-[13px] font-bold text-text" dir="auto">
               {user.displayName}

@@ -35,6 +35,9 @@ export default function MessageThreadPage() {
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollSummary = useNotifications((s) => s.pollSummary);
   const confirmAction = useConfirm();
@@ -60,7 +63,8 @@ export default function MessageThreadPage() {
           setMessages(json.data.messages);
           setOtherLastReadAt(json.data.otherLastReadAt);
         }
-      });
+      })
+      .catch(() => {});
   }, [conversationId]);
 
   useEffect(() => {
@@ -71,7 +75,18 @@ export default function MessageThreadPage() {
     if (forbidden) return;
     loadMessages().then(pollSummary);
     const interval = setInterval(loadMessages, 4000);
-    return () => clearInterval(interval);
+
+    function handleVisible() {
+      if (document.visibilityState === "visible") loadMessages().then(pollSummary);
+    }
+    document.addEventListener("visibilitychange", handleVisible);
+    window.addEventListener("focus", handleVisible);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisible);
+      window.removeEventListener("focus", handleVisible);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadMessages, forbidden]);
 
@@ -106,16 +121,28 @@ export default function MessageThreadPage() {
     loadThread();
   }
 
-  async function handleReport() {
+  function handleReport() {
     if (!thread) return;
-    const reason = prompt("دلیل گزارش تخلف رو بنویس:");
+    setReportReason("");
+    setReportOpen(true);
+  }
+
+  async function handleSubmitReport() {
+    if (!thread) return;
+    const reason = reportReason.trim();
     if (!reason) return;
-    await fetch("/api/reports", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reportedUserId: thread.other.id, reason, context: "پیام مستقیم", conversationId: thread.id }),
-    });
-    toast.success("گزارش شما ثبت شد.");
+    setReportSubmitting(true);
+    try {
+      await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reportedUserId: thread.other.id, reason, context: "پیام مستقیم", conversationId: thread.id }),
+      });
+      toast.success("گزارش شما ثبت شد.");
+      setReportOpen(false);
+    } finally {
+      setReportSubmitting(false);
+    }
   }
 
   if (loading) {
@@ -134,8 +161,8 @@ export default function MessageThreadPage() {
 
   return (
     <div className="flex h-full w-full flex-col">
-      <header className="flex h-[80px] w-full shrink-0 items-center justify-between border-b border-border bg-bg-alt px-6 py-4 md:px-10">
-        <div className="flex items-center gap-3">
+      <header className="flex w-full shrink-0 flex-col-reverse items-stretch gap-3 border-b border-border bg-bg-alt px-4 py-3 sm:h-[80px] sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-6 sm:py-4 md:px-10">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleBlock}
             className={`rounded-[8px] border px-3 py-1.5 text-[12px] font-bold ${
@@ -154,18 +181,18 @@ export default function MessageThreadPage() {
           </button>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col items-end gap-1">
-            <div className="flex items-center gap-2">
-              <span className="rounded-[4px] bg-surface-alt px-2 py-0.5 text-[10px] font-bold text-accent" dir="auto">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 flex-1 flex-col items-end gap-1 sm:flex-none">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="shrink-0 rounded-[4px] bg-surface-alt px-2 py-0.5 text-[10px] font-bold text-accent" dir="auto">
                 {RANK_LABEL[thread.other.rank]} {thread.other.rankTier ?? ""}
               </span>
-              <p className="text-[16px] font-black text-text" dir="auto">
+              <p className="truncate text-[16px] font-black text-text" dir="auto">
                 {thread.other.displayName}
               </p>
             </div>
           </div>
-          <button onClick={() => router.push(`/dashboard/profile/${thread.other.id}`)}>
+          <button className="shrink-0" onClick={() => router.push(`/dashboard/profile/${thread.other.id}`)}>
             <UserAvatar name={thread.other.displayName} avatarUrl={thread.other.avatarUrl} size={44} round />
           </button>
         </div>
@@ -224,6 +251,52 @@ export default function MessageThreadPage() {
           className="flex-1 bg-transparent text-[14px] text-text placeholder:text-text-dim/60 focus:outline-none"
         />
       </div>
+
+      {reportOpen && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4"
+          onClick={() => !reportSubmitting && setReportOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="flex w-full max-w-[380px] flex-col items-end gap-4 rounded-[12px] border border-border bg-surface p-6 shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
+          >
+            <p className="text-[16px] font-black text-text" dir="auto">
+              گزارش تخلف {thread.other.displayName}
+            </p>
+            <p className="text-[13px] text-text-dim" dir="auto">
+              دلیل گزارش تخلف رو بنویس تا بررسی کنیم.
+            </p>
+            <textarea
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              rows={4}
+              autoFocus
+              placeholder="مثلاً: رفتار توهین‌آمیز، تقلب، اسپم..."
+              dir="auto"
+              className="w-full resize-none rounded-[8px] border border-border bg-surface-alt p-3 text-[13px] text-text placeholder:text-text-dim/60 focus:outline-none"
+            />
+            <div className="flex w-full items-center gap-3 pt-1">
+              <button
+                onClick={handleSubmitReport}
+                disabled={!reportReason.trim() || reportSubmitting}
+                className="flex-1 rounded-[8px] bg-danger py-2.5 text-[13px] font-bold text-white hover:bg-danger/90 disabled:opacity-50"
+                dir="auto"
+              >
+                {reportSubmitting ? "در حال ارسال..." : "ثبت گزارش"}
+              </button>
+              <button
+                onClick={() => setReportOpen(false)}
+                disabled={reportSubmitting}
+                className="flex-1 rounded-[8px] border border-border bg-surface-alt py-2.5 text-[13px] font-bold text-text hover:bg-white/5"
+                dir="auto"
+              >
+                انصراف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

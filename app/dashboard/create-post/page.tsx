@@ -119,26 +119,26 @@ export default function CreatePostPage() {
 
   return (
     <div className="flex w-full flex-col gap-6 p-6 md:p-10">
-      <div className="flex w-full items-center justify-between rounded-[8px] bg-danger-soft px-6 py-3">
-        <AlertTriangle size={16} className="text-[#ffa1a1]" />
+      <div className="flex w-full flex-wrap items-center justify-between gap-2 rounded-[8px] bg-danger-soft px-6 py-3">
+        <AlertTriangle size={16} className="shrink-0 text-[#ffa1a1]" />
         <p className="text-[13px] font-bold text-[#ffa1a1]" dir="auto">
           فقط یک پست فعال می‌تونی داشته باشی
         </p>
       </div>
 
-      <div className="flex w-full items-center justify-center gap-6 py-2">
+      <div className="-mx-6 flex w-[calc(100%+48px)] items-center justify-start gap-4 overflow-x-auto px-6 py-2 md:-mx-10 md:w-[calc(100%+80px)] md:px-10 lg:mx-0 lg:w-full lg:justify-center lg:gap-6 lg:overflow-visible lg:px-0">
         {STEPS.map((label, i) => {
           const n = i + 1;
           const active = n === step;
           const done = n < step;
           return (
-            <div key={label} className="flex items-center gap-2">
-              {i > 0 && <div className="h-px w-8 bg-border" />}
-              <span className={`text-[14px] ${active ? "text-text" : "text-text-dim"}`} dir="auto">
+            <div key={label} className="flex shrink-0 items-center gap-2">
+              {i > 0 && <div className="h-px w-8 shrink-0 bg-border" />}
+              <span className={`shrink-0 whitespace-nowrap text-[14px] ${active ? "text-text" : "text-text-dim"}`} dir="auto">
                 {label}
               </span>
               <div
-                className={`flex size-6 items-center justify-center rounded-full text-[12px] font-bold ${
+                className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[12px] font-bold ${
                   active || done ? "bg-primary text-white" : "border border-border bg-surface text-white"
                 }`}
               >
@@ -253,7 +253,7 @@ export default function CreatePostPage() {
                 })}
               </div>
               {rank && rank !== "IMMORTAL" && (
-                <div className="flex items-center justify-end gap-2 pt-2">
+                <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
                   <span className="text-[13px] text-text-dim" dir="auto">
                     ستاره:
                   </span>

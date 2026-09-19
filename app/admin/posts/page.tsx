@@ -71,13 +71,13 @@ export default function AdminPostsPage() {
 
   return (
     <div className="flex w-full flex-col gap-6 p-6 md:p-8">
-      <Card tone="surface" noHover className="w-full flex-row flex-wrap items-center justify-between gap-4 p-5">
-        <div className="flex items-center gap-3">
+      <Card tone="surface" noHover className="w-full flex-col items-stretch gap-4 p-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
           {STATUS_OPTIONS.map((o) => (
             <button
               key={o.value}
               onClick={() => setStatus(o.value)}
-              className={`rounded-[8px] px-4 py-2 text-[13px] ${
+              className={`whitespace-nowrap rounded-[8px] px-4 py-2 text-[13px] ${
                 status === o.value ? "bg-primary font-bold text-white" : "border border-border text-text-dim"
               }`}
               dir="auto"

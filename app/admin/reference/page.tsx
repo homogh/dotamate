@@ -16,10 +16,10 @@ interface RefEntry {
 }
 
 const SECTIONS = [
-  { category: "RANK", title: "لیست رنک‌های بازی (Ranks)", addLabel: "افزودن رنک جدید", orderLabel: "ترتیب" },
-  { category: "POSITION", title: "نقش‌های بازی (Positions)", addLabel: "افزودن نقش جدید", orderLabel: "اولویت" },
-  { category: "REGION", title: "ریجن‌ها و مناطق سرور (Regions)", addLabel: "افزودن ریجن جدید", orderLabel: "" },
-  { category: "GAME_MODE", title: "حالت‌های بازی (Game Modes)", addLabel: "افزودن مود جدید", orderLabel: "" },
+  { category: "RANK", title: "لیست رنک‌های بازی", titleEn: "(Ranks)", addLabel: "افزودن رنک جدید", orderLabel: "ترتیب" },
+  { category: "POSITION", title: "نقش‌های بازی", titleEn: "(Positions)", addLabel: "افزودن نقش جدید", orderLabel: "اولویت" },
+  { category: "REGION", title: "ریجن‌ها و مناطق سرور", titleEn: "(Regions)", addLabel: "افزودن ریجن جدید", orderLabel: "" },
+  { category: "GAME_MODE", title: "حالت‌های بازی", titleEn: "(Game Modes)", addLabel: "افزودن مود جدید", orderLabel: "" },
 ];
 
 export default function AdminReferencePage() {
@@ -93,16 +93,16 @@ export default function AdminReferencePage() {
           const entries = data[section.category] ?? [];
           return (
             <Card key={section.category} tone="surface" noHover className="w-full min-w-[300px] flex-1 gap-4 p-6">
-              <div className="flex w-full items-center justify-between border-b border-border pb-3">
+              <div className="flex w-full flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
                 <button
                   onClick={() => handleAdd(section.category)}
-                  className="rounded-[6px] bg-primary px-3 py-1.5 text-[12px] font-bold text-white"
+                  className="whitespace-nowrap rounded-[6px] bg-primary px-3 py-1.5 text-[12px] font-bold text-white"
                   dir="auto"
                 >
                   {section.addLabel} +
                 </button>
                 <p className="text-[16px] font-black text-text" dir="auto">
-                  {section.title}
+                  {section.title} <span className="whitespace-nowrap">{section.titleEn}</span>
                 </p>
               </div>
               <div className="flex w-full flex-col gap-2">
@@ -112,27 +112,37 @@ export default function AdminReferencePage() {
                   </p>
                 ) : (
                   entries.map((entry) => (
-                    <div key={entry.id} className="flex w-full items-center justify-between rounded-[8px] border border-border bg-surface-alt p-3">
+                    <div key={entry.id} className="flex w-full flex-wrap items-center justify-between gap-2 rounded-[8px] border border-border bg-surface-alt p-3">
                       <div className="flex items-center gap-2 text-[12px]">
-                        <button onClick={() => handleDelete(entry.id)} className="text-danger" dir="auto">
+                        <button
+                          onClick={() => handleDelete(entry.id)}
+                          className="whitespace-nowrap rounded-[6px] border border-danger/30 px-2.5 py-1.5 font-bold text-danger"
+                          dir="auto"
+                        >
                           حذف
                         </button>
-                        <button onClick={() => handleEdit(entry)} className="text-accent" dir="auto">
+                        <button
+                          onClick={() => handleEdit(entry)}
+                          className="whitespace-nowrap rounded-[6px] border border-border px-2.5 py-1.5 font-bold text-accent"
+                          dir="auto"
+                        >
                           ویرایش
                         </button>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-3">
                         {section.category === "REGION" ? (
                           <button
                             onClick={() => toggleActive(entry)}
-                            className={`text-[12px] font-bold ${entry.active ? "text-success" : "text-text-dim"}`}
+                            className={`whitespace-nowrap rounded-[6px] border px-2.5 py-1.5 text-[12px] font-bold ${
+                              entry.active ? "border-success/30 text-success" : "border-border text-text-dim"
+                            }`}
                             dir="auto"
                           >
                             {entry.active ? "فعال" : "غیرفعال"}
                           </button>
                         ) : (
                           section.orderLabel && (
-                            <p className="text-[12px] text-text-dim" dir="auto">
+                            <p className="whitespace-nowrap text-[12px] text-text-dim" dir="auto">
                               {section.orderLabel}: {entry.sortOrder}
                             </p>
                           )

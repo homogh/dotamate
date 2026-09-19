@@ -129,7 +129,7 @@ export default function AdminAnnouncementsPage() {
 
       <Card tone="surface" noHover className="w-full gap-5 p-6">
         <p className="w-full text-right text-[18px] font-black text-text" dir="auto">
-          مدیریت ویژگی‌ها و قابلیت‌های پلتفرم (Feature Flags)
+          مدیریت ویژگی‌ها و قابلیت‌های پلتفرم <span className="whitespace-nowrap">(Feature Flags)</span>
         </p>
         <div className="flex w-full flex-col gap-4">
           {FEATURE_FLAGS.map((flag) => (

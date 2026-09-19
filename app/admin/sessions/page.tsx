@@ -68,15 +68,15 @@ export default function AdminSessionsPage() {
 
   return (
     <div className="flex w-full flex-col gap-6 p-6 md:p-8">
-      <Card tone="surface" noHover className="w-full flex-row flex-wrap items-center justify-between gap-4 p-5">
-        <div className="flex items-center gap-3">
-          <span className="rounded-[6px] bg-primary px-4 py-2 text-[13px] font-bold text-white" dir="auto">
+      <Card tone="surface" noHover className="w-full flex-col items-stretch gap-4 p-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="whitespace-nowrap rounded-[6px] bg-primary px-4 py-2 text-[13px] font-bold text-white" dir="auto">
             اعمال فیلتر
           </span>
           <select
             value={gameMode}
             onChange={(e) => setGameMode(e.target.value)}
-            className="rounded-[6px] border border-border bg-surface-alt px-4 py-2 text-[13px] text-text"
+            className="min-w-0 flex-1 rounded-[6px] border border-border bg-surface-alt px-4 py-2 text-[13px] text-text sm:flex-none"
             dir="auto"
           >
             <option value="">حالت بازی: همه</option>
@@ -89,7 +89,7 @@ export default function AdminSessionsPage() {
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className="rounded-[6px] border border-border bg-surface-alt px-4 py-2 text-[13px] text-text"
+            className="min-w-0 flex-1 rounded-[6px] border border-border bg-surface-alt px-4 py-2 text-[13px] text-text sm:flex-none"
             dir="auto"
           >
             {STATUS_OPTIONS.map((o) => (
@@ -99,7 +99,7 @@ export default function AdminSessionsPage() {
             ))}
           </select>
         </div>
-        <p className="flex items-center gap-2 text-[14px] text-text-dim" dir="auto">
+        <p className="flex flex-wrap items-center gap-2 text-[14px] text-text-dim" dir="auto">
           تعداد جلسات هماهنگ‌شده فعال در پلتفرم:
           <span className="text-[18px] font-black text-accent">{activeCount.toLocaleString("fa-IR")} جلسه فعال</span>
         </p>

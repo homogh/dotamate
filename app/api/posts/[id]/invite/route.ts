@@ -31,6 +31,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json<ApiResponse>({ status: "error", message: "این بازیکن قبلاً دعوت شده یا عضوه.", data: null }, { status: 409 });
   }
 
+  const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });
+
   await prisma.$transaction([
     prisma.postMember.create({ data: { postId, userId: targetUserId, status: "ACCEPTED" } }),
     prisma.notification.create({
@@ -40,6 +42,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         title: "دعوت به لابی",
         body: "میزبان مستقیم تو رو به پارتیش اضافه کرد.",
         link: `/dashboard/post/${postId}`,
+      },
+    }),
+    prisma.message.create({
+      data: {
+        postId,
+        senderId: session.id,
+        body: `${session.displayName} کاربر ${targetUser?.displayName ?? "ناشناس"} رو مستقیم به پارتی اضافه کرد`,
+        system: true,
       },
     }),
   ]);

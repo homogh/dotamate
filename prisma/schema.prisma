@@ -313,6 +313,7 @@ model Message {
   senderId       Int
   sender         User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
   body           String        @db.Text
+  system         Boolean       @default(false)
   createdAt      DateTime      @default(now())
 
   @@index([conversationId])

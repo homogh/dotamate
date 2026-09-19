@@ -47,7 +47,7 @@ export function FloatingCta() {
   return (
     <div
       ref={wrapRef}
-      className="fixed bottom-6 end-6 z-40 flex flex-col items-center gap-3"
+      className="fixed bottom-6 end-6 z-40 hidden flex-col items-center gap-3 md:flex"
     >
       <button
         type="button"

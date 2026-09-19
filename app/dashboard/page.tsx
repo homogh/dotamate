@@ -103,8 +103,8 @@ export default function DashboardHomePage() {
           <>
             {data?.activePost ? (
               <Card tone="surface" noHover className="w-full gap-5 p-6">
-                <div className="flex w-full items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="flex w-full flex-col-reverse items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex shrink-0 items-center gap-3">
                     <button className="rounded-[8px] border border-border bg-surface-alt px-4 py-2 text-[13px] font-bold text-text-dim hover:text-text">
                       حذف پست
                     </button>
@@ -115,9 +115,9 @@ export default function DashboardHomePage() {
                       ویرایش پست
                     </Link>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex flex-col items-end gap-1">
-                      <p className="text-[16px] font-black text-text" dir="auto">
+                  <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto">
+                    <div className="flex min-w-0 flex-1 flex-col items-end gap-1">
+                      <p className="w-full break-words text-right text-[16px] font-black text-text" dir="auto">
                         {data.activePost.description}
                       </p>
                       <p className="text-[13px] text-text-dim" dir="auto">
@@ -128,8 +128,8 @@ export default function DashboardHomePage() {
                   </div>
                 </div>
                 <div className="h-px w-full bg-border" />
-                <div className="flex w-full items-center justify-between">
-                  <div className="flex items-center gap-4">
+                <div className="flex w-full flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                     <p className="text-[13px] text-text-dim" dir="auto">
                       اعضای پارتی:
                     </p>
@@ -317,16 +317,16 @@ export default function DashboardHomePage() {
                 <p className="w-full text-right text-[16px] font-black text-text" dir="auto">
                   میانبرها و دسترسی سریع
                 </p>
-                <div className="flex w-full gap-3">
+                <div className="flex w-full flex-col gap-3 sm:flex-row">
                   <Link
                     href="/dashboard/create-post"
-                    className="flex flex-1 items-center justify-center rounded-[8px] bg-primary p-4 text-[14px] font-bold text-white hover:bg-primary-hover"
+                    className="flex flex-1 items-center justify-center rounded-[8px] bg-primary p-4 text-center text-[14px] font-bold text-white hover:bg-primary-hover"
                   >
                     ایجاد پست جدید
                   </Link>
                   <Link
                     href="/dashboard/browse"
-                    className="flex flex-1 items-center justify-center rounded-[8px] border border-border bg-surface-alt p-4 text-[14px] font-bold text-text hover:bg-white/5"
+                    className="flex flex-1 items-center justify-center rounded-[8px] border border-border bg-surface-alt p-4 text-center text-[14px] font-bold text-text hover:bg-white/5"
                   >
                     مرور همه پست‌ها
                   </Link>

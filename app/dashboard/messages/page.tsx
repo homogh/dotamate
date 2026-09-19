@@ -83,32 +83,32 @@ export default function MessagesInboxPage() {
             <button
               key={c.conversationId}
               onClick={() => router.push(`/dashboard/messages/${c.conversationId}`)}
-              className={`flex w-full items-center gap-4 p-5 text-right transition-colors hover:bg-white/[0.04] ${
+              className={`flex w-full items-start gap-3 p-4 text-right transition-colors hover:bg-white/[0.04] sm:gap-4 sm:p-5 ${
                 i !== filtered.length - 1 ? "border-b border-border" : ""
               } ${c.unread ? "bg-white/[0.06]" : ""}`}
             >
-              <div className="flex items-center gap-3">
-                {c.unread && <div className="size-2 rounded-full bg-primary" />}
-                <p className={`text-[12px] whitespace-nowrap ${c.unread ? "text-accent" : "text-text-dim"}`} dir="auto">
-                  {timeAgo(c.lastMessageAt)}
-                </p>
-              </div>
+              <UserAvatar name={c.displayName} avatarUrl={c.avatarUrl} size={44} round />
 
               <div className="flex min-w-0 flex-1 flex-col items-end gap-1">
-                <div className="flex items-center gap-2">
-                  <span className="rounded-[4px] bg-surface-alt px-2 py-0.5 text-[10px] font-bold text-accent" dir="auto">
-                    {RANK_LABEL[c.rank]} {c.rankTier ?? ""}
-                  </span>
-                  <p className="text-[15px] font-black text-text" dir="auto">
+                <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-2">
+                  <p className="truncate text-[15px] font-black text-text" dir="auto">
                     {c.displayName}
                   </p>
+                  <span className="shrink-0 rounded-[4px] bg-surface-alt px-2 py-0.5 text-[10px] font-bold text-accent" dir="auto">
+                    {RANK_LABEL[c.rank]} {c.rankTier ?? ""}
+                  </span>
                 </div>
                 <p className={`w-full truncate text-right text-[13px] ${c.unread ? "text-text" : "text-text-dim"}`} dir="auto">
                   {c.lastMessage}
                 </p>
               </div>
 
-              <UserAvatar name={c.displayName} avatarUrl={c.avatarUrl} size={44} round />
+              <div className="flex shrink-0 items-center gap-2">
+                {c.unread && <div className="size-2 shrink-0 rounded-full bg-primary" />}
+                <p className={`text-[12px] whitespace-nowrap ${c.unread ? "text-accent" : "text-text-dim"}`} dir="auto">
+                  {timeAgo(c.lastMessageAt)}
+                </p>
+              </div>
             </button>
           ))}
         </DashboardFadeIn>

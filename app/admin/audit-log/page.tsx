@@ -79,13 +79,10 @@ export default function AdminAuditLogPage() {
           </p>
         ) : (
           logs.map((log) => (
-            <div key={log.id} className="flex w-full items-center justify-between gap-4 rounded-[8px] border border-border bg-surface-alt p-4">
-              <p className="shrink-0 text-[12px] tabular-nums text-text-dim" dir="ltr">
-                {new Date(log.createdAt).toLocaleString("fa-IR")}
-              </p>
-              <div className="flex min-w-0 flex-1 items-center justify-end gap-2 text-[13px]">
+            <div key={log.id} className="flex w-full flex-col-reverse gap-2 rounded-[8px] border border-border bg-surface-alt p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+              <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1 text-[13px] sm:min-w-0 sm:flex-1">
                 {log.detail && (
-                  <span className="truncate text-text-dim" dir="auto">
+                  <span className="text-text-dim" dir="auto">
                     ({log.detail})
                   </span>
                 )}
@@ -104,6 +101,9 @@ export default function AdminAuditLogPage() {
                   {log.actorName}
                 </span>
               </div>
+              <p className="shrink-0 text-[12px] tabular-nums text-text-dim" dir="ltr">
+                {new Date(log.createdAt).toLocaleString("fa-IR")}
+              </p>
             </div>
           ))
         )}

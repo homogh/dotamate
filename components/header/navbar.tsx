@@ -89,12 +89,7 @@ export function Navbar() {
           {status === "authenticated" && user ? (
             <>
               <NotificationBell align="left" />
-              <div className="flex items-center gap-3 rounded-[8px] border border-border px-3 py-2">
-                <span className="text-sm font-bold text-text" dir="auto">
-                  {user.displayName}
-                </span>
-                <AccountMenu size={32} />
-              </div>
+              <AccountMenu size={32} label={user.displayName} align="left" />
             </>
           ) : (
             <>

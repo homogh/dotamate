@@ -20,7 +20,8 @@ export async function PATCH(
 
   const { id, memberId } = await params;
   const body = await request.json().catch(() => null);
-  const action = body?.action === "accept" ? "ACCEPTED" : body?.action === "reject" ? "DECLINED" : null;
+  const action =
+    body?.action === "accept" ? "ACCEPTED" : body?.action === "reject" ? "DECLINED" : body?.action === "kick" ? "REMOVED" : null;
 
   if (!action) {
     return NextResponse.json<ApiResponse>(
@@ -37,11 +38,25 @@ export async function PATCH(
     );
   }
 
-  const member = await prisma.postMember.findUnique({ where: { id: Number(memberId) } });
+  const member = await prisma.postMember.findUnique({ where: { id: Number(memberId) }, include: { user: true } });
   if (!member || member.postId !== post.id) {
     return NextResponse.json<ApiResponse>(
       { status: "error", message: "درخواست پیدا نشد.", data: null },
       { status: 404 },
+    );
+  }
+
+  if ((action === "ACCEPTED" || action === "DECLINED") && member.status !== "PENDING") {
+    return NextResponse.json<ApiResponse>(
+      { status: "error", message: "این درخواست قبلاً بررسی شده.", data: null },
+      { status: 409 },
+    );
+  }
+
+  if (action === "REMOVED" && member.status !== "ACCEPTED") {
+    return NextResponse.json<ApiResponse>(
+      { status: "error", message: "این عضو در حال حاضر توی پارتی نیست.", data: null },
+      { status: 409 },
     );
   }
 
@@ -71,16 +86,31 @@ export async function PATCH(
   }
 
 
+  const logBody =
+    action === "ACCEPTED"
+      ? `${session.displayName} درخواست ${member.user.displayName} رو قبول کرد`
+      : action === "DECLINED"
+        ? `${session.displayName} درخواست ${member.user.displayName} رو رد کرد`
+        : `${member.user.displayName} از پارتی کیک شد`;
+
   await prisma.$transaction([
     prisma.postMember.update({ where: { id: member.id }, data: { status: action } }),
     prisma.notification.create({
       data: {
         userId: member.userId,
-        type: action === "ACCEPTED" ? "REQUEST_ACCEPTED" : "REQUEST_DECLINED",
-        title: action === "ACCEPTED" ? "درخواستت قبول شد" : "درخواستت رد شد",
-        body: action === "ACCEPTED" ? "می‌تونی وارد اتاق لابی بشی." : null,
+        type: action === "ACCEPTED" ? "REQUEST_ACCEPTED" : action === "DECLINED" ? "REQUEST_DECLINED" : "SYSTEM",
+        title: action === "ACCEPTED" ? "درخواستت قبول شد" : action === "DECLINED" ? "درخواستت رد شد" : "از پارتی حذف شدی",
+        body:
+          action === "ACCEPTED"
+            ? "می‌تونی وارد اتاق لابی بشی."
+            : action === "REMOVED"
+              ? `میزبان (${session.displayName}) تو رو از پارتی حذف کرد.`
+              : null,
         link: action === "ACCEPTED" ? `/dashboard/post/${post.id}` : null,
       },
+    }),
+    prisma.message.create({
+      data: { postId: post.id, senderId: session.id, body: logBody, system: true },
     }),
   ]);
 
@@ -101,6 +131,10 @@ export async function PATCH(
       },
       data: { status: "DECLINED" },
     });
+  }
+
+  if (action === "REMOVED" && post.status === "FULL") {
+    await prisma.post.update({ where: { id: post.id }, data: { status: "ACTIVE" } });
   }
 
   return NextResponse.json<ApiResponse>({ status: "success", message: "انجام شد.", data: null });

@@ -36,6 +36,7 @@ interface ChatMessage {
   senderName: string;
   senderRank: string;
   senderRankTier: number | null;
+  system: boolean;
 }
 
 export default function PostDetailPage() {
@@ -70,7 +71,8 @@ export default function PostDetailPage() {
       .then((res) => res.json())
       .then((json) => {
         if (json.status === "success") setMessages(json.data);
-      });
+      })
+      .catch(() => {});
   }, [postId]);
 
   useEffect(() => {
@@ -79,10 +81,27 @@ export default function PostDetailPage() {
 
   useEffect(() => {
     if (forbidden) return;
-    loadMessages();
-    const interval = setInterval(loadMessages, 4000);
-    return () => clearInterval(interval);
-  }, [loadMessages, forbidden]);
+
+    function refresh() {
+      loadMessages();
+      loadDetail();
+    }
+
+    refresh();
+    const interval = setInterval(refresh, 4000);
+
+    function handleVisible() {
+      if (document.visibilityState === "visible") refresh();
+    }
+    document.addEventListener("visibilitychange", handleVisible);
+    window.addEventListener("focus", handleVisible);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisible);
+      window.removeEventListener("focus", handleVisible);
+    };
+  }, [loadMessages, loadDetail, forbidden]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -109,6 +128,25 @@ export default function PostDetailPage() {
 
     if (res.ok) {
       toast.success(action === "accept" ? "درخواست قبول شد." : "درخواست رد شد.");
+    } else {
+      const json = await res.json().catch(() => null);
+      toast.error(json?.message ?? "مشکلی پیش اومد.");
+    }
+
+    loadDetail();
+  }
+
+  async function handleKick(memberId: number, name: string) {
+    if (!(await confirmAction({ message: `مطمئنی می‌خوای ${name} رو از پارتی کیک کنی؟`, danger: true, confirmLabel: "کیک" }))) return;
+
+    const res = await fetch(`/api/posts/${postId}/members/${memberId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "kick" }),
+    });
+
+    if (res.ok) {
+      toast.success("عضو از پارتی کیک شد.");
     } else {
       const json = await res.json().catch(() => null);
       toast.error(json?.message ?? "مشکلی پیش اومد.");
@@ -229,6 +267,17 @@ export default function PostDetailPage() {
                 name={m.displayName}
                 avatarUrl={m.avatarUrl}
                 rank={`${RANK_LABEL[m.rank]} ${m.rankTier ?? ""}${m.position ? ` • ${POSITION_LABEL[m.position as PositionValue]}` : ""}`}
+                actions={
+                  detail.isAuthor ? (
+                    <button
+                      onClick={() => handleKick(m.memberId, m.displayName)}
+                      className="rounded-[4px] bg-danger px-3 py-1.5 text-[11px] font-bold text-white"
+                      dir="auto"
+                    >
+                      کیک
+                    </button>
+                  ) : undefined
+                }
               />
             ))}
             {detail.isAuthor &&
@@ -339,33 +388,41 @@ export default function PostDetailPage() {
               هنوز پیامی رد و بدل نشده — اولین نفر باش.
             </p>
           ) : (
-            messages.map((m) => (
-              <div
-                key={m.id}
-                className={`flex w-full flex-col gap-1.5 rounded-[8px] border p-3 ${
-                  m.senderId === detail.author.id && detail.isAuthor
-                    ? "border-primary bg-primary/15"
-                    : "border-border bg-surface-alt"
-                }`}
-              >
-                <div className="flex w-full items-center justify-between">
-                  <p className="text-[11px] text-text-dim">
-                    {new Date(m.createdAt).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-[12px] font-bold text-text" dir="auto">
-                      {m.senderName}
-                    </p>
-                    <p className="text-[11px] text-accent" dir="auto">
-                      {RANK_LABEL[m.senderRank]} {m.senderRankTier ?? ""}
-                    </p>
-                  </div>
+            messages.map((m) =>
+              m.system ? (
+                <div key={m.id} className="flex w-full items-center justify-center gap-2 py-1">
+                  <span className="rounded-full bg-white/[0.06] px-3 py-1 text-[11px] text-text-dim" dir="auto">
+                    {m.body} • {new Date(m.createdAt).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
                 </div>
-                <p className="w-full text-right text-[13px] text-text-dim" dir="auto">
-                  {m.body}
-                </p>
-              </div>
-            ))
+              ) : (
+                <div
+                  key={m.id}
+                  className={`flex w-full flex-col gap-1.5 rounded-[8px] border p-3 ${
+                    m.senderId === detail.author.id && detail.isAuthor
+                      ? "border-primary bg-primary/15"
+                      : "border-border bg-surface-alt"
+                  }`}
+                >
+                  <div className="flex w-full items-center justify-between">
+                    <p className="text-[11px] text-text-dim">
+                      {new Date(m.createdAt).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[12px] font-bold text-text" dir="auto">
+                        {m.senderName}
+                      </p>
+                      <p className="text-[11px] text-accent" dir="auto">
+                        {RANK_LABEL[m.senderRank]} {m.senderRankTier ?? ""}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="w-full text-right text-[13px] text-text-dim" dir="auto">
+                    {m.body}
+                  </p>
+                </div>
+              ),
+            )
           )}
           <div ref={chatEndRef} />
         </div>

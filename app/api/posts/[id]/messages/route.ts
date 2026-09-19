@@ -56,6 +56,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       senderName: m.sender.displayName,
       senderRank: m.sender.rank,
       senderRankTier: m.sender.rankTier,
+      system: m.system,
     })),
   });
 }

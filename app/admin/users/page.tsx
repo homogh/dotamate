@@ -73,20 +73,20 @@ export default function AdminUsersPage() {
 
   return (
     <div className="flex w-full flex-col gap-6 p-6 md:p-8">
-      <Card tone="surface" noHover className="w-full flex-row flex-wrap items-center justify-between gap-4 p-5">
+      <Card tone="surface" noHover className="w-full flex-col items-stretch gap-4 p-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="جستجو بر اساس نام یا ایمیل..."
           dir="auto"
-          className="w-full max-w-[280px] rounded-[8px] border border-border bg-surface-alt px-4 py-2.5 text-[13px] text-text placeholder:text-text-dim/60 focus:outline-none"
+          className="w-full rounded-[8px] border border-border bg-surface-alt px-4 py-2.5 text-[13px] text-text placeholder:text-text-dim/60 focus:outline-none sm:max-w-[280px]"
         />
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {STATUS_OPTIONS.map((o) => (
             <button
               key={o.value}
               onClick={() => setStatus(o.value)}
-              className={`rounded-[8px] px-4 py-2 text-[13px] ${
+              className={`whitespace-nowrap rounded-[8px] px-4 py-2 text-[13px] ${
                 status === o.value ? "bg-primary font-bold text-white" : "border border-border text-text-dim"
               }`}
               dir="auto"

@@ -7,6 +7,7 @@ import { Search, Volume2 } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 
+import { cn } from "@/app/lib/utils";
 import { useAuth } from "@/app/stores/useAuth";
 import { PageBanner } from "@/components/general/pageBanner";
 import { Card } from "@/components/general/card";
@@ -60,16 +61,21 @@ function Select({
   value,
   onChange,
   options,
+  className,
 }: {
   value: string;
   onChange: (v: string) => void;
   options: { label: string; value: string }[];
+  className?: string;
 }) {
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="rounded-[8px] border border-border bg-surface-alt py-2 pe-3 ps-4 text-[13px] text-text outline-none transition-colors hover:border-white/20 focus-visible:border-primary"
+      className={cn(
+        "rounded-[8px] border border-border bg-surface-alt py-2 pe-3 ps-4 text-[13px] text-text outline-none transition-colors hover:border-white/20 focus-visible:border-primary",
+        className
+      )}
       dir="auto"
     >
       {options.map((o) => (
@@ -211,20 +217,39 @@ export function SearchLobbyContent() {
 
           <div
             data-filter-card
-            className="flex w-full flex-wrap items-center justify-between gap-4 rounded-[12px] border border-border bg-surface p-5"
+            className="flex w-full flex-col gap-4 rounded-[12px] border border-border bg-surface p-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
           >
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
               <span className="text-sm font-bold text-text-dim">فیلترها:</span>
-              <Select value={rank} onChange={resetToPageOne(setRank)} options={RANK_FILTER_OPTIONS} />
-              <Select value={position} onChange={resetToPageOne(setPosition)} options={POSITION_FILTER_OPTIONS} />
-              <Select value={region} onChange={resetToPageOne(setRegion)} options={REGION_FILTER_OPTIONS} />
+              <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center">
+                <Select
+                  value={rank}
+                  onChange={resetToPageOne(setRank)}
+                  options={RANK_FILTER_OPTIONS}
+                  className="w-full sm:w-auto"
+                />
+                <Select
+                  value={position}
+                  onChange={resetToPageOne(setPosition)}
+                  options={POSITION_FILTER_OPTIONS}
+                  className="w-full sm:w-auto"
+                />
+                <Select
+                  value={region}
+                  onChange={resetToPageOne(setRegion)}
+                  options={REGION_FILTER_OPTIONS}
+                  className="col-span-2 w-full sm:w-auto"
+                />
+              </div>
             </div>
 
-            <Switch
-              checked={voiceOnly}
-              onChange={resetToPageOne(setVoiceOnly)}
-              label="صدا دارم (دیسکورد/وویس)"
-            />
+            <div className="border-t border-border pt-4 sm:border-0 sm:pt-0">
+              <Switch
+                checked={voiceOnly}
+                onChange={resetToPageOne(setVoiceOnly)}
+                label="صدا دارم (دیسکورد/وویس)"
+              />
+            </div>
           </div>
 
           <div ref={resultsRef} className="flex w-full flex-col gap-6">
@@ -286,9 +311,9 @@ export function SearchLobbyContent() {
                         )}
                       </div>
 
-                      <div className="flex w-full items-center justify-between border-t border-border pt-4">
+                      <div className="flex w-full flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
                         {lobby.isSelf ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <Button size="sm" disabled>
                               لابی خودته
                             </Button>
@@ -315,8 +340,8 @@ export function SearchLobbyContent() {
                                       : "درخواست عضویت در لابی"}
                           </Button>
                         )}
-                        <div className="flex items-center gap-2">
-                          <p className="text-[13px] font-extrabold text-text" dir="ltr">
+                        <div className="flex shrink-0 items-center gap-2">
+                          <p className="whitespace-nowrap text-[13px] font-extrabold text-text" dir="ltr">
                             {lobby.memberCount} از {lobby.partySize} نفر پر شده
                           </p>
                           <div className="flex items-center gap-1">

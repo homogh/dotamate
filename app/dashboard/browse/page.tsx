@@ -183,7 +183,7 @@ export default function BrowseFeedPage() {
 
       <Card tone="surface" noHover className="w-full gap-4 p-6">
         <div className="flex w-full flex-wrap items-center justify-end gap-4">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
               <span className="text-[13px] text-text-dim" dir="auto">
                 فقط لابی‌های الان
@@ -198,7 +198,7 @@ export default function BrowseFeedPage() {
             </div>
           </div>
 
-          <div className="flex flex-1 items-center justify-end gap-3">
+          <div className="flex w-full flex-1 flex-wrap items-center justify-end gap-3 sm:w-auto">
             <div className="relative">
               <select
                 value={gameMode}

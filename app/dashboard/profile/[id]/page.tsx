@@ -284,16 +284,16 @@ export default function PublicProfilePage() {
                       key={m.matchId}
                       type="button"
                       onClick={() => setSelectedMatch(m)}
-                      className="flex w-full cursor-pointer items-center justify-between rounded-[8px] border border-transparent bg-surface-alt p-3 text-right outline-none transition-colors hover:border-accent/30 hover:bg-accent/10 focus-visible:border-accent/50 focus-visible:bg-accent/10"
+                      className="flex w-full cursor-pointer flex-col-reverse items-end gap-2 rounded-[8px] border border-transparent bg-surface-alt p-3 text-right outline-none transition-colors hover:border-accent/30 hover:bg-accent/10 focus-visible:border-accent/50 focus-visible:bg-accent/10 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
                     >
-                      <div className="flex items-center gap-3 text-[11px] text-text-dim" dir="ltr">
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-text-dim sm:gap-3" dir="ltr">
                         <span>
                           {Math.floor(m.duration / 60)}:{String(m.duration % 60).padStart(2, "0")}
                         </span>
                         {m.goldPerMin !== null && <span>{m.goldPerMin} GPM</span>}
                         {m.xpPerMin !== null && <span>{m.xpPerMin} XPM</span>}
                       </div>
-                      <div className="flex items-center gap-3 text-[13px]">
+                      <div className="flex flex-wrap items-center justify-end gap-2 text-[13px] sm:gap-3">
                         <span className="text-text-dim" dir="ltr">
                           {m.kills}/{m.deaths}/{m.assists}
                         </span>
@@ -302,10 +302,10 @@ export default function PublicProfilePage() {
                         </span>
                         {m.heroIcon && (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={m.heroIcon} alt="" className="size-7 rounded-[4px]" />
+                          <img src={m.heroIcon} alt="" className="size-7 shrink-0 rounded-[4px]" />
                         )}
                         <span
-                          className={`rounded-[4px] px-2 py-0.5 text-[11px] font-bold ${m.win ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}
+                          className={`shrink-0 rounded-[4px] px-2 py-0.5 text-[11px] font-bold ${m.win ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}
                           dir="auto"
                         >
                           {m.win ? "برد" : "باخت"}
@@ -384,11 +384,11 @@ export default function PublicProfilePage() {
             ) : (
               <div className="flex w-full flex-col gap-2.5">
                 {profile.recentPosts.map((p) => (
-                  <div key={p.id} className="flex w-full items-center justify-between rounded-[8px] bg-surface-alt p-3">
-                    <span className="rounded-[4px] bg-surface px-2 py-0.5 text-[11px] text-text-dim" dir="auto">
+                  <div key={p.id} className="flex w-full flex-wrap items-center justify-between gap-2 rounded-[8px] bg-surface-alt p-3">
+                    <span className="shrink-0 rounded-[4px] bg-surface px-2 py-0.5 text-[11px] text-text-dim" dir="auto">
                       {STATUS_LABEL[p.status]}
                     </span>
-                    <div className="flex items-center gap-2 text-[13px]">
+                    <div className="flex flex-wrap items-center justify-end gap-2 text-[13px]">
                       <span className="text-text-dim">{GAME_MODE_LABEL[p.gameMode]}</span>
                       <span className="text-text-dim">•</span>
                       <span className="text-text-dim">{REGION_LABEL[p.region]}</span>
@@ -411,8 +411,6 @@ export default function PublicProfilePage() {
           <div className="flex w-full flex-col gap-3">
             <InfoRow label="رنک" value={`${RANK_LABEL[profile.rank]} ${profile.rankTier ?? ""}`} accent />
             <InfoRow label="نقش اصلی (Pos)" value={profile.mainPosition ? POSITION_LABEL[profile.mainPosition as PositionValue] : "مشخص نشده"} chip />
-            <InfoRow label="زبان‌ها" value={profile.languages.length > 0 ? profile.languages.join("، ") : "مشخص نشده"} />
-            <InfoRow label="کشور / منطقه" value={profile.country || "مشخص نشده"} />
             <InfoRow label="وضعیت تایید" value={verified ? "تایید‌شده" : "خوداظهاری"} success={verified} />
           </div>
         </Card>
