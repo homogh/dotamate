@@ -2,13 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { BadgeCheck, X, UserPlus } from "lucide-react";
+import { BadgeCheck, Flag, ThumbsUp, X, UserPlus, UserCheck, Clock } from "lucide-react";
 
+import { useConfirm } from "@/app/stores/useConfirm";
 import { Card } from "@/components/general/card";
 import { UserAvatar } from "@/components/general/userAvatar";
 import { RANK_LABEL, REGION_LABEL, GAME_MODE_LABEL } from "@/components/dashboard/postLabels";
 import { POSITION_LABEL, type PositionValue } from "@/components/dashboard/positionMeta";
 import { RankTrendChart } from "@/components/pages/profile/rankTrendChart";
+import { BehaviorScoreCard, type CommendSummary } from "@/components/pages/profile/behaviorScoreCard";
+import { ReportPlayerModal } from "@/components/pages/profile/reportPlayerModal";
+import { CommendPlayerModal } from "@/components/pages/profile/commendPlayerModal";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -38,8 +42,13 @@ interface ProfileData {
   rankTier: number | null;
   mainPosition: string | null;
   rankVerification: string;
+  behaviorScore: number;
+  communicationScore: number;
+  commends: CommendSummary;
   isSelf: boolean;
   isFavorited: boolean;
+  friend: { state: "NONE" | "OUTGOING" | "INCOMING" | "FRIENDS"; requestId: number | null };
+  online: boolean;
   stats: { teammatesFound: number; activePosts: number; totalPosts: number };
   recentPosts: { id: number; position: string; region: string; gameMode: string; status: string; createdAt: string }[];
   dotaStats: {
@@ -118,6 +127,9 @@ export default function PublicProfilePage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<DotaMatch | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [commendOpen, setCommendOpen] = useState(false);
+  const confirmAction = useConfirm();
   const [matchItemsCache, setMatchItemsCache] = useState<Record<number, MatchItemsData>>({});
   const matchItems = selectedMatch ? (matchItemsCache[selectedMatch.matchId] ?? null) : null;
   const matchItemsLoading = selectedMatch !== null && matchItems === null;
@@ -155,6 +167,36 @@ export default function PublicProfilePage() {
     if (!profile) return;
     setBusy(true);
     await fetch(`/api/favorites/${profile.id}`, { method: profile.isFavorited ? "DELETE" : "POST" });
+    setBusy(false);
+    load();
+  }
+
+  async function handleFriend() {
+    if (!profile) return;
+    const { state, requestId } = profile.friend;
+    if (
+      state === "FRIENDS" &&
+      !(await confirmAction({ message: `${profile.displayName} از دوستانت حذف بشه؟`, danger: true, confirmLabel: "حذف دوست" }))
+    )
+      return;
+    setBusy(true);
+    if (state === "NONE") {
+      await fetch("/api/friends/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: profile.id }),
+      });
+    } else if (state === "INCOMING") {
+      await fetch(`/api/friends/requests/${requestId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "accept" }),
+      });
+    } else if (state === "OUTGOING") {
+      await fetch(`/api/friends/requests/${requestId}`, { method: "DELETE" });
+    } else {
+      await fetch(`/api/friends/${profile.id}`, { method: "DELETE" });
+    }
     setBusy(false);
     load();
   }
@@ -203,6 +245,26 @@ export default function PublicProfilePage() {
           ) : (
             <>
               <button
+                onClick={handleFriend}
+                disabled={busy}
+                className={`flex items-center gap-1.5 rounded-[8px] px-5 py-3 text-[14px] font-bold disabled:opacity-50 ${
+                  profile.friend.state === "NONE" || profile.friend.state === "INCOMING"
+                    ? "border border-primary text-accent hover:bg-primary/10"
+                    : "border border-border bg-surface-alt text-text-dim hover:text-text"
+                }`}
+                dir="auto"
+                title={profile.friend.state === "FRIENDS" ? "برای حذف از دوستان کلیک کن" : profile.friend.state === "OUTGOING" ? "برای لغو درخواست کلیک کن" : undefined}
+              >
+                {profile.friend.state === "FRIENDS" ? <UserCheck size={15} /> : profile.friend.state === "OUTGOING" ? <Clock size={15} /> : <UserPlus size={15} />}
+                {profile.friend.state === "FRIENDS"
+                  ? "دوست هستید"
+                  : profile.friend.state === "OUTGOING"
+                    ? "درخواست ارسال شد"
+                    : profile.friend.state === "INCOMING"
+                      ? "قبول درخواست دوستی"
+                      : "افزودن به دوستان"}
+              </button>
+              <button
                 onClick={handleFavorite}
                 disabled={busy}
                 className="rounded-[8px] border border-border bg-surface-alt px-6 py-3 text-[14px] font-bold text-text disabled:opacity-50"
@@ -217,6 +279,23 @@ export default function PublicProfilePage() {
                 dir="auto"
               >
                 ارسال پیام
+              </button>
+              <button
+                onClick={() => setCommendOpen(true)}
+                className="flex items-center gap-1.5 rounded-[8px] border border-success/60 px-4 py-3 text-[14px] font-bold text-success transition-colors hover:bg-success/10"
+                dir="auto"
+              >
+                <ThumbsUp size={15} />
+                کامند
+              </button>
+              <button
+                onClick={() => setReportOpen(true)}
+                className="flex items-center gap-1.5 rounded-[8px] border border-danger/60 px-4 py-3 text-[14px] font-bold text-danger transition-colors hover:bg-danger/10"
+                dir="auto"
+                title="گزارش تخلف"
+              >
+                <Flag size={15} />
+                گزارش
               </button>
             </>
           )}
@@ -417,17 +496,36 @@ export default function PublicProfilePage() {
           </Card>
         </div>
 
-        <Card tone="surface" noHover className="w-full gap-4 p-6 lg:w-[380px] lg:shrink-0">
-          <p className="w-full text-right text-[16px] font-black text-text" dir="auto">
-            اطلاعات کلی بازیکن
-          </p>
-          <div className="flex w-full flex-col gap-3">
-            <InfoRow label="رنک" value={`${RANK_LABEL[profile.rank]} ${profile.rankTier ?? ""}`} accent />
-            <InfoRow label="نقش اصلی (Pos)" value={profile.mainPosition ? POSITION_LABEL[profile.mainPosition as PositionValue] : "مشخص نشده"} chip />
-            <InfoRow label="وضعیت تایید" value={verified ? "تایید‌شده" : "خوداظهاری"} success={verified} />
-          </div>
-        </Card>
+        <div className="flex w-full flex-col gap-6 lg:w-[380px] lg:shrink-0">
+          <Card tone="surface" noHover className="w-full gap-4 p-6">
+            <p className="w-full text-right text-[16px] font-black text-text" dir="auto">
+              اطلاعات کلی بازیکن
+            </p>
+            <div className="flex w-full flex-col gap-3">
+              <InfoRow label="رنک" value={`${RANK_LABEL[profile.rank]} ${profile.rankTier ?? ""}`} accent />
+              <InfoRow label="نقش اصلی (Pos)" value={profile.mainPosition ? POSITION_LABEL[profile.mainPosition as PositionValue] : "مشخص نشده"} chip />
+              <InfoRow label="وضعیت تایید" value={verified ? "تایید‌شده" : "خوداظهاری"} success={verified} />
+            </div>
+          </Card>
+          <BehaviorScoreCard
+            behaviorScore={profile.behaviorScore}
+            communicationScore={profile.communicationScore}
+            commends={profile.commends}
+          />
+        </div>
       </div>
+
+      {!profile.isSelf && (
+        <>
+          <ReportPlayerModal open={reportOpen} onOpenChange={setReportOpen} player={{ id: profile.id, displayName: profile.displayName }} />
+          <CommendPlayerModal
+            open={commendOpen}
+            onOpenChange={setCommendOpen}
+            player={{ id: profile.id, displayName: profile.displayName }}
+            onCommended={load}
+          />
+        </>
+      )}
 
       <Dialog open={selectedMatch !== null} onOpenChange={(open) => !open && setSelectedMatch(null)}>
         <DialogContent className="overflow-hidden border-border bg-surface p-0 sm:max-w-md" dir="rtl" showCloseButton={false}>

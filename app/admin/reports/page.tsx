@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, UserX, CheckCircle, MessageSquareText, ChevronDown } from "lucide-react";
+import { AlertTriangle, UserX, CheckCircle, MessageSquareText, ChevronDown, Swords, Paperclip } from "lucide-react";
 
 import { Card } from "@/components/general/card";
 
@@ -15,10 +15,52 @@ interface AdminReport {
   context: string;
   hasConversation: boolean;
   reason: string;
+  category: "BEHAVIOR" | "COMMUNICATION" | null;
+  reasonCode: string | null;
+  reasonLabel: string | null;
+  defaultPenalty: number | null;
+  scorePenalty: number | null;
+  matchId: string | null;
+  attachments: { id: number; kind: "IMAGE" | "VIDEO" }[];
+  reportedUserScores: { behavior: number; communication: number } | null;
   status: string;
   action: string;
   createdAt: string;
 }
+
+interface ReportMatchPlayer {
+  isRadiant: boolean;
+  personaName: string | null;
+  heroName: string;
+  heroIcon: string;
+  kills: number;
+  deaths: number;
+  assists: number;
+  lastHits: number;
+  goldPerMin: number;
+  heroDamage: number;
+  abandoned: boolean;
+  items: string[];
+  isReporter: boolean;
+  isReported: boolean;
+}
+
+interface ReportMatch {
+  matchId: string;
+  radiantWin: boolean;
+  duration: number;
+  startAt: string | null;
+  radiantScore: number;
+  direScore: number;
+  players: ReportMatchPlayer[];
+}
+
+const ACTION_RESULT_LABEL: Record<string, string> = {
+  BANNED: "مسدود شد",
+  SUSPENDED: "تعلیق شد",
+  SCORE_REDUCED: "تایید شد",
+  DISMISSED: "رد شد",
+};
 
 interface ReportMessage {
   id: number;
@@ -53,6 +95,9 @@ export default function AdminReportsPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [conversations, setConversations] = useState<Record<number, ReportMessage[]>>({});
   const [conversationLoadingId, setConversationLoadingId] = useState<number | null>(null);
+  const [matchOpenId, setMatchOpenId] = useState<number | null>(null);
+  const [reportMatches, setReportMatches] = useState<Record<number, ReportMatch | "error">>({});
+  const [penalties, setPenalties] = useState<Record<number, string>>({});
 
   const load = useCallback(() => {
     return fetch(`/api/admin/reports?tab=${tab}`, { cache: "no-store" })
@@ -87,12 +132,26 @@ export default function AdminReportsPage() {
     setConversationLoadingId(null);
   }
 
-  async function act(id: number, action: "ban" | "suspend" | "dismiss") {
+  async function toggleMatch(id: number) {
+    if (matchOpenId === id) {
+      setMatchOpenId(null);
+      return;
+    }
+    setMatchOpenId(id);
+    if (reportMatches[id]) return;
+
+    const res = await fetch(`/api/admin/reports/${id}/match`, { cache: "no-store" });
+    const json = await res.json().catch(() => null);
+    setReportMatches((prev) => ({ ...prev, [id]: json?.status === "success" ? json.data : "error" }));
+  }
+
+  async function act(id: number, action: "confirm" | "ban" | "suspend" | "dismiss") {
     setBusyId(id);
+    const penalty = penalties[id];
     await fetch(`/api/admin/reports/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ action, ...(penalty !== undefined && penalty !== "" ? { penalty: Number(penalty) } : {}) }),
     });
     setBusyId(null);
     load();
@@ -176,9 +235,65 @@ export default function AdminReportsPage() {
                 </div>
               </div>
 
+              {r.reasonLabel && (
+                <div className="flex w-full flex-wrap items-center gap-2">
+                  <span className="rounded-[6px] border border-danger/50 bg-danger/[0.1] px-2.5 py-1 text-[12px] font-black text-danger" dir="auto">
+                    {r.reasonLabel}
+                  </span>
+                  {r.reportedUserScores && (
+                    <span className="text-[12px] text-text-dim" dir="auto">
+                      امتیاز فعلی {r.category === "COMMUNICATION" ? "ارتباطات" : "رفتار"}:{" "}
+                      <span className="font-bold text-text">
+                        {(r.category === "COMMUNICATION" ? r.reportedUserScores.communication : r.reportedUserScores.behavior).toLocaleString("fa-IR")}
+                      </span>
+                    </span>
+                  )}
+                </div>
+              )}
+
               <p className="w-full text-right text-[14px] leading-[1.6] text-text-dim" dir="auto">
-                علت گزارش: {r.reason}
+                {r.reasonLabel ? "توضیحات" : "علت گزارش"}: {r.reason}
               </p>
+
+              {r.attachments.length > 0 && (
+                <div className="flex w-full flex-col gap-2">
+                  <p className="flex items-center gap-1.5 text-[12px] font-bold text-text-dim" dir="auto">
+                    <Paperclip size={13} />
+                    مدارک ارسالی ({r.attachments.length.toLocaleString("fa-IR")})
+                  </p>
+                  <div className="flex w-full flex-wrap gap-2">
+                    {r.attachments.map((a) => {
+                      const src = `/api/admin/reports/${r.id}/attachments/${a.id}`;
+                      return a.kind === "VIDEO" ? (
+                        <video key={a.id} src={src} controls preload="metadata" className="h-40 max-w-full rounded-[8px] border border-border bg-black" />
+                      ) : (
+                        <a key={a.id} href={src} target="_blank" rel="noopener noreferrer" className="block">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={src} alt="مدرک گزارش" className="h-40 w-auto max-w-full rounded-[8px] border border-border object-cover transition-opacity hover:opacity-85" />
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {r.matchId && (
+                <div className="w-full">
+                  <button
+                    onClick={() => toggleMatch(r.id)}
+                    className="flex w-full items-center justify-between rounded-[6px] border border-border bg-surface-alt px-3 py-2 text-[12px] font-bold text-accent"
+                    dir="auto"
+                  >
+                    <ChevronDown size={14} className={`transition-transform ${matchOpenId === r.id ? "rotate-180" : ""}`} />
+                    <span className="flex items-center gap-1.5">
+                      <Swords size={13} />
+                      مشاهده مچ <span dir="ltr">#{r.matchId}</span>
+                    </span>
+                  </button>
+
+                  {matchOpenId === r.id && <MatchScoreboard match={reportMatches[r.id]} matchId={r.matchId} />}
+                </div>
+              )}
 
               {r.hasConversation && (
                 <div className="w-full">
@@ -228,7 +343,33 @@ export default function AdminReportsPage() {
 
               <div className="flex w-full flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between">
                 {tab === "pending" ? (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {r.reasonCode && (
+                      <>
+                        <button
+                          disabled={busyId === r.id || !r.reportedUserId}
+                          onClick={() => act(r.id, "confirm")}
+                          className="whitespace-nowrap rounded-[6px] border border-success bg-success/[0.13] px-3.5 py-2 text-[13px] font-bold text-success disabled:opacity-40"
+                          dir="auto"
+                        >
+                          تایید و کسر امتیاز
+                        </button>
+                        <label className="flex items-center gap-1.5 text-[12px] text-text-dim" dir="auto">
+                          مقدار کسر:
+                          <input
+                            type="number"
+                            min={0}
+                            max={12000}
+                            step={50}
+                            value={penalties[r.id] ?? String(r.defaultPenalty ?? 0)}
+                            onChange={(e) => setPenalties((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                            className="w-20 rounded-[6px] border border-border bg-surface-alt px-2 py-1.5 text-center text-[13px] text-text focus:border-accent focus:outline-none"
+                            dir="ltr"
+                          />
+                        </label>
+                        <div className="hidden h-6 w-px bg-border sm:block" />
+                      </>
+                    )}
                     <button
                       disabled={busyId === r.id || !r.reportedUserId}
                       onClick={() => act(r.id, "ban")}
@@ -256,7 +397,8 @@ export default function AdminReportsPage() {
                   </div>
                 ) : (
                   <span className="text-[12px] text-text-dim" dir="auto">
-                    نتیجه: {r.action === "BANNED" ? "مسدود شد" : r.action === "SUSPENDED" ? "تعلیق شد" : "رد شد"}
+                    نتیجه: {ACTION_RESULT_LABEL[r.action] ?? "رد شد"}
+                    {r.scorePenalty ? ` · ${r.scorePenalty.toLocaleString("fa-IR")} امتیاز کسر شد` : ""}
                   </span>
                 )}
                 <p className="text-[13px] text-text-dim" dir="auto">
@@ -267,6 +409,112 @@ export default function AdminReportsPage() {
           ))
         )}
       </div>
+    </div>
+  );
+}
+
+function MatchScoreboard({ match, matchId }: { match: ReportMatch | "error" | undefined; matchId: string }) {
+  if (!match) {
+    return <p className="mt-2 w-full text-center text-[12px] text-text-dim">در حال دریافت مچ از OpenDota...</p>;
+  }
+  if (match === "error") {
+    return (
+      <p className="mt-2 w-full text-center text-[12px] text-text-dim" dir="auto">
+        جزئیات این مچ پیدا نشد — ممکنه شناسه اشتباه باشه یا OpenDota هنوز پارسش نکرده.
+      </p>
+    );
+  }
+
+  const teams = [
+    { label: "Radiant", won: match.radiantWin, score: match.radiantScore, players: match.players.filter((p) => p.isRadiant) },
+    { label: "Dire", won: !match.radiantWin, score: match.direScore, players: match.players.filter((p) => !p.isRadiant) },
+  ];
+  const anyIdentified = match.players.some((p) => p.isReporter || p.isReported);
+
+  return (
+    <div className="mt-2 flex w-full flex-col gap-3 rounded-[8px] border border-border bg-surface-alt/50 p-3">
+      <div className="flex w-full flex-wrap items-center justify-between gap-2 text-[11px] text-text-dim">
+        <a href={`https://www.opendota.com/matches/${matchId}`} target="_blank" rel="noopener noreferrer" className="font-bold text-accent underline" dir="auto">
+          مشاهده در OpenDota
+        </a>
+        <span dir="auto">
+          {match.startAt ? new Date(match.startAt).toLocaleString("fa-IR") : ""} · {Math.floor(match.duration / 60)}:
+          {String(match.duration % 60).padStart(2, "0")}
+        </span>
+      </div>
+
+      {!anyIdentified && (
+        <p className="w-full rounded-[6px] bg-[#ff9f0a]/[0.1] p-2 text-right text-[11px] text-[#ff9f0a]" dir="auto">
+          هیچ‌کدوم از دو طرف توی این مچ شناسایی نشدن — یا اطلاعات مچشون خصوصیه یا واقعاً توی این بازی نبودن.
+        </p>
+      )}
+
+      {teams.map((team) => (
+        <div key={team.label} className="flex w-full flex-col gap-1.5">
+          <div className="flex w-full items-center justify-between text-[12px] font-bold" dir="ltr">
+            <span className={team.won ? "text-success" : "text-text-dim"}>
+              {team.label} · {team.score}
+              {team.won ? " · WIN" : ""}
+            </span>
+          </div>
+          <div className="w-full overflow-x-auto">
+            <table className="w-full min-w-[560px] text-[12px]" dir="ltr">
+              <tbody>
+                {team.players.map((p, i) => (
+                  <tr
+                    key={i}
+                    className={`border-t border-border ${
+                      p.isReported ? "bg-danger/[0.1]" : p.isReporter ? "bg-accent/[0.1]" : ""
+                    }`}
+                  >
+                    <td className="py-1.5 pl-1.5">
+                      <div className="flex items-center gap-2">
+                        {p.heroIcon && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={p.heroIcon} alt="" className="size-6 shrink-0 rounded-[4px]" />
+                        )}
+                        <div className="flex flex-col">
+                          <span className="font-bold text-text">{p.heroName}</span>
+                          <span className="text-[10px] text-text-dim">{p.personaName ?? "Anonymous"}</span>
+                        </div>
+                        {p.isReported && (
+                          <span className="rounded-[4px] bg-danger px-1.5 py-0.5 text-[10px] font-bold text-white" dir="auto">
+                            متخلف
+                          </span>
+                        )}
+                        {p.isReporter && (
+                          <span className="rounded-[4px] bg-accent px-1.5 py-0.5 text-[10px] font-bold text-white" dir="auto">
+                            گزارش‌دهنده
+                          </span>
+                        )}
+                        {p.abandoned && (
+                          <span className="rounded-[4px] bg-[#ff9f0a]/20 px-1.5 py-0.5 text-[10px] font-bold text-[#ff9f0a]">ABANDON</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className={`py-1.5 text-center font-bold ${p.deaths >= 12 ? "text-danger" : "text-text"}`}>
+                      {p.kills}/{p.deaths}/{p.assists}
+                    </td>
+                    <td className="py-1.5 text-center text-text-dim">{p.lastHits} LH</td>
+                    <td className="py-1.5 text-center text-text-dim">{p.goldPerMin} GPM</td>
+                    <td className="py-1.5 text-center text-text-dim">{p.heroDamage.toLocaleString()} DMG</td>
+                    <td className="py-1.5 pr-1.5">
+                      <div className="flex justify-end gap-0.5">
+                        {p.items.map((img, j) =>
+                          img ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img key={j} src={img} alt="" className="h-5 w-7 rounded-[2px] object-cover" />
+                          ) : null,
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

@@ -23,6 +23,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     update: {},
   });
 
+  // Blocking someone also ends any friendship or pending request between you.
+  await prisma.friendship.deleteMany({
+    where: {
+      OR: [
+        { requesterId: session.id, addresseeId: blockedId },
+        { requesterId: blockedId, addresseeId: session.id },
+      ],
+    },
+  });
+
   return NextResponse.json<ApiResponse>({ status: "success", message: "کاربر مسدود شد.", data: null });
 }
 

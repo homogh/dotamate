@@ -6,7 +6,7 @@ import { RevealGroup } from "@/components/general/revealGroup";
 const PROBLEMS = [
   {
     icon: "arrow-down",
-    title: "باخت‌های پیاپی در رنکد",
+    title: "باخت‌های پیاپی در رنک",
     description:
       "نداشتن هماهنگی و پیک‌های اشتباه هم‌تیمی‌های رندوم، رنک شما رو نابود می‌کنه.",
   },

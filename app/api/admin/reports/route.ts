@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
 import { getAdminSession, hasAccess } from "@/app/lib/permissions";
+import { REPORT_REASON_MAP } from "@/app/lib/behavior";
 import type { ApiResponse } from "@/app/types/api";
 
 const SEVERITY_LABEL: Record<string, string> = { LOW: "پایین", MEDIUM: "متوسط", HIGH: "بالا", CRITICAL: "بحرانی" };
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
           ? { reportedUser: { displayName: { contains: query } } }
           : {}),
       },
-      include: { reporter: true, reportedUser: true, reportedPost: true },
+      include: { reporter: true, reportedUser: true, reportedPost: true, attachments: { select: { id: true, kind: true } } },
       orderBy: { createdAt: "desc" },
       take: 30,
     }),
@@ -53,6 +54,16 @@ export async function GET(request: NextRequest) {
       context: r.context ?? (r.reportedPostId ? "پست/لابی" : "پروفایل کاربر"),
       hasConversation: r.reportedConversationId !== null,
       reason: r.reason,
+      category: r.category,
+      reasonCode: r.reasonCode,
+      reasonLabel: r.reasonCode ? REPORT_REASON_MAP[r.reasonCode].label : null,
+      defaultPenalty: r.reasonCode ? REPORT_REASON_MAP[r.reasonCode].penalty : null,
+      scorePenalty: r.scorePenalty,
+      matchId: r.matchId,
+      attachments: r.attachments,
+      reportedUserScores: r.reportedUser
+        ? { behavior: r.reportedUser.behaviorScore, communication: r.reportedUser.communicationScore }
+        : null,
       status: r.status,
       action: r.action,
       createdAt: r.createdAt,

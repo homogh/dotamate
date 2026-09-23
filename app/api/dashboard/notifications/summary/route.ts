@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
+import { notificationVisibilityFilter } from "@/app/lib/shopAccess";
 import type { ApiResponse } from "@/app/types/api";
 
 export async function GET(request: NextRequest) {
@@ -11,8 +12,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json<ApiResponse>({ status: "error", message: "وارد نشدی.", data: null }, { status: 401 });
   }
 
+  // This poll runs every 15s from any open tab, so it doubles as the
+  // presence heartbeat behind the online/offline dot (app/lib/friends.ts).
+  prisma.user
+    .updateMany({
+      where: { id: session.id, OR: [{ lastActiveAt: null }, { lastActiveAt: { lt: new Date(Date.now() - 30000) } }] },
+      data: { lastActiveAt: new Date() },
+    })
+    .catch(() => {});
+
   const [unreadNotifications, participants] = await Promise.all([
-    prisma.notification.count({ where: { userId: session.id, read: false } }),
+    prisma.notification.count({ where: { userId: session.id, read: false, ...(await notificationVisibilityFilter(session.id)) } }),
     prisma.conversationParticipant.findMany({
       where: { userId: session.id },
       select: {

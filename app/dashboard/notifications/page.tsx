@@ -2,24 +2,27 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { UserPlus, Clock, MessageSquare, CheckCircle, Shield, Bell } from "lucide-react";
+import { UserPlus, Clock, MessageSquare, CheckCircle, Shield, Bell, Users } from "lucide-react";
 
-import { useNotifications } from "@/app/stores/useNotifications";
+import { useNotifications, type NotificationItem as StoreNotificationItem } from "@/app/stores/useNotifications";
+import { FriendRequestActions } from "@/components/general/friendRequestActions";
 import { DashboardFadeIn } from "@/components/dashboard/fadeIn";
 
-type NotifType = "POST_REQUEST" | "REQUEST_ACCEPTED" | "REQUEST_DECLINED" | "NEW_MESSAGE" | "SESSION_REMINDER" | "SYSTEM";
+type NotifType =
+  | "POST_REQUEST"
+  | "REQUEST_ACCEPTED"
+  | "REQUEST_DECLINED"
+  | "NEW_MESSAGE"
+  | "SESSION_REMINDER"
+  | "SYSTEM"
+  | "FRIEND_REQUEST"
+  | "FRIEND_ACCEPTED";
 
-interface NotificationItem {
-  id: number;
+interface NotificationItem extends StoreNotificationItem {
   type: NotifType;
-  title: string;
-  body: string | null;
-  link: string | null;
-  read: boolean;
-  createdAt: string;
 }
 
-type Filter = "all" | "reminder" | "response" | "invite";
+type Filter = "all" | "reminder" | "response" | "invite" | "friends";
 
 const TYPE_ICON: Record<NotifType, typeof Bell> = {
   POST_REQUEST: MessageSquare,
@@ -28,6 +31,8 @@ const TYPE_ICON: Record<NotifType, typeof Bell> = {
   NEW_MESSAGE: MessageSquare,
   SESSION_REMINDER: Clock,
   SYSTEM: Shield,
+  FRIEND_REQUEST: UserPlus,
+  FRIEND_ACCEPTED: Users,
 };
 
 function timeAgo(iso: string) {
@@ -45,6 +50,7 @@ function timeAgo(iso: string) {
 function matchesFilter(n: NotificationItem, filter: Filter) {
   if (filter === "all") return true;
   if (filter === "reminder") return n.type === "SESSION_REMINDER";
+  if (filter === "friends") return n.type === "FRIEND_REQUEST" || n.type === "FRIEND_ACCEPTED";
   if (filter === "invite") return n.type === "REQUEST_ACCEPTED" && n.title.includes("دعوت");
   if (filter === "response") return n.type === "POST_REQUEST" || n.type === "REQUEST_DECLINED" || (n.type === "REQUEST_ACCEPTED" && !n.title.includes("دعوت"));
   return true;
@@ -87,6 +93,7 @@ export default function NotificationsPage() {
         <div className="flex items-center gap-2">
           {(
             [
+              ["friends", "دوستان"],
               ["reminder", "یادآوری"],
               ["response", "پاسخ‌ها"],
               ["invite", "دعوت‌ها"],
@@ -120,22 +127,24 @@ export default function NotificationsPage() {
           {filtered.map((n) => {
             const Icon = TYPE_ICON[n.type];
             return (
-              <button
+              <div
                 key={n.id}
-                onClick={() => handleClick(n)}
-                className={`flex w-full items-center gap-4 rounded-[12px] border p-5 text-right transition-colors ${
+                className={`flex w-full flex-col gap-3 rounded-[12px] border p-5 transition-colors ${
                   n.read ? "border-border bg-surface" : "border-primary bg-primary/10 hover:bg-primary/15"
                 }`}
               >
-                <p className="whitespace-nowrap text-[13px] text-text-dim">{timeAgo(n.createdAt)}</p>
-                <div className="h-px flex-1 bg-transparent" />
-                <p className="text-right text-[15px] font-bold text-text" dir="auto">
-                  {n.title}
-                </p>
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-[8px] bg-surface-alt">
-                  <Icon size={20} className="text-accent" />
-                </div>
-              </button>
+                <button onClick={() => handleClick(n)} className="flex w-full items-center gap-4 text-right">
+                  <p className="whitespace-nowrap text-[13px] text-text-dim">{timeAgo(n.createdAt)}</p>
+                  <div className="h-px flex-1 bg-transparent" />
+                  <p className="text-right text-[15px] font-bold text-text" dir="auto">
+                    {n.title}
+                  </p>
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-[8px] bg-surface-alt">
+                    <Icon size={20} className="text-accent" />
+                  </div>
+                </button>
+                <FriendRequestActions notification={n} />
+              </div>
             );
           })}
         </DashboardFadeIn>

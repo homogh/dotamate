@@ -10,7 +10,10 @@ export interface NotificationItem {
   link: string | null;
   read: boolean;
   createdAt: string;
+  friendRequest?: { id: number; status: "PENDING" | "ACCEPTED" } | null;
 }
+
+export type FriendRequestAnswer = "accept" | "decline";
 
 interface NotificationState {
   unreadNotifications: number;
@@ -21,6 +24,7 @@ interface NotificationState {
   loadItems: () => Promise<void>;
   markAllRead: () => Promise<void>;
   markRead: (id: number) => Promise<void>;
+  answerFriendRequest: (notificationId: number, answer: FriendRequestAnswer) => Promise<{ ok: boolean; message: string }>;
   setInitialCounts: (unreadNotifications: number, unreadMessages: number) => void;
 }
 
@@ -69,5 +73,28 @@ export const useNotifications = create<NotificationState>((set, get) => ({
       items: state.items.map((n) => (n.id === id ? { ...n, read: true } : n)),
     }));
     await fetch(`/api/notifications/${id}`, { method: "PATCH" });
+  },
+
+  answerFriendRequest: async (notificationId, answer) => {
+    const item = get().items.find((n) => n.id === notificationId);
+    if (!item?.friendRequest) return { ok: false, message: "این درخواست دیگه معتبر نیست." };
+
+    const res = await fetch(`/api/friends/requests/${item.friendRequest.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: answer }),
+    });
+    const json = await res.json().catch(() => null);
+
+    // A stale request (cancelled by the sender, already answered elsewhere)
+    // is dropped from the item either way so its buttons go away.
+    const friendRequest = json?.status === "success" && answer === "accept" ? { id: item.friendRequest.id, status: "ACCEPTED" as const } : null;
+    set((state) => ({
+      unreadNotifications: Math.max(0, state.unreadNotifications - (item.read ? 0 : 1)),
+      items: state.items.map((n) => (n.id === notificationId ? { ...n, read: true, friendRequest } : n)),
+    }));
+    if (!item.read) fetch(`/api/notifications/${notificationId}`, { method: "PATCH" }).catch(() => {});
+
+    return { ok: json?.status === "success", message: json?.message ?? "خطایی پیش اومد." };
   },
 }));

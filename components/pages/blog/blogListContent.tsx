@@ -100,7 +100,7 @@ export function BlogListContent({ posts, allHeroes }: { posts: PublicBlogPostSum
       <PageBanner
         eyebrow="آخرین مطالب و مقالات"
         title="وبلاگ دوتامیت"
-        subtitle="آموزش‌ها، تحلیل پچ‌ها و ترفندهای صعود در رنکد دوتا ۲"
+        subtitle="آموزش‌ها، تحلیل پچ‌ها و ترفندهای صعود در رنک دوتا ۲"
         imageSrc="/images/blog-banner.png"
       />
 

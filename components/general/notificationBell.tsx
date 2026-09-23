@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Bell, UserPlus, Clock, MessageSquare, CheckCircle, Shield } from "lucide-react";
+import { Bell, UserPlus, Clock, MessageSquare, CheckCircle, Shield, Users } from "lucide-react";
 
 import { useNotifications } from "@/app/stores/useNotifications";
+import { FriendRequestActions } from "@/components/general/friendRequestActions";
 
 const TYPE_ICON: Record<string, typeof Bell> = {
   POST_REQUEST: MessageSquare,
@@ -14,6 +15,8 @@ const TYPE_ICON: Record<string, typeof Bell> = {
   NEW_MESSAGE: MessageSquare,
   SESSION_REMINDER: Clock,
   SYSTEM: Shield,
+  FRIEND_REQUEST: UserPlus,
+  FRIEND_ACCEPTED: Users,
 };
 
 function timeAgo(iso: string) {
@@ -102,21 +105,23 @@ export function NotificationBell({ align = "right" }: { align?: "left" | "right"
               recent.map((n) => {
                 const Icon = TYPE_ICON[n.type] ?? Bell;
                 return (
-                  <button
+                  <div
                     key={n.id}
-                    onClick={() => handleClick(n)}
-                    className={`flex w-full items-center gap-3 border-b border-border/60 p-3 text-right last:border-b-0 ${
+                    className={`flex w-full flex-col gap-2 border-b border-border/60 p-3 last:border-b-0 ${
                       n.read ? "hover:bg-white/5" : "bg-primary/10 hover:bg-primary/15"
                     }`}
                   >
-                    <p className="shrink-0 text-[11px] text-text-dim">{timeAgo(n.createdAt)}</p>
-                    <p className="flex-1 truncate text-[13px] font-bold text-text" dir="auto">
-                      {n.title}
-                    </p>
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-[6px] bg-surface-alt">
-                      <Icon size={16} className="text-accent" />
-                    </div>
-                  </button>
+                    <button onClick={() => handleClick(n)} className="flex w-full items-center gap-3 text-right">
+                      <p className="shrink-0 text-[11px] text-text-dim">{timeAgo(n.createdAt)}</p>
+                      <p className="flex-1 truncate text-[13px] font-bold text-text" dir="auto">
+                        {n.title}
+                      </p>
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-[6px] bg-surface-alt">
+                        <Icon size={16} className="text-accent" />
+                      </div>
+                    </button>
+                    <FriendRequestActions notification={n} compact />
+                  </div>
                 );
               })
             )}

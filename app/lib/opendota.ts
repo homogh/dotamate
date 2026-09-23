@@ -1,5 +1,6 @@
+import { steamAssetUrl } from "@/app/lib/cdnUrls";
+
 const OPENDOTA_BASE = "https://api.opendota.com/api";
-const STEAM_CDN = "https://cdn.cloudflare.steamstatic.com";
 
 export interface OpenDotaMatch {
   matchId: number;
@@ -255,8 +256,8 @@ export async function getHeroLookup() {
     data[id] = {
       name: String(hero.name ?? ""),
       localizedName: String(hero.localized_name ?? `Hero ${id}`),
-      icon: hero.icon ? `${STEAM_CDN}${hero.icon}` : "",
-      img: hero.img ? `${STEAM_CDN}${hero.img}` : "",
+      icon: steamAssetUrl(hero.icon),
+      img: steamAssetUrl(hero.img),
     };
   }
 
@@ -301,8 +302,8 @@ export async function getHeroStats(): Promise<OpenDotaHeroStat[]> {
     id: Number(h.id),
     name: String(h.name ?? ""),
     localizedName: String(h.localized_name ?? ""),
-    img: h.img ? `${STEAM_CDN}${h.img}` : "",
-    icon: h.icon ? `${STEAM_CDN}${h.icon}` : "",
+    img: steamAssetUrl(h.img),
+    icon: steamAssetUrl(h.icon),
     primaryAttr: String(h.primary_attr ?? ""),
     attackType: String(h.attack_type ?? ""),
     roles: Array.isArray(h.roles) ? h.roles.map(String) : [],
@@ -347,7 +348,7 @@ export async function getItemLookup(): Promise<Record<number, OpenDotaItem>> {
     data[id] = {
       id,
       name: String(item.dname ?? item.name ?? `Item ${id}`),
-      img: item.img ? `${STEAM_CDN}${item.img}` : "",
+      img: steamAssetUrl(item.img),
       cost: typeof item.cost === "number" ? item.cost : null,
     };
   }

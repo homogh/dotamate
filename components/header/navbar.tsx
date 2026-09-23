@@ -13,18 +13,26 @@ import { AccountMenu } from "@/components/general/accountMenu";
 import { NotificationBell } from "@/components/general/notificationBell";
 import { useAuth } from "@/app/stores/useAuth";
 
-const NAV_ITEMS = [
+const NAV_ITEMS: { label: string; href: string; requiresShop?: boolean }[] = [
   { label: "صفحه اصلی", href: "/" },
   { label: "جستجوی لابی", href: "/search-lobby" },
+  { label: "پلیرها", href: "/players" },
   { label: "متا", href: "/meta" },
+  { label: "فروشگاه", href: "/shop", requiresShop: true },
   { label: "وبلاگ", href: "/blog" },
   { label: "سوالات متداول", href: "/faq" },
   { label: "قوانین و مقررات", href: "/terms" },
 ];
 
+/** Section links stay highlighted on their sub-pages too (e.g. /shop/12 → «فروشگاه»). */
+function isActive(pathname: string, href: string) {
+  return pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+}
+
 export function Navbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [shopEnabled, setShopEnabled] = useState(false);
   const { user, status, fetchMe } = useAuth();
   const isDashboard = pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
 
@@ -33,6 +41,15 @@ export function Navbar() {
     // so the shared useAuth store is populated for AccountMenu there too.
     if (status === "idle") fetchMe();
   }, [status, fetchMe]);
+
+  useEffect(() => {
+    fetch("/api/settings/shop", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.status === "success") setShopEnabled(json.data.enabled);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     function closeOnDesktop() {
@@ -50,6 +67,8 @@ export function Navbar() {
   }, [open]);
 
   if (isDashboard) return null;
+
+  const navItems = NAV_ITEMS.filter((item) => !item.requiresShop || shopEnabled);
 
   return (
     <header className="sticky top-0 z-50 flex w-full flex-col border-b border-border bg-bg-alt">
@@ -69,12 +88,12 @@ export function Navbar() {
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm font-bold lg:flex xl:gap-8">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               className={
-                pathname === item.href
+                isActive(pathname, item.href)
                   ? "text-text"
                   : "text-text-dim transition-colors hover:text-text"
               }
@@ -117,6 +136,7 @@ export function Navbar() {
       {open && (
         <MobileMenu
           pathname={pathname}
+          navItems={navItems}
           onNavigate={() => setOpen(false)}
           user={user}
           status={status}
@@ -128,11 +148,13 @@ export function Navbar() {
 
 function MobileMenu({
   pathname,
+  navItems,
   onNavigate,
   user,
   status,
 }: {
   pathname: string;
+  navItems: typeof NAV_ITEMS;
   onNavigate: () => void;
   user: ReturnType<typeof useAuth.getState>["user"];
   status: ReturnType<typeof useAuth.getState>["status"];
@@ -157,12 +179,12 @@ function MobileMenu({
       className="flex w-full flex-col gap-6 border-t border-border bg-bg-alt px-6 py-6 lg:hidden"
     >
       <nav className="flex flex-col items-start gap-4 text-sm font-bold">
-        {NAV_ITEMS.map((item) => (
+        {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
             onClick={onNavigate}
-            className={pathname === item.href ? "text-text" : "text-text-dim"}
+            className={isActive(pathname, item.href) ? "text-text" : "text-text-dim"}
             dir="auto"
           >
             {item.label}

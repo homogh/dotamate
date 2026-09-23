@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 
 import { AdminSidebar } from "@/components/admin/sidebar";
 import { AdminTopbar } from "@/components/admin/topbar";
-import { ADMIN_NAV_ITEMS } from "@/components/admin/navItems";
+import { filterAdminNavItems } from "@/components/admin/navItems";
 import type { AdminResource } from "@/app/lib/permissions";
 
 export function AdminShell({
@@ -14,6 +14,7 @@ export function AdminShell({
   avatarUrl,
   roleName,
   isFullAccess,
+  isSuperAdmin,
   permissions,
   children,
 }: {
@@ -21,6 +22,7 @@ export function AdminShell({
   avatarUrl: string | null;
   roleName: string;
   isFullAccess: boolean;
+  isSuperAdmin: boolean;
   permissions: Record<AdminResource, string>;
   children: ReactNode;
 }) {
@@ -34,13 +36,11 @@ export function AdminShell({
     };
   }, [mobileOpen]);
 
-  const visibleItems = ADMIN_NAV_ITEMS.filter(
-    (item) => item.resource === null || permissions[item.resource] === "VIEW" || permissions[item.resource] === "EDIT",
-  );
+  const visibleItems = filterAdminNavItems(permissions, isSuperAdmin);
 
   return (
     <div className="flex w-full flex-col lg:flex-row">
-      <AdminSidebar displayName={displayName} avatarUrl={avatarUrl} roleName={roleName} isFullAccess={isFullAccess} permissions={permissions} />
+      <AdminSidebar displayName={displayName} avatarUrl={avatarUrl} roleName={roleName} isFullAccess={isFullAccess} isSuperAdmin={isSuperAdmin} permissions={permissions} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="sticky top-0 z-20">

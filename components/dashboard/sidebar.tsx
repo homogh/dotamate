@@ -13,10 +13,16 @@ import {
   Bell,
   User,
   Settings,
+  Users,
+  ShoppingBag,
+  Wallet,
+  Tag,
+  HandCoins,
 } from "lucide-react";
 
 import { useNotifications } from "@/app/stores/useNotifications";
 import { UserAvatar } from "@/components/general/userAvatar";
+import { shopNavVisible, type ShopAccess, type ShopNeed } from "@/components/dashboard/shopNav";
 
 interface SidebarUser {
   displayName: string;
@@ -29,6 +35,7 @@ interface NavItem {
   href: string;
   icon: typeof LayoutGrid;
   badge?: number;
+  shop?: ShopNeed;
 }
 
 function buildNavItems(unreadMessages: number, unreadNotifications: number): NavItem[] {
@@ -38,19 +45,24 @@ function buildNavItems(unreadMessages: number, unreadNotifications: number): Nav
     { label: "ایجاد پست", href: "/dashboard/create-post", icon: PlusCircle },
     { label: "پست‌های من", href: "/dashboard/my-posts", icon: ClipboardList },
     { label: "جلسات هماهنگ‌شده", href: "/dashboard/sessions", icon: CalendarClock },
+    { label: "دوستان", href: "/dashboard/friends", icon: Users },
     { label: "علاقه‌مندی‌ها", href: "/dashboard/favorites", icon: Heart },
     { label: "پیام‌ها", href: "/dashboard/messages", icon: MessageSquare, badge: unreadMessages },
     { label: "اعلان‌ها", href: "/dashboard/notifications", icon: Bell, badge: unreadNotifications },
+    { label: "سفارش‌های من", href: "/dashboard/orders", icon: ShoppingBag, shop: "any" },
+    { label: "آگهی‌های من", href: "/dashboard/listings", icon: Tag, shop: "market" },
+    { label: "فروش‌های من", href: "/dashboard/sales", icon: HandCoins, shop: "market" },
+    { label: "میت کیف", href: "/dashboard/wallet", icon: Wallet, shop: "any" },
     { label: "پروفایل", href: "/dashboard/profile", icon: User },
     { label: "تنظیمات", href: "/dashboard/settings", icon: Settings },
   ];
 }
 
-export function DashboardSidebar({ user }: { user: SidebarUser }) {
+export function DashboardSidebar({ user, shopAccess, marketOpen }: { user: SidebarUser; shopAccess: ShopAccess; marketOpen: boolean }) {
   const pathname = usePathname();
   const unreadMessages = useNotifications((s) => s.unreadMessages);
   const unreadNotifications = useNotifications((s) => s.unreadNotifications);
-  const navItems = buildNavItems(unreadMessages, unreadNotifications);
+  const navItems = buildNavItems(unreadMessages, unreadNotifications).filter((item) => shopNavVisible(item.shop, shopAccess, marketOpen));
 
   return (
     <aside className="sticky top-0 hidden h-screen w-[260px] shrink-0 flex-col items-start gap-10 overflow-y-auto border-l border-border bg-surface-alt px-6 py-8 lg:flex">

@@ -46,6 +46,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       avatarUrl={user.avatarUrl}
       roleName={admin.roleName}
       isFullAccess={isFullAccess}
+      isSuperAdmin={admin.isSuperAdmin}
       permissions={admin.permissions}
     >
       {children}

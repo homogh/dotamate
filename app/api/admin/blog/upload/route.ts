@@ -1,20 +1,9 @@
-import { randomUUID } from "crypto";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
-
 import { NextRequest, NextResponse } from "next/server";
 
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
 import { getAdminSession, hasAccess } from "@/app/lib/permissions";
+import { saveUploadedImage } from "@/app/lib/imageUpload";
 import type { ApiResponse } from "@/app/types/api";
-
-const MAX_SIZE_BYTES = 5 * 1024 * 1024;
-const ALLOWED_TYPES: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif",
-};
 
 export async function POST(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
@@ -29,36 +18,10 @@ export async function POST(request: NextRequest) {
   }
 
   const form = await request.formData().catch(() => null);
-  const file = form?.get("file");
-  if (!file || !(file instanceof File)) {
-    return NextResponse.json<ApiResponse>({ status: "error", message: "فایلی ارسال نشد.", data: null }, { status: 400 });
+  const saved = await saveUploadedImage(form?.get("file"), "blog");
+  if (saved.error) {
+    return NextResponse.json<ApiResponse>({ status: "error", message: saved.error, data: null }, { status: 400 });
   }
 
-  const ext = ALLOWED_TYPES[file.type];
-  if (!ext) {
-    return NextResponse.json<ApiResponse>(
-      { status: "error", message: "فرمت تصویر مجاز نیست. فقط JPG، PNG، WEBP و GIF.", data: null },
-      { status: 400 },
-    );
-  }
-  if (file.size > MAX_SIZE_BYTES) {
-    return NextResponse.json<ApiResponse>(
-      { status: "error", message: "حجم تصویر نباید بیشتر از ۵ مگابایت باشد.", data: null },
-      { status: 400 },
-    );
-  }
-
-  const yearMonth = new Date().toISOString().slice(0, 7);
-  const dir = path.join(process.cwd(), "public", "uploads", "blog", yearMonth);
-  await mkdir(dir, { recursive: true });
-
-  const filename = `${randomUUID()}.${ext}`;
-  const bytes = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(dir, filename), bytes);
-
-  return NextResponse.json<ApiResponse>({
-    status: "success",
-    message: "آپلود شد.",
-    data: { url: `/uploads/blog/${yearMonth}/${filename}` },
-  });
+  return NextResponse.json<ApiResponse>({ status: "success", message: "آپلود شد.", data: { url: saved.url } });
 }

@@ -14,10 +14,16 @@ import {
   Bell,
   Shield,
   Terminal,
+  Store,
+  Package,
+  KeyRound,
+  ShoppingBag,
+  Users2,
+  Banknote,
 } from "lucide-react";
 
 import { UserAvatar } from "@/components/general/userAvatar";
-import { ADMIN_NAV_ITEMS } from "@/components/admin/navItems";
+import { filterAdminNavItems } from "@/components/admin/navItems";
 import type { AdminResource } from "@/app/lib/permissions";
 
 const ICONS: Record<string, typeof LayoutGrid> = {
@@ -30,6 +36,12 @@ const ICONS: Record<string, typeof LayoutGrid> = {
   "/admin/blog": FileText,
   "/admin/reference": Database,
   "/admin/announcements": Bell,
+  "/admin/shop": Store,
+  "/admin/shop/orders": ShoppingBag,
+  "/admin/shop/products": Package,
+  "/admin/shop/gift-codes": KeyRound,
+  "/admin/shop/market": Users2,
+  "/admin/shop/payouts": Banknote,
   "/admin/roles": Shield,
   "/admin/audit-log": Terminal,
 };
@@ -39,19 +51,19 @@ export function AdminSidebar({
   avatarUrl,
   roleName,
   isFullAccess,
+  isSuperAdmin,
   permissions,
 }: {
   displayName: string;
   avatarUrl: string | null;
   roleName: string;
   isFullAccess: boolean;
+  isSuperAdmin: boolean;
   permissions: Record<AdminResource, string>;
 }) {
   const pathname = usePathname();
 
-  const visibleItems = ADMIN_NAV_ITEMS.filter(
-    (item) => item.resource === null || permissions[item.resource] === "VIEW" || permissions[item.resource] === "EDIT",
-  );
+  const visibleItems = filterAdminNavItems(permissions, isSuperAdmin);
 
   return (
     <aside className="sticky top-0 hidden h-screen w-[260px] shrink-0 flex-col items-start gap-8 overflow-y-auto border-l border-border bg-surface-alt px-5 py-8 lg:flex">

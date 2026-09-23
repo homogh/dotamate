@@ -6,3 +6,15 @@ export async function getPlatformSettings() {
   if (existing) return existing;
   return prisma.platformSetting.create({ data: { id: 1 } });
 }
+
+/** Shop is owner-gated: every /shop page and /api/shop route must check this before serving anything. */
+export async function isShopEnabled() {
+  const settings = await getPlatformSettings();
+  return settings.shopEnabled;
+}
+
+/** The user market is a part of the shop: it's open only while both switches are on. */
+export async function isMarketEnabled() {
+  const settings = await getPlatformSettings();
+  return settings.shopEnabled && settings.marketEnabled;
+}

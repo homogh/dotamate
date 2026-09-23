@@ -14,6 +14,7 @@ import {
   type OpenDotaHeroPlayed,
 } from "@/app/lib/opendota";
 import { steamId64ToAccountId } from "@/app/lib/steam";
+import { findFriendship, isOnline, relationFrom } from "@/app/lib/friends";
 import { RANK_LABEL } from "@/components/dashboard/postLabels";
 import type { ApiResponse } from "@/app/types/api";
 
@@ -94,7 +95,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const heroes = matchStats ? await getHeroLookup() : {};
 
-  const [teammatesAsHost, teammatesAsMember, activePostCount, recentPosts, isFavorited] = await Promise.all([
+  const [teammatesAsHost, teammatesAsMember, activePostCount, recentPosts, isFavorited, commendsByType, friendship] = await Promise.all([
     prisma.postMember.count({ where: { post: { authorId: userId }, status: "ACCEPTED" } }),
     prisma.postMember.count({ where: { userId, status: "ACCEPTED" } }),
     prisma.post.count({ where: { authorId: userId, status: { in: ["ACTIVE", "FULL"] } } }),
@@ -106,6 +107,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     session.id === userId
       ? Promise.resolve(false)
       : prisma.favorite.findFirst({ where: { userId: session.id, favoriteUserId: userId } }).then(Boolean),
+    prisma.commend.groupBy({ by: ["type"], where: { targetId: userId }, _count: { _all: true } }),
+    session.id === userId ? Promise.resolve(null) : findFriendship(session.id, userId),
   ]);
 
   const data = {
@@ -121,9 +124,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     rankTier,
     mainPosition: user.mainPosition,
     rankVerification,
+    behaviorScore: user.behaviorScore,
+    communicationScore: user.communicationScore,
+    commends: {
+      total: commendsByType.reduce((sum, c) => sum + c._count._all, 0),
+      byType: Object.fromEntries(commendsByType.map((c) => [c.type, c._count._all])),
+      progress: user.commendProgress,
+    },
     createdAt: user.createdAt,
     isSelf: session.id === userId,
     isFavorited,
+    friend: relationFrom(friendship, session.id),
+    online: isOnline(user.lastActiveAt),
     stats: {
       teammatesFound: teammatesAsHost + teammatesAsMember,
       activePosts: activePostCount,

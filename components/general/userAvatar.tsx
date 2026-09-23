@@ -1,3 +1,4 @@
+import { cachedAvatarUrl } from "@/app/lib/cdnUrls";
 import { HeroAvatar } from "@/components/general/heroAvatar";
 
 interface UserAvatarProps {
@@ -17,7 +18,7 @@ export function UserAvatar({ name, avatarUrl, size = 24, round = true }: UserAva
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={avatarUrl}
+        src={cachedAvatarUrl(avatarUrl) ?? avatarUrl}
         alt={name}
         width={size}
         height={size}

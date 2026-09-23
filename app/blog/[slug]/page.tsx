@@ -127,7 +127,7 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
             </p>
             <p className="w-full text-right text-[13px] leading-[1.8] text-text-dim" dir="auto">
               دوتامیت اولین پلتفرم تخصصی و کاملاً رایگان برای بازیکنان دوتا ۲ در ایران است. هدف ما
-              ایجاد بستری سالم و بدون تعصب برای هماهنگی، تمرین و بازی‌های رنکد رول به دور از
+              ایجاد بستری سالم و بدون تعصب برای هماهنگی، تمرین و بازی‌های رنک رول به دور از
               هم‌تیمی‌های سمی است.
             </p>
             <Button asChild className="w-full">

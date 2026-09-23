@@ -18,6 +18,8 @@ export interface AdminSession {
   userId: number;
   roleId: number;
   roleName: string;
+  /** The seeded, non-editable «مدیر کل» role — owner-only switches (e.g. the shop) check this. */
+  isSuperAdmin: boolean;
   permissions: Record<AdminResource, PermissionLevel>;
 }
 
@@ -36,7 +38,7 @@ export async function getAdminSession(userId: number): Promise<AdminSession | nu
     user.role.permissions.map((p) => [p.resource, p.level]),
   ) as Record<AdminResource, PermissionLevel>;
 
-  return { userId, roleId: user.role.id, roleName: user.role.name, permissions };
+  return { userId, roleId: user.role.id, roleName: user.role.name, isSuperAdmin: !user.role.editable, permissions };
 }
 
 export function hasAccess(admin: AdminSession, resource: AdminResource, minLevel: PermissionLevel = "VIEW") {

@@ -7,11 +7,11 @@ import { BlogListContent } from "@/components/pages/blog/blogListContent";
 
 export const metadata: Metadata = {
   title: "وبلاگ | دوتامیت",
-  description: "آموزش‌ها، تحلیل پچ‌ها و ترفندهای صعود در رنکد دوتا ۲.",
+  description: "آموزش‌ها، تحلیل پچ‌ها و ترفندهای صعود در رنک دوتا ۲.",
   alternates: { canonical: "/blog" },
   openGraph: {
     title: "وبلاگ دوتامیت",
-    description: "آموزش‌ها، تحلیل پچ‌ها و ترفندهای صعود در رنکد دوتا ۲.",
+    description: "آموزش‌ها، تحلیل پچ‌ها و ترفندهای صعود در رنک دوتا ۲.",
     url: "/blog",
     type: "website",
   },
@@ -57,7 +57,7 @@ export default async function BlogListPage() {
     "@context": "https://schema.org",
     "@type": "Blog",
     name: "وبلاگ دوتامیت",
-    description: "آموزش‌ها، تحلیل پچ‌ها و ترفندهای صعود در رنکد دوتا ۲.",
+    description: "آموزش‌ها، تحلیل پچ‌ها و ترفندهای صعود در رنک دوتا ۲.",
     url: `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"}/blog`,
     blogPost: summaries.slice(0, 10).map((p) => ({
       "@type": "BlogPosting",

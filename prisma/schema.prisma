@@ -78,6 +78,14 @@ enum NotificationType {
   NEW_MESSAGE
   SESSION_REMINDER
   SYSTEM
+  FRIEND_REQUEST
+  FRIEND_ACCEPTED
+  SHOP_ORDER
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
 }
 
 enum ReportStatus {
@@ -100,6 +108,40 @@ enum ReportAction {
   BANNED
   POST_REMOVED
   DISMISSED
+  SCORE_REDUCED
+}
+
+// Mirrors Dota 2's own two scores: gameplay reasons hit behaviorScore,
+// chat/voice reasons hit communicationScore.
+enum ReportCategory {
+  BEHAVIOR
+  COMMUNICATION
+}
+
+enum ReportReason {
+  GRIEFING
+  INTENTIONAL_FEEDING
+  ABILITY_ABUSE
+  AFK_ABANDON
+  SMURFING
+  CHEATING
+  ACCOUNT_BOOSTING
+  COMMUNICATION_ABUSE
+  CHAT_VOICE_SPAM
+  HATE_SPEECH
+}
+
+enum AttachmentKind {
+  IMAGE
+  VIDEO
+}
+
+// Dota 2's own four commend types.
+enum CommendType {
+  FRIENDLY
+  FORGIVING
+  TEACHING
+  LEADERSHIP
 }
 
 enum AdminResource {
@@ -174,86 +216,203 @@ enum AuditAction {
   CLOSE_TICKET
   REPLY_TICKET
   OVERRIDE_MATCH_GATE
+  TOGGLE_SHOP
+  TOGGLE_MARKET
+  UPDATE_SHOP_SETTINGS
+  CREATE_SHOP_PRODUCT
+  UPDATE_SHOP_PRODUCT
+  DELETE_SHOP_PRODUCT
+  ADD_GIFT_CODES
+  VOID_GIFT_CODE
+  DELIVER_SHOP_ORDER
+  REFUND_SHOP_ORDER
+  REMOVE_MARKET_LISTING
+  RESOLVE_MARKET_DISPUTE
+  PAY_WITHDRAWAL
+  REJECT_WITHDRAWAL
+}
+
+enum MarketListingStatus {
+  ACTIVE
+  RESERVED
+  SOLD
+  CANCELLED
+  REMOVED
+}
+
+enum MarketOrderStatus {
+  PENDING_PAYMENT
+  AWAITING_SELLER
+  SELLER_SENT
+  COMPLETED
+  DISPUTED
+  REFUNDED
+  CANCELLED
+}
+
+enum WithdrawalStatus {
+  PENDING
+  PAID
+  REJECTED
+}
+
+enum ShopProductType {
+  GIFT_CARD
+  ITEM
+}
+
+enum ItemRarity {
+  COMMON
+  UNCOMMON
+  RARE
+  MYTHICAL
+  LEGENDARY
+  IMMORTAL
+  ARCANA
+}
+
+enum GiftCodeStatus {
+  AVAILABLE
+  ASSIGNED
+  VOID
+}
+
+enum ShopOrderStatus {
+  PENDING_PAYMENT
+  AWAITING_CODE
+  AWAITING_DELIVERY
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum ShopPaymentMethod {
+  GATEWAY
+  WALLET
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum PaymentPurpose {
+  ORDER
+  WALLET_TOPUP
+  MARKET_ORDER
+}
+
+enum WalletTransactionType {
+  TOPUP
+  PURCHASE
+  SALE_INCOME
+  WITHDRAWAL
+  REFUND
+  ADJUSTMENT
 }
 
 model User {
-  id               Int               @id @default(autoincrement())
-  displayName      String
-  email            String?           @unique
-  phone            String?           @unique
-  passwordHash     String
-  bio              String?           @db.Text
-  country          String?
-  languages        String?
-  rank             Rank              @default(UNRANKED)
-  rankTier         Int?
-  mainPosition     Position?
-  rankVerification RankVerification  @default(SELF_DECLARED)
-  steamProfileUrl  String?
-  steamId          String?           @unique
-  avatarUrl        String?
-  matchDataVerified Boolean          @default(false)
-  matchGateOverride Boolean          @default(false)
-  profileCompletedAt DateTime?
-  matchStats       DotaMatchStats?
-  notifyBell       Boolean           @default(true)
-  notifyEmail      Boolean           @default(true)
-  notifyPush       Boolean           @default(false)
-  sessionReminderEnabled Boolean     @default(true)
-  sessionReminderMinutes Int         @default(15)
+  id                     Int              @id @default(autoincrement())
+  displayName            String
+  email                  String?          @unique
+  phone                  String?          @unique
+  passwordHash           String
+  bio                    String?          @db.Text
+  country                String?
+  languages              String?
+  rank                   Rank             @default(UNRANKED)
+  rankTier               Int?
+  mainPosition           Position?
+  rankVerification       RankVerification @default(SELF_DECLARED)
+  steamProfileUrl        String?
+  steamId                String?          @unique
+  // Needed before buying Dota items — the store bot/admin sends the trade offer here.
+  steamTradeUrl          String?
+  // Remembered from the last «میت کیف» withdrawal so the form comes prefilled.
+  payoutSheba            String?
+  payoutHolderName       String?
+  avatarUrl              String?
+  matchDataVerified      Boolean          @default(false)
+  matchGateOverride      Boolean          @default(false)
+  profileCompletedAt     DateTime?
+  matchStats             DotaMatchStats?
+  behaviorScore          Int              @default(10000)
+  communicationScore     Int              @default(10000)
+  // Commends since the last behavior bonus — see app/lib/behavior.ts.
+  commendProgress        Int              @default(0)
+  lastCommendBonusAt     DateTime?
+  notifyBell             Boolean          @default(true)
+  notifyEmail            Boolean          @default(true)
+  notifyPush             Boolean          @default(false)
+  sessionReminderEnabled Boolean          @default(true)
+  sessionReminderMinutes Int              @default(15)
 
-  roleId           Int?
-  role             Role?             @relation(fields: [roleId], references: [id])
-  banned           Boolean           @default(false)
-  bannedAt         DateTime?
-  banReason        String?           @db.Text
-  suspendedUntil   DateTime?
-  lastActiveAt     DateTime?
+  roleId         Int?
+  role           Role?     @relation(fields: [roleId], references: [id])
+  banned         Boolean   @default(false)
+  bannedAt       DateTime?
+  banReason      String?   @db.Text
+  suspendedUntil DateTime?
+  lastActiveAt   DateTime?
 
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  posts            Post[]
-  memberships      PostMember[]
-  favoritesMade    Favorite[]        @relation("FavoritedBy")
-  favoritedByUsers Favorite[]        @relation("FavoriteTarget")
-  messagesSent     Message[]
-  conversations    ConversationParticipant[]
-  notifications    Notification[]
-  reportsMade      Report[]          @relation("Reporter")
-  reportsAgainst   Report[]          @relation("ReportedUser")
-  reportsResolved  Report[]          @relation("ReportResolver")
-  blocking         Block[]           @relation("Blocker")
-  blockedBy        Block[]           @relation("Blocked")
-  auditLogs        AuditLog[]        @relation("AuditActor")
-  announcements    Announcement[]
-  blogPosts        BlogPost[]
-  tickets          Ticket[]
-  ticketMessages   TicketMessage[]
+  posts                  Post[]
+  memberships            PostMember[]
+  favoritesMade          Favorite[]                @relation("FavoritedBy")
+  favoritedByUsers       Favorite[]                @relation("FavoriteTarget")
+  messagesSent           Message[]
+  conversations          ConversationParticipant[]
+  notifications          Notification[]
+  reportsMade            Report[]                  @relation("Reporter")
+  reportsAgainst         Report[]                  @relation("ReportedUser")
+  reportsResolved        Report[]                  @relation("ReportResolver")
+  commendsGiven          Commend[]                 @relation("CommendGiver")
+  commendsReceived       Commend[]                 @relation("CommendTarget")
+  blocking               Block[]                   @relation("Blocker")
+  blockedBy              Block[]                   @relation("Blocked")
+  friendRequestsSent     Friendship[]              @relation("FriendRequester")
+  friendRequestsReceived Friendship[]              @relation("FriendAddressee")
+  auditLogs              AuditLog[]                @relation("AuditActor")
+  announcements          Announcement[]
+  blogPosts              BlogPost[]
+  tickets                Ticket[]
+  ticketMessages         TicketMessage[]
+  giftCodesAdded         GiftCode[]
+  shopOrders             ShopOrder[]
+  payments               Payment[]
+  walletTransactions     WalletTransaction[]
+  marketListings         MarketListing[]
+  marketPurchases        MarketOrder[]             @relation("MarketBuyer")
+  marketSales            MarketOrder[]             @relation("MarketSeller")
+  withdrawals            WithdrawalRequest[]       @relation("WithdrawalUser")
+  withdrawalsProcessed   WithdrawalRequest[]       @relation("WithdrawalProcessor")
 }
 
 model Post {
-  id          Int          @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   authorId    Int
-  author      User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
   position    Position
   rank        Rank
   gameMode    GameMode
   region      Region
   sessionType SessionType
   startAt     DateTime?
-  partySize   Int          @default(5)
-  description String       @db.Text
-  hasVoice    Boolean      @default(true)
+  partySize   Int         @default(5)
+  description String      @db.Text
+  hasVoice    Boolean     @default(true)
   voiceLink   String?
-  status      PostStatus   @default(ACTIVE)
-  bumpedAt    DateTime     @default(now())
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  status      PostStatus  @default(ACTIVE)
+  bumpedAt    DateTime    @default(now())
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
-  members     PostMember[]
-  messages    Message[]
-  reports     Report[]
+  members  PostMember[]
+  messages Message[]
+  reports  Report[]
 
   @@index([status, sessionType])
   @@index([authorId])
@@ -285,9 +444,9 @@ model Favorite {
 }
 
 model Conversation {
-  id           Int                        @id @default(autoincrement())
-  createdAt    DateTime                   @default(now())
-  updatedAt    DateTime                   @updatedAt
+  id           Int                       @id @default(autoincrement())
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
   participants ConversationParticipant[]
   messages     Message[]
   reports      Report[]
@@ -321,41 +480,102 @@ model Message {
 }
 
 model Notification {
-  id        Int              @id @default(autoincrement())
-  userId    Int
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      NotificationType
-  title     String
-  body      String?          @db.Text
-  link      String?
-  read      Boolean          @default(false)
-  createdAt DateTime         @default(now())
+  id           Int              @id @default(autoincrement())
+  userId       Int
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         NotificationType
+  title        String
+  body         String?          @db.Text
+  link         String?
+  // Set on FRIEND_REQUEST so accept/decline can be done from the notification.
+  friendshipId Int?
+  friendship   Friendship?      @relation(fields: [friendshipId], references: [id], onDelete: SetNull)
+  read         Boolean          @default(false)
+  createdAt    DateTime         @default(now())
 
   @@index([userId, read])
 }
 
+// One row per pair. A declined or cancelled request is deleted outright so
+// either side can send a fresh one later.
+model Friendship {
+  id          Int              @id @default(autoincrement())
+  requesterId Int
+  requester   User             @relation("FriendRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addresseeId Int
+  addressee   User             @relation("FriendAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  respondedAt DateTime?
+
+  notifications Notification[]
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
+}
+
 model Report {
-  id             Int            @id @default(autoincrement())
-  reporterId     Int
-  reporter       User           @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
-  reportedUserId Int?
-  reportedUser   User?          @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: Cascade)
-  reportedPostId Int?
-  reportedPost   Post?          @relation(fields: [reportedPostId], references: [id], onDelete: Cascade)
+  id                     Int             @id @default(autoincrement())
+  reporterId             Int
+  reporter               User            @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUserId         Int?
+  reportedUser           User?           @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  reportedPostId         Int?
+  reportedPost           Post?           @relation(fields: [reportedPostId], references: [id], onDelete: Cascade)
   reportedConversationId Int?
-  reportedConversation   Conversation? @relation(fields: [reportedConversationId], references: [id], onDelete: Cascade)
-  severity       ReportSeverity @default(MEDIUM)
-  context        String?
-  reason         String         @db.Text
-  status         ReportStatus   @default(PENDING)
-  action         ReportAction   @default(NONE)
-  resolvedById   Int?
-  resolvedBy     User?          @relation("ReportResolver", fields: [resolvedById], references: [id])
-  resolvedAt     DateTime?
-  createdAt      DateTime       @default(now())
+  reportedConversation   Conversation?   @relation(fields: [reportedConversationId], references: [id], onDelete: Cascade)
+  severity               ReportSeverity  @default(MEDIUM)
+  context                String?
+  category               ReportCategory?
+  reasonCode             ReportReason?
+  // Dota match ids already exceed Int32, and never need arithmetic.
+  matchId                String?         @db.VarChar(20)
+  reason                 String          @db.Text
+  status                 ReportStatus    @default(PENDING)
+  action                 ReportAction    @default(NONE)
+  scorePenalty           Int?
+  resolvedById           Int?
+  resolvedBy             User?           @relation("ReportResolver", fields: [resolvedById], references: [id])
+  resolvedAt             DateTime?
+  createdAt              DateTime        @default(now())
+
+  attachments ReportAttachment[]
 
   @@index([status])
   @@index([reportedPostId])
+  @@index([reporterId, createdAt])
+}
+
+// Evidence files live outside /public (see app/lib/reportEvidence.ts) and
+// are only served back through an admin-gated route.
+model ReportAttachment {
+  id        Int            @id @default(autoincrement())
+  reportId  Int
+  report    Report         @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  kind      AttachmentKind
+  path      String
+  mimeType  String         @db.VarChar(60)
+  size      Int
+  createdAt DateTime       @default(now())
+
+  @@index([reportId])
+}
+
+// One commend per giver → teammate → match, only for a match both played
+// on the same team (verified against OpenDota at commend time).
+model Commend {
+  id          Int         @id @default(autoincrement())
+  commenderId Int
+  commender   User        @relation("CommendGiver", fields: [commenderId], references: [id], onDelete: Cascade)
+  targetId    Int
+  target      User        @relation("CommendTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  matchId     String      @db.VarChar(20)
+  type        CommendType
+  createdAt   DateTime    @default(now())
+
+  @@unique([commenderId, targetId, matchId])
+  @@index([targetId, createdAt])
+  @@index([commenderId, createdAt])
 }
 
 model Block {
@@ -372,11 +592,11 @@ model Block {
 // --- Admin panel: RBAC, moderation, content, and support ---------------
 
 model Role {
-  id          Int              @id @default(autoincrement())
-  name        String           @unique
-  description String?          @db.Text
-  editable    Boolean          @default(true)
-  createdAt   DateTime         @default(now())
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?  @db.Text
+  editable    Boolean  @default(true)
+  createdAt   DateTime @default(now())
 
   users       User[]
   permissions RolePermission[]
@@ -407,16 +627,19 @@ model AuditLog {
 }
 
 model PlatformSetting {
-  id                        Int      @id @default(1)
-  bannerText                String?  @db.Text
-  bannerActive              Boolean  @default(false)
-  maintenanceMode           Boolean  @default(false)
-  maintenanceMessage        String?  @db.Text
-  signupsEnabled            Boolean  @default(true)
-  lobbyChatEnabled          Boolean  @default(true)
-  scheduledSessionsEnabled  Boolean  @default(true)
-  steamAutoSyncEnabled      Boolean  @default(false)
-  updatedAt                 DateTime @updatedAt
+  id                       Int      @id @default(1)
+  bannerText               String?  @db.Text
+  bannerActive             Boolean  @default(false)
+  maintenanceMode          Boolean  @default(false)
+  maintenanceMessage       String?  @db.Text
+  signupsEnabled           Boolean  @default(true)
+  lobbyChatEnabled         Boolean  @default(true)
+  scheduledSessionsEnabled Boolean  @default(true)
+  steamAutoSyncEnabled     Boolean  @default(false)
+  shopEnabled              Boolean  @default(false)
+  // Separate switch for the user market («بازار کاربران»); only matters while the shop itself is on.
+  marketEnabled            Boolean  @default(false)
+  updatedAt                DateTime @updatedAt
 }
 
 model Announcement {
@@ -456,17 +679,17 @@ model BlogPost {
 }
 
 model Ticket {
-  id        Int             @id @default(autoincrement())
+  id        Int            @id @default(autoincrement())
   userId    Int
-  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   subject   String
-  category  TicketCategory  @default(GENERAL)
-  priority  TicketPriority  @default(MEDIUM)
-  status    TicketStatus    @default(OPEN)
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  category  TicketCategory @default(GENERAL)
+  priority  TicketPriority @default(MEDIUM)
+  status    TicketStatus   @default(OPEN)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 
-  messages  TicketMessage[]
+  messages TicketMessage[]
 
   @@index([status])
 }
@@ -509,4 +732,242 @@ model ReferenceEntry {
   updatedAt DateTime @updatedAt
 
   @@unique([category, key])
+}
+
+// ─── Shop ───────────────────────────────────────────────────────────────────
+// Money columns are whole Toman (Int). Product prices are stored in US cents
+// and converted to Toman at read time from ShopSetting — see app/lib/shopPricing.ts.
+
+model ShopSetting {
+  id                      Int      @id @default(1)
+  // What one Steam dollar actually costs us (Visa top-up rate incl. fees), in Toman.
+  usdCostToman            Int      @default(0)
+  giftCardMarginPercent   Float    @default(7)
+  itemMarginPercent       Float    @default(7)
+  marketCommissionPercent Float    @default(7)
+  gatewayFeePercent       Float    @default(1)
+  // Admin working hours (Tehran time) for manual gift-card fulfilment when the code bank is empty.
+  workStartHour           Int      @default(10)
+  workEndHour             Int      @default(22)
+  lowStockThreshold       Int      @default(3)
+  minWithdrawalToman      Int      @default(500000)
+  payoutHoldHours         Int      @default(24)
+  // User market: how long a seller has to trade the item after payment, and
+  // how long the buyer has to confirm or dispute before it auto-completes.
+  sellerDeadlineHours     Int      @default(24)
+  buyerConfirmHours       Int      @default(72)
+  updatedAt               DateTime @updatedAt
+}
+
+model ShopProduct {
+  id               Int             @id @default(autoincrement())
+  type             ShopProductType
+  title            String
+  // URL segment for /shop/product/[slug]; Persian is fine (auto-built from the title).
+  slug             String?         @unique @db.VarChar(160)
+  // One or two sentences shown next to the price and used as the meta description fallback.
+  shortDescription String?         @db.Text
+  description      String?         @db.Text
+  imageUrl         String?
+  imageAlt         String?
+  // Bullet points for the product page, one per line.
+  features         String?         @db.Text
+  // Items only — shown as chips and used to pick similar products.
+  heroName         String?
+  rarity           ItemRarity?
+  metaTitle        String?
+  metaDescription  String?         @db.Text
+  priceUsdCents    Int
+  // Items only: units left to sell (null = unlimited). Gift cards are stocked through GiftCode rows instead.
+  stock            Int?
+  active           Boolean         @default(true)
+  sortOrder        Int             @default(0)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  giftCodes GiftCode[]
+  orders    ShopOrder[]
+
+  @@index([type, active])
+}
+
+model GiftCode {
+  id            Int            @id @default(autoincrement())
+  productId     Int
+  product       ShopProduct    @relation(fields: [productId], references: [id], onDelete: Restrict)
+  // AES-256-GCM ciphertext — plaintext is never stored. See app/lib/giftCodeCrypto.ts.
+  codeEncrypted String         @db.Text
+  // HMAC of the normalized code, so the same code can't be stocked twice.
+  codeHash      String         @unique @db.VarChar(64)
+  // Last 4 chars, for telling codes apart in the admin list without decrypting.
+  codeHint      String         @db.VarChar(8)
+  status        GiftCodeStatus @default(AVAILABLE)
+  orderId       Int?           @unique
+  order         ShopOrder?     @relation(fields: [orderId], references: [id])
+  assignedAt    DateTime?
+  addedById     Int
+  addedBy       User           @relation(fields: [addedById], references: [id])
+  createdAt     DateTime       @default(now())
+
+  @@index([productId, status])
+}
+
+model ShopOrder {
+  id            Int               @id @default(autoincrement())
+  userId        Int
+  user          User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  productId     Int
+  product       ShopProduct       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  status        ShopOrderStatus   @default(PENDING_PAYMENT)
+  paymentMethod ShopPaymentMethod
+  // Price snapshot at checkout, so later rate changes never touch placed orders.
+  priceUsdCents Int
+  usdCostToman  Int
+  totalToman    Int
+  // Buyer's Trade URL at checkout (items only), so delivery goes where they asked even if they change it later.
+  tradeUrl      String?
+  paidAt        DateTime?
+  deliveredAt   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  giftCode   GiftCode?
+  payments   Payment[]
+  walletTxns WalletTransaction[]
+
+  @@index([userId, createdAt])
+  @@index([status, paidAt])
+}
+
+model Payment {
+  id            Int            @id @default(autoincrement())
+  userId        Int
+  user          User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  purpose       PaymentPurpose
+  orderId       Int?
+  order         ShopOrder?     @relation(fields: [orderId], references: [id])
+  marketOrderId Int?
+  marketOrder   MarketOrder?   @relation(fields: [marketOrderId], references: [id])
+  amountToman   Int
+  gateway       String         @db.VarChar(30)
+  authority     String?        @unique
+  refId         String?
+  cardPan       String?
+  status        PaymentStatus  @default(PENDING)
+  createdAt     DateTime       @default(now())
+  verifiedAt    DateTime?
+
+  @@index([userId, createdAt])
+}
+
+// Append-only ledger for «میت کیف». Balance = SUM(amountToman); rows are never updated.
+model WalletTransaction {
+  id            Int                   @id @default(autoincrement())
+  userId        Int
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  type          WalletTransactionType
+  // Signed: positive credits the wallet, negative debits it.
+  amountToman   Int
+  // Only sale income can be withdrawn; direct top-ups are spendable on-site only.
+  withdrawable  Boolean               @default(false)
+  // Sale income is held until this moment (ShopSetting.payoutHoldHours).
+  availableAt   DateTime              @default(now())
+  orderId       Int?
+  order         ShopOrder?            @relation(fields: [orderId], references: [id])
+  marketOrderId Int?
+  marketOrder   MarketOrder?          @relation(fields: [marketOrderId], references: [id])
+  withdrawalId  Int?
+  withdrawal    WithdrawalRequest?    @relation(fields: [withdrawalId], references: [id])
+  note          String?               @db.Text
+  createdAt     DateTime              @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ─── User market («بازار کاربران») ───────────────────────────────────────────
+// A seller lists an item from their own Steam inventory. The buyer's money is
+// held by DotaMate until the item is traded; see app/lib/marketOrders.ts.
+
+model MarketListing {
+  id          Int                 @id @default(autoincrement())
+  sellerId    Int
+  seller      User                @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  status      MarketListingStatus @default(ACTIVE)
+  // Snapshot of the Steam inventory entry at listing time.
+  assetId     String              @db.VarChar(32)
+  classId     String              @db.VarChar(32)
+  instanceId  String?             @db.VarChar(32)
+  itemName    String
+  itemType    String?
+  iconUrl     String?             @db.Text
+  rarity      ItemRarity?
+  heroName    String?
+  priceToman  Int
+  description String?             @db.Text
+  soldAt      DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  orders MarketOrder[]
+
+  @@index([status, createdAt])
+  @@index([sellerId, status])
+  @@index([assetId])
+}
+
+model MarketOrder {
+  id                Int               @id @default(autoincrement())
+  listingId         Int
+  listing           MarketListing     @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  buyerId           Int
+  buyer             User              @relation("MarketBuyer", fields: [buyerId], references: [id], onDelete: Restrict)
+  sellerId          Int
+  seller            User              @relation("MarketSeller", fields: [sellerId], references: [id], onDelete: Restrict)
+  status            MarketOrderStatus @default(PENDING_PAYMENT)
+  paymentMethod     ShopPaymentMethod
+  priceToman        Int
+  commissionPercent Float
+  commissionToman   Int
+  sellerPayoutToman Int
+  // Where the seller must send the item (buyer's Trade URL at checkout).
+  buyerTradeUrl     String
+  // Gateway checkouts hold the listing only this long before it's released.
+  reservedUntil     DateTime?
+  paidAt            DateTime?
+  sellerDeadlineAt  DateTime?
+  sentAt            DateTime?
+  autoCompleteAt    DateTime?
+  completedAt       DateTime?
+  disputeReason     String?           @db.Text
+  resolutionNote    String?           @db.Text
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  payments   Payment[]
+  walletTxns WalletTransaction[]
+
+  @@index([buyerId, createdAt])
+  @@index([sellerId, createdAt])
+  @@index([status])
+}
+
+model WithdrawalRequest {
+  id            Int              @id @default(autoincrement())
+  userId        Int
+  user          User             @relation("WithdrawalUser", fields: [userId], references: [id], onDelete: Restrict)
+  amountToman   Int
+  sheba         String           @db.VarChar(26)
+  holderName    String
+  status        WithdrawalStatus @default(PENDING)
+  trackingRef   String?
+  adminNote     String?          @db.Text
+  processedById Int?
+  processedBy   User?            @relation("WithdrawalProcessor", fields: [processedById], references: [id])
+  processedAt   DateTime?
+  createdAt     DateTime         @default(now())
+
+  walletTxns WalletTransaction[]
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
 }

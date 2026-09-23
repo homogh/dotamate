@@ -13,11 +13,17 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/create-post": "ایجاد پست جدید",
   "/dashboard/my-posts": "پست‌های من",
   "/dashboard/sessions": "جلسات هماهنگ‌شده",
+  "/dashboard/friends": "دوستان",
   "/dashboard/favorites": "علاقه‌مندی‌ها",
   "/dashboard/messages": "پیام‌ها",
   "/dashboard/notifications": "اعلان‌ها",
   "/dashboard/profile": "پروفایل",
   "/dashboard/settings": "تنظیمات",
+  "/dashboard/orders": "سفارش‌های من",
+  "/dashboard/wallet": "میت کیف",
+  "/dashboard/listings": "آگهی‌های من",
+  "/dashboard/listings/new": "ثبت آگهی جدید",
+  "/dashboard/sales": "فروش‌های من",
 };
 
 export function DashboardTopbar({
@@ -37,7 +43,9 @@ export function DashboardTopbar({
       ? "پیام‌ها"
       : pathname.startsWith("/dashboard/browse")
         ? "مرور پست‌ها"
-        : "داشبورد");
+        : pathname.startsWith("/dashboard/orders") || pathname.startsWith("/dashboard/market-orders")
+          ? "جزئیات سفارش"
+          : "داشبورد");
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

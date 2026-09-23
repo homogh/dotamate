@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
 import { DashboardShell } from "@/components/dashboard/shell";
+import { canUseMarket, canUseShop, hasShopHistory, notificationVisibilityFilter } from "@/app/lib/shopAccess";
 
 export const metadata: Metadata = {
   title: "داشبورد | دوتامیت",
@@ -44,13 +45,17 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
     redirect("/signup/profile");
   }
 
-  const [unreadNotifications, participants] = await Promise.all([
-    prisma.notification.count({ where: { userId: user.id, read: false } }),
+  const [unreadNotifications, participants, shopOpen, shopHistory, marketOpen] = await Promise.all([
+    prisma.notification.count({ where: { userId: user.id, read: false, ...(await notificationVisibilityFilter(user.id)) } }),
     prisma.conversationParticipant.findMany({
       where: { userId: user.id },
       include: { conversation: { include: { messages: { orderBy: { createdAt: "desc" }, take: 50 } } } },
     }),
+    canUseShop(user.id),
+    hasShopHistory(user.id),
+    canUseMarket(user.id),
   ]);
+  const shopAccess = shopOpen ? "open" : shopHistory ? "history" : "none";
 
   const unreadMessages = participants.reduce((sum, participant) => {
     const unread = participant.conversation.messages.filter(
@@ -67,6 +72,8 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
       user={{ displayName: user.displayName, rankLabel, avatarUrl: user.avatarUrl }}
       unreadMessages={unreadMessages}
       unreadNotifications={unreadNotifications}
+      shopAccess={shopAccess}
+      marketOpen={marketOpen}
     >
       {children}
     </DashboardShell>
