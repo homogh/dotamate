@@ -30,6 +30,7 @@ interface SettingsData {
   rankVerification: string;
   steamProfileUrl: string | null;
   steamTradeUrl: string | null;
+  shopOpen: boolean;
   avatarUrl: string | null;
   notifyBell: boolean;
   notifyEmail: boolean;
@@ -96,7 +97,7 @@ export default function SettingsPage() {
       {tab === "steam" && (
         <>
           <SteamTab />
-          <TradeUrlCard initial={data.steamTradeUrl} />
+          {data.shopOpen && <TradeUrlCard initial={data.steamTradeUrl} />}
         </>
       )}
       {tab === "privacy" && <PrivacyTab />}

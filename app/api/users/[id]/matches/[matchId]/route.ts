@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
-import { getItemLookup } from "@/app/lib/opendota";
+import { getItemLookup, openDotaFetch } from "@/app/lib/opendota";
 import { steamId64ToAccountId } from "@/app/lib/steam";
 import type { ApiResponse } from "@/app/types/api";
 
-const OPENDOTA_BASE = "https://api.opendota.com/api";
 const ITEM_SLOTS = ["item_0", "item_1", "item_2", "item_3", "item_4", "item_5"] as const;
 
 // A finished match's own stats never change, so this is safe to let Next
@@ -31,8 +30,8 @@ export async function GET(
 
   const accountId = steamId64ToAccountId(user.steamId);
 
-  const res = await fetch(`${OPENDOTA_BASE}/matches/${matchId}`);
-  if (!res.ok) {
+  const res = await openDotaFetch(`/matches/${matchId}`);
+  if (!res?.ok) {
     return NextResponse.json<ApiResponse>(
       { status: "error", message: "دریافت جزئیات مچ از OpenDota ناموفق بود.", data: null },
       { status: 502 },

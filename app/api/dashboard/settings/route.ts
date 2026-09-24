@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Position } from "@prisma/client";
 
+import { isShopEnabled } from "@/app/lib/platformSettings";
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
 import type { ApiResponse } from "@/app/types/api";
@@ -35,6 +36,8 @@ export async function GET(request: NextRequest) {
       rankVerification: user.rankVerification,
       steamProfileUrl: user.steamProfileUrl,
       steamTradeUrl: user.steamTradeUrl,
+      // The Trade URL field is a shop feature — hidden while the shop is off.
+      shopOpen: await isShopEnabled(),
       avatarUrl: user.avatarUrl,
       notifyBell: user.notifyBell,
       notifyEmail: user.notifyEmail,

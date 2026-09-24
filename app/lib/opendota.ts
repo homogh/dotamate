@@ -1,6 +1,104 @@
+import { mkdir, readFile, rename, writeFile } from "fs/promises";
+import path from "path";
+
 import { steamAssetUrl } from "@/app/lib/cdnUrls";
 
 const OPENDOTA_BASE = "https://api.opendota.com/api";
+
+// OpenDota has real outages (522s that hang ~20s before failing). Without a
+// timeout every page that touches it hangs that long and Cloudflare turns it
+// into a 502, so each call is capped, and after a failure we stop calling it
+// for a short while instead of making every visitor pay the timeout again.
+const OPENDOTA_TIMEOUT_MS = 8_000;
+const OPENDOTA_COOLDOWN_MS = 60_000;
+let openDotaDownUntil = 0;
+
+export async function openDotaFetch(apiPath: string, init?: RequestInit): Promise<Response | null> {
+  if (Date.now() < openDotaDownUntil) return null;
+
+  try {
+    const res = await fetch(`${OPENDOTA_BASE}${apiPath}`, {
+      cache: "no-store",
+      ...init,
+      signal: AbortSignal.timeout(OPENDOTA_TIMEOUT_MS),
+    });
+    if (res.status >= 500) openDotaDownUntil = Date.now() + OPENDOTA_COOLDOWN_MS;
+    return res;
+  } catch {
+    openDotaDownUntil = Date.now() + OPENDOTA_COOLDOWN_MS;
+    return null;
+  }
+}
+
+// --- Shared-data cache ------------------------------------------------
+// Hero/item constants and hero stats are the same for every visitor, so
+// they're kept in memory AND on disk: a restart during an OpenDota outage
+// still has data, and once cached no request ever waits on OpenDota —
+// expired data is served immediately while a single refresh runs behind it.
+
+const DATA_CACHE_ROOT = path.join(process.cwd(), "storage", "opendota-cache");
+
+interface CacheEntry<T> {
+  data: T;
+  fetchedAt: number;
+}
+
+const memoryCache = new Map<string, CacheEntry<unknown>>();
+const refreshing = new Map<string, Promise<unknown>>();
+
+async function readDiskCache<T>(key: string): Promise<CacheEntry<T> | null> {
+  const raw = await readFile(path.join(DATA_CACHE_ROOT, `${key}.json`), "utf8").catch(() => null);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as CacheEntry<T>;
+  } catch {
+    return null;
+  }
+}
+
+async function writeDiskCache<T>(key: string, entry: CacheEntry<T>) {
+  try {
+    await mkdir(DATA_CACHE_ROOT, { recursive: true });
+    const filePath = path.join(DATA_CACHE_ROOT, `${key}.json`);
+    const tmpPath = `${filePath}.${process.pid}.tmp`;
+    await writeFile(tmpPath, JSON.stringify(entry));
+    await rename(tmpPath, filePath);
+  } catch {
+    // disk cache is an optimization — memory still has the data
+  }
+}
+
+/** `load` returns null on failure; `empty` is only used when nothing was ever cached. */
+async function staleWhileRevalidate<T>(key: string, ttlMs: number, load: () => Promise<T | null>, empty: T): Promise<T> {
+  let entry = memoryCache.get(key) as CacheEntry<T> | undefined;
+  if (!entry) {
+    const fromDisk = await readDiskCache<T>(key);
+    if (fromDisk) {
+      entry = fromDisk;
+      memoryCache.set(key, fromDisk);
+    }
+  }
+
+  if (entry && Date.now() - entry.fetchedAt < ttlMs) return entry.data;
+
+  let refresh = refreshing.get(key) as Promise<T | null> | undefined;
+  if (!refresh) {
+    refresh = load()
+      .then(async (data) => {
+        if (data === null) return null;
+        const fresh = { data, fetchedAt: Date.now() };
+        memoryCache.set(key, fresh);
+        await writeDiskCache(key, fresh);
+        return data;
+      })
+      .catch(() => null)
+      .finally(() => refreshing.delete(key));
+    refreshing.set(key, refresh);
+  }
+
+  if (entry) return entry.data;
+  return (await refresh) ?? empty;
+}
 
 export interface OpenDotaMatch {
   matchId: number;
@@ -92,11 +190,8 @@ export function decodeOpenDotaRankTier(rankTier: number): DecodedRankTier | null
 }
 
 export async function refreshOpenDotaPlayer(accountId: number) {
-  try {
-    await fetch(`${OPENDOTA_BASE}/players/${accountId}/refresh`, { method: "POST" });
-  } catch {
-    // best-effort — the verify step still works off whatever OpenDota already has cached
-  }
+  // best-effort — the verify step still works off whatever OpenDota already has cached
+  await openDotaFetch(`/players/${accountId}/refresh`, { method: "POST" });
 }
 
 // Averages the {field, n, sum} rows OpenDota's /totals returns into a single
@@ -146,23 +241,24 @@ const HEROES_PLAYED_LIMIT = 6;
 
 export async function syncOpenDotaPlayer(accountId: number): Promise<OpenDotaSync | null> {
   const [profileRes, wlRes, matchesRes, ratingsRes, totalsRes, heroesRes] = await Promise.all([
-    fetch(`${OPENDOTA_BASE}/players/${accountId}`, { cache: "no-store" }),
-    fetch(`${OPENDOTA_BASE}/players/${accountId}/wl`, { cache: "no-store" }),
-    fetch(`${OPENDOTA_BASE}/players/${accountId}/recentMatches`, { cache: "no-store" }),
-    fetch(`${OPENDOTA_BASE}/players/${accountId}/ratings`, { cache: "no-store" }),
-    fetch(`${OPENDOTA_BASE}/players/${accountId}/totals`, { cache: "no-store" }),
-    fetch(`${OPENDOTA_BASE}/players/${accountId}/heroes`, { cache: "no-store" }),
+    openDotaFetch(`/players/${accountId}`),
+    openDotaFetch(`/players/${accountId}/wl`),
+    openDotaFetch(`/players/${accountId}/recentMatches`),
+    openDotaFetch(`/players/${accountId}/ratings`),
+    openDotaFetch(`/players/${accountId}/totals`),
+    openDotaFetch(`/players/${accountId}/heroes`),
   ]);
 
-  if (!matchesRes.ok || !wlRes.ok) return null;
+  if (!matchesRes?.ok || !wlRes?.ok) return null;
 
+  const optionalJson = (res: Response | null) => (res?.ok ? res.json().catch(() => null) : null);
   const [profile, wl, matches, ratings, totals, heroes] = await Promise.all([
-    profileRes.ok ? profileRes.json().catch(() => null) : null,
-    wlRes.json(),
-    matchesRes.json(),
-    ratingsRes.ok ? ratingsRes.json().catch(() => null) : null,
-    totalsRes.ok ? totalsRes.json().catch(() => null) : null,
-    heroesRes.ok ? heroesRes.json().catch(() => null) : null,
+    optionalJson(profileRes),
+    wlRes.json().catch(() => null),
+    matchesRes.json().catch(() => null),
+    optionalJson(ratingsRes),
+    optionalJson(totalsRes),
+    optionalJson(heroesRes),
   ]);
 
   if (!Array.isArray(matches)) return null;
@@ -236,33 +332,31 @@ interface HeroLookupEntry {
   img: string;
 }
 
-let heroCache: { data: Record<number, HeroLookupEntry>; fetchedAt: number } | null = null;
 const HERO_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
-export async function getHeroLookup() {
-  if (heroCache && Date.now() - heroCache.fetchedAt < HERO_CACHE_TTL_MS) {
-    return heroCache.data;
-  }
+export async function getHeroLookup(): Promise<Record<number, HeroLookupEntry>> {
+  return staleWhileRevalidate(
+    "heroes",
+    HERO_CACHE_TTL_MS,
+    async () => {
+      const res = await openDotaFetch("/constants/heroes");
+      const json = res?.ok ? await res.json().catch(() => null) : null;
+      if (!json || typeof json !== "object") return null;
 
-  const res = await fetch(`${OPENDOTA_BASE}/constants/heroes`, { cache: "no-store" });
-  if (!res.ok) return heroCache?.data ?? {};
-
-  const json = await res.json().catch(() => null);
-  if (!json || typeof json !== "object") return heroCache?.data ?? {};
-
-  const data: Record<number, HeroLookupEntry> = {};
-  for (const hero of Object.values(json) as Record<string, unknown>[]) {
-    const id = Number(hero.id);
-    data[id] = {
-      name: String(hero.name ?? ""),
-      localizedName: String(hero.localized_name ?? `Hero ${id}`),
-      icon: steamAssetUrl(hero.icon),
-      img: steamAssetUrl(hero.img),
-    };
-  }
-
-  heroCache = { data, fetchedAt: Date.now() };
-  return data;
+      const data: Record<number, HeroLookupEntry> = {};
+      for (const hero of Object.values(json) as Record<string, unknown>[]) {
+        const id = Number(hero.id);
+        data[id] = {
+          name: String(hero.name ?? ""),
+          localizedName: String(hero.localized_name ?? `Hero ${id}`),
+          icon: steamAssetUrl(hero.icon),
+          img: steamAssetUrl(hero.img),
+        };
+      }
+      return data;
+    },
+    {},
+  );
 }
 
 // --- Meta / tier list -------------------------------------------------
@@ -282,42 +376,39 @@ export interface OpenDotaHeroStat {
   proBans: number;
 }
 
-let heroStatsCache: { data: OpenDotaHeroStat[]; fetchedAt: number } | null = null;
 const HERO_STATS_TTL_MS = 60 * 60 * 1000;
 
 // Real, live hero win/pick rates by rank bracket — the S/A/B tier list is
 // computed from this on the client, not hand-curated.
 export async function getHeroStats(): Promise<OpenDotaHeroStat[]> {
-  if (heroStatsCache && Date.now() - heroStatsCache.fetchedAt < HERO_STATS_TTL_MS) {
-    return heroStatsCache.data;
-  }
+  return staleWhileRevalidate(
+    "heroStats",
+    HERO_STATS_TTL_MS,
+    async () => {
+      const res = await openDotaFetch("/heroStats");
+      const json = res?.ok ? await res.json().catch(() => null) : null;
+      if (!Array.isArray(json) || json.length === 0) return null;
 
-  const res = await fetch(`${OPENDOTA_BASE}/heroStats`, { cache: "no-store" });
-  if (!res.ok) return heroStatsCache?.data ?? [];
-
-  const json = await res.json().catch(() => null);
-  if (!Array.isArray(json)) return heroStatsCache?.data ?? [];
-
-  const data: OpenDotaHeroStat[] = json.map((h: Record<string, unknown>) => ({
-    id: Number(h.id),
-    name: String(h.name ?? ""),
-    localizedName: String(h.localized_name ?? ""),
-    img: steamAssetUrl(h.img),
-    icon: steamAssetUrl(h.icon),
-    primaryAttr: String(h.primary_attr ?? ""),
-    attackType: String(h.attack_type ?? ""),
-    roles: Array.isArray(h.roles) ? h.roles.map(String) : [],
-    brackets: Array.from({ length: 8 }, (_, i) => {
-      const n = i + 1;
-      return { bracket: n, picks: Number(h[`${n}_pick`] ?? 0), wins: Number(h[`${n}_win`] ?? 0) };
-    }),
-    proPicks: Number(h.pro_pick ?? 0),
-    proWins: Number(h.pro_win ?? 0),
-    proBans: Number(h.pro_ban ?? 0),
-  }));
-
-  heroStatsCache = { data, fetchedAt: Date.now() };
-  return data;
+      return json.map((h: Record<string, unknown>) => ({
+        id: Number(h.id),
+        name: String(h.name ?? ""),
+        localizedName: String(h.localized_name ?? ""),
+        img: steamAssetUrl(h.img),
+        icon: steamAssetUrl(h.icon),
+        primaryAttr: String(h.primary_attr ?? ""),
+        attackType: String(h.attack_type ?? ""),
+        roles: Array.isArray(h.roles) ? h.roles.map(String) : [],
+        brackets: Array.from({ length: 8 }, (_, i) => {
+          const n = i + 1;
+          return { bracket: n, picks: Number(h[`${n}_pick`] ?? 0), wins: Number(h[`${n}_win`] ?? 0) };
+        }),
+        proPicks: Number(h.pro_pick ?? 0),
+        proWins: Number(h.pro_win ?? 0),
+        proBans: Number(h.pro_ban ?? 0),
+      }));
+    },
+    [],
+  );
 }
 
 export interface OpenDotaItem {
@@ -327,38 +418,38 @@ export interface OpenDotaItem {
   cost: number | null;
 }
 
-let itemCache: { data: Record<number, OpenDotaItem>; fetchedAt: number } | null = null;
 const ITEM_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 export async function getItemLookup(): Promise<Record<number, OpenDotaItem>> {
-  if (itemCache && Date.now() - itemCache.fetchedAt < ITEM_CACHE_TTL_MS) {
-    return itemCache.data;
-  }
+  return staleWhileRevalidate(
+    "items",
+    ITEM_CACHE_TTL_MS,
+    async () => {
+      const res = await openDotaFetch("/constants/items");
+      const json = res?.ok ? await res.json().catch(() => null) : null;
+      if (!json || typeof json !== "object") return null;
 
-  const res = await fetch(`${OPENDOTA_BASE}/constants/items`, { cache: "no-store" });
-  if (!res.ok) return itemCache?.data ?? {};
-
-  const json = await res.json().catch(() => null);
-  if (!json || typeof json !== "object") return itemCache?.data ?? {};
-
-  const data: Record<number, OpenDotaItem> = {};
-  for (const item of Object.values(json) as Record<string, unknown>[]) {
-    const id = Number(item.id);
-    if (!id) continue;
-    data[id] = {
-      id,
-      name: String(item.dname ?? item.name ?? `Item ${id}`),
-      img: steamAssetUrl(item.img),
-      cost: typeof item.cost === "number" ? item.cost : null,
-    };
-  }
-
-  itemCache = { data, fetchedAt: Date.now() };
-  return data;
+      const data: Record<number, OpenDotaItem> = {};
+      for (const item of Object.values(json) as Record<string, unknown>[]) {
+        const id = Number(item.id);
+        if (!id) continue;
+        data[id] = {
+          id,
+          name: String(item.dname ?? item.name ?? `Item ${id}`),
+          img: steamAssetUrl(item.img),
+          cost: typeof item.cost === "number" ? item.cost : null,
+        };
+      }
+      return data;
+    },
+    {},
+  );
 }
 
 const ITEM_PHASES = ["start_game_items", "early_game_items", "mid_game_items", "late_game_items"] as const;
 export type ItemPhase = (typeof ITEM_PHASES)[number];
+
+const ITEM_POPULARITY_TTL_MS = 6 * 60 * 60 * 1000;
 
 // Real aggregated purchase data from actual matches — OpenDota doesn't
 // publish a curated "recommended skill build," so this (plus base stat
@@ -372,19 +463,24 @@ export async function getHeroItemPopularity(heroId: number): Promise<Record<Item
     late_game_items: [],
   } as Record<ItemPhase, { itemId: number; count: number }[]>;
 
-  const res = await fetch(`${OPENDOTA_BASE}/heroes/${heroId}/itemPopularity`, { cache: "no-store" });
-  if (!res.ok) return empty;
+  return staleWhileRevalidate(
+    `itemPopularity-${heroId}`,
+    ITEM_POPULARITY_TTL_MS,
+    async () => {
+      const res = await openDotaFetch(`/heroes/${heroId}/itemPopularity`);
+      const json = res?.ok ? await res.json().catch(() => null) : null;
+      if (!json || typeof json !== "object") return null;
 
-  const json = await res.json().catch(() => null);
-  if (!json || typeof json !== "object") return empty;
-
-  const result = { ...empty };
-  for (const phase of ITEM_PHASES) {
-    const obj = (json as Record<string, Record<string, number>>)[phase] ?? {};
-    result[phase] = Object.entries(obj)
-      .map(([itemId, count]) => ({ itemId: Number(itemId), count: Number(count) }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 6);
-  }
-  return result;
+      const result = { ...empty };
+      for (const phase of ITEM_PHASES) {
+        const obj = (json as Record<string, Record<string, number>>)[phase] ?? {};
+        result[phase] = Object.entries(obj)
+          .map(([itemId, count]) => ({ itemId: Number(itemId), count: Number(count) }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 6);
+      }
+      return result;
+    },
+    empty,
+  );
 }

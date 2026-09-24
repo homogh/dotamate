@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   }
 
   const notifications = await prisma.notification.findMany({
-    where: { userId: session.id, ...(await notificationVisibilityFilter(session.id)) },
+    where: { userId: session.id, ...(await notificationVisibilityFilter()) },
     orderBy: { createdAt: "desc" },
     take: 100,
     include: { friendship: { select: { id: true, status: true, addresseeId: true } } },

@@ -22,7 +22,7 @@ import {
 
 import { useNotifications } from "@/app/stores/useNotifications";
 import { UserAvatar } from "@/components/general/userAvatar";
-import { shopNavVisible, type ShopAccess, type ShopNeed } from "@/components/dashboard/shopNav";
+import { shopNavVisible, type ShopNeed } from "@/components/dashboard/shopNav";
 
 interface SidebarUser {
   displayName: string;
@@ -49,20 +49,20 @@ function buildNavItems(unreadMessages: number, unreadNotifications: number): Nav
     { label: "علاقه‌مندی‌ها", href: "/dashboard/favorites", icon: Heart },
     { label: "پیام‌ها", href: "/dashboard/messages", icon: MessageSquare, badge: unreadMessages },
     { label: "اعلان‌ها", href: "/dashboard/notifications", icon: Bell, badge: unreadNotifications },
-    { label: "سفارش‌های من", href: "/dashboard/orders", icon: ShoppingBag, shop: "any" },
+    { label: "سفارش‌های من", href: "/dashboard/orders", icon: ShoppingBag, shop: "shop" },
     { label: "آگهی‌های من", href: "/dashboard/listings", icon: Tag, shop: "market" },
     { label: "فروش‌های من", href: "/dashboard/sales", icon: HandCoins, shop: "market" },
-    { label: "میت کیف", href: "/dashboard/wallet", icon: Wallet, shop: "any" },
+    { label: "میت کیف", href: "/dashboard/wallet", icon: Wallet, shop: "shop" },
     { label: "پروفایل", href: "/dashboard/profile", icon: User },
     { label: "تنظیمات", href: "/dashboard/settings", icon: Settings },
   ];
 }
 
-export function DashboardSidebar({ user, shopAccess, marketOpen }: { user: SidebarUser; shopAccess: ShopAccess; marketOpen: boolean }) {
+export function DashboardSidebar({ user, shopOpen, marketOpen }: { user: SidebarUser; shopOpen: boolean; marketOpen: boolean }) {
   const pathname = usePathname();
   const unreadMessages = useNotifications((s) => s.unreadMessages);
   const unreadNotifications = useNotifications((s) => s.unreadNotifications);
-  const navItems = buildNavItems(unreadMessages, unreadNotifications).filter((item) => shopNavVisible(item.shop, shopAccess, marketOpen));
+  const navItems = buildNavItems(unreadMessages, unreadNotifications).filter((item) => shopNavVisible(item.shop, shopOpen, marketOpen));
 
   return (
     <aside className="sticky top-0 hidden h-screen w-[260px] shrink-0 flex-col items-start gap-10 overflow-y-auto border-l border-border bg-surface-alt px-6 py-8 lg:flex">

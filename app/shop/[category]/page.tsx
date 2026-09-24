@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { getCategoryProducts, getViewerSession } from "@/app/lib/shopCatalog";
+import { isMarketEnabled } from "@/app/lib/platformSettings";
+import { getCategoryProducts } from "@/app/lib/shopCatalog";
 import { getShopCategory } from "@/app/lib/shopCategories";
-import { canUseMarket } from "@/app/lib/shopAccess";
 import { Card } from "@/components/general/card";
 import { CategoryShell, categoryHref, parsePageParam, parseSortParam } from "@/components/pages/shop/categoryShell";
 import { ProductCard } from "@/components/pages/shop/productCard";
@@ -40,8 +40,7 @@ export default async function ShopCategoryPage({ params, searchParams }: PagePro
 
   const query = await searchParams;
   const sort = parseSortParam(query.sort);
-  const viewer = await getViewerSession();
-  const [listing, showMarket] = await Promise.all([getCategoryProducts(category.type, parsePageParam(query.page), sort), canUseMarket(viewer?.id ?? null)]);
+  const [listing, showMarket] = await Promise.all([getCategoryProducts(category.type, parsePageParam(query.page), sort), isMarketEnabled()]);
 
   return (
     <CategoryShell category={category} sort={sort} showSort={listing.total > 1} sortHref={(s) => categoryHref(category.key, 1, s)} showMarket={showMarket}>

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/app/lib/prisma";
 import { hashPassword, signSession, SESSION_COOKIE, SESSION_COOKIE_OPTIONS } from "@/app/lib/auth";
 import { getPlatformSettings } from "@/app/lib/platformSettings";
+import { ATTRIBUTION_COOKIE, parseAttributionCookie } from "@/app/lib/attribution";
 import type { ApiResponse } from "@/app/types/api";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
   }
 
   const passwordHash = await hashPassword(password);
+  const attribution = parseAttributionCookie(request.cookies.get(ATTRIBUTION_COOKIE)?.value);
 
   const user = await prisma.user.create({
     data: {
@@ -65,6 +67,7 @@ export async function POST(request: NextRequest) {
       email: isEmail ? contact : null,
       phone: isPhone ? contact : null,
       passwordHash,
+      ...attribution,
     },
   });
 
@@ -77,6 +80,7 @@ export async function POST(request: NextRequest) {
   });
 
   response.cookies.set(SESSION_COOKIE, token, SESSION_COOKIE_OPTIONS);
+  response.cookies.delete(ATTRIBUTION_COOKIE);
 
   return response;
 }

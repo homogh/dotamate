@@ -10,6 +10,7 @@ import { SiteBanner } from "@/components/general/siteBanner";
 import { NotificationsProvider } from "@/components/general/notificationsProvider";
 import { ToastContainer } from "@/components/general/toastContainer";
 import { ConfirmModalHost } from "@/components/general/confirmModalHost";
+import { AttributionTracker } from "@/components/general/attributionTracker";
 
 const vazirmatn = Vazirmatn({
   variable: "--font-vazirmatn",
@@ -58,6 +59,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <NotificationsProvider />
         <ToastContainer />
         <ConfirmModalHost />
+        <AttributionTracker />
         <SiteBanner />
         <Navbar />
         <main className="flex flex-1 flex-col items-center">{children}</main>

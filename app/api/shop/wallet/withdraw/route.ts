@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import prisma from "@/app/lib/prisma";
-import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
+import { requireShopUser } from "@/app/lib/shopAccess";
 import { getShopSettings } from "@/app/lib/shopPricing";
 import { getWalletBalance, lockWallet } from "@/app/lib/wallet";
 import { isValidSheba, normalizeSheba } from "@/app/lib/sheba";
@@ -13,15 +13,12 @@ class WithdrawError extends Error {}
 /**
  * Requests a payout of cleared sale income to the user's own Sheba account.
  * The amount leaves the wallet immediately (so it can't be spent twice); a
- * rejected request puts it back. Not gated by the shop switch — this is the
- * user's money.
+ * rejected request puts it back. Follows the shop switch like the wallet page.
  */
 export async function POST(request: NextRequest) {
-  const token = request.cookies.get(SESSION_COOKIE)?.value;
-  const session = token ? await verifySession(token) : null;
-  if (!session) {
-    return NextResponse.json<ApiResponse>({ status: "error", message: "وارد نشدی.", data: null }, { status: 401 });
-  }
+  const auth = await requireShopUser(request);
+  if (auth.error) return auth.error;
+  const session = auth.session;
 
   const body = await request.json().catch(() => null);
   const amount = Number(body?.amountToman);

@@ -45,50 +45,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (user.steamId && user.matchDataVerified) {
     const isStale = !matchStats?.lastSyncedAt || Date.now() - matchStats.lastSyncedAt.getTime() > STATS_STALE_MS;
 
-    if (isStale) {
-      const accountId = steamId64ToAccountId(user.steamId);
-      refreshOpenDotaPlayer(accountId); // best-effort, not awaited — asks OpenDota to pull fresh matches for next time
-      const sync = await syncOpenDotaPlayer(accountId).catch(() => null);
-
-      if (sync) {
-        matchStats = await prisma.dotaMatchStats.upsert({
-          where: { userId: user.id },
-          create: {
-            userId: user.id,
-            wins: sync.wins,
-            losses: sync.losses,
-            rankTierHint: sync.rankTierHint,
-            matches: sync.matches as unknown as Prisma.InputJsonValue,
-            ratings: sync.ratings as unknown as Prisma.InputJsonValue,
-            totals: sync.totals as unknown as Prisma.InputJsonValue,
-            heroesPlayed: sync.heroesPlayed as unknown as Prisma.InputJsonValue,
-            lastSyncedAt: new Date(),
-          },
-          update: {
-            wins: sync.wins,
-            losses: sync.losses,
-            rankTierHint: sync.rankTierHint,
-            matches: sync.matches as unknown as Prisma.InputJsonValue,
-            ratings: sync.ratings as unknown as Prisma.InputJsonValue,
-            totals: sync.totals as unknown as Prisma.InputJsonValue,
-            heroesPlayed: sync.heroesPlayed as unknown as Prisma.InputJsonValue,
-            lastSyncedAt: new Date(),
-          },
-        });
-      }
-
-      // Rank is derived from OpenDota, never self-declared — every stale
-      // view re-checks it here so a rank-up or rank-down shows immediately.
-      const decoded = sync?.rankTierHint != null ? decodeOpenDotaRankTier(sync.rankTierHint) : null;
-      if (decoded) {
-        const updatedUser = await prisma.user.update({
-          where: { id: user.id },
-          data: { rank: decoded.rank, rankTier: decoded.star, rankVerification: "VERIFIED" },
-          select: { rank: true, rankTier: true, rankVerification: true },
-        });
-        rank = updatedUser.rank;
-        rankTier = updatedUser.rankTier;
-        rankVerification = updatedUser.rankVerification;
+    if (isStale && matchStats) {
+      // Already have stats to show — refresh in the background instead of
+      // making the viewer wait on OpenDota (which can be slow or down). The
+      // new numbers and rank show up on the next view.
+      void syncProfileStats(user.id, user.steamId).catch((error) => console.error("[profile] OpenDota sync failed", error));
+    } else if (isStale) {
+      const synced = await syncProfileStats(user.id, user.steamId);
+      matchStats = synced.matchStats ?? matchStats;
+      if (synced.rank) {
+        rank = synced.rank.rank;
+        rankTier = synced.rank.rankTier;
+        rankVerification = synced.rank.rankVerification;
       }
     }
   }
@@ -178,4 +146,51 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   };
 
   return NextResponse.json<ApiResponse>({ status: "success", message: "ok", data });
+}
+
+// One sync per user at a time — several people opening the same stale
+// profile shouldn't each fire six OpenDota requests.
+const syncingUsers = new Set<number>();
+
+// Pulls fresh OpenDota stats into DotaMatchStats and re-derives the rank —
+// rank comes from OpenDota, never self-declared.
+async function syncProfileStats(userId: number, steamId: string) {
+  if (syncingUsers.has(userId)) return { matchStats: null, rank: null };
+  syncingUsers.add(userId);
+
+  try {
+    const accountId = steamId64ToAccountId(steamId);
+    void refreshOpenDotaPlayer(accountId); // best-effort — asks OpenDota to pull fresh matches for next time
+    const sync = await syncOpenDotaPlayer(accountId).catch(() => null);
+    if (!sync) return { matchStats: null, rank: null };
+
+    const stats = {
+      wins: sync.wins,
+      losses: sync.losses,
+      rankTierHint: sync.rankTierHint,
+      matches: sync.matches as unknown as Prisma.InputJsonValue,
+      ratings: sync.ratings as unknown as Prisma.InputJsonValue,
+      totals: sync.totals as unknown as Prisma.InputJsonValue,
+      heroesPlayed: sync.heroesPlayed as unknown as Prisma.InputJsonValue,
+      lastSyncedAt: new Date(),
+    };
+    const matchStats = await prisma.dotaMatchStats.upsert({
+      where: { userId },
+      create: { userId, ...stats },
+      update: stats,
+    });
+
+    const decoded = sync.rankTierHint != null ? decodeOpenDotaRankTier(sync.rankTierHint) : null;
+    const rank = decoded
+      ? await prisma.user.update({
+          where: { id: userId },
+          data: { rank: decoded.rank, rankTier: decoded.star, rankVerification: "VERIFIED" },
+          select: { rank: true, rankTier: true, rankVerification: true },
+        })
+      : null;
+
+    return { matchStats, rank };
+  } finally {
+    syncingUsers.delete(userId);
+  }
 }

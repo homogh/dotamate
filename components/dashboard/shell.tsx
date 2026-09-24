@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { useNotifications } from "@/app/stores/useNotifications";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardTopbar } from "@/components/dashboard/topbar";
-import { shopNavVisible, type ShopAccess, type ShopNeed } from "@/components/dashboard/shopNav";
+import { shopNavVisible, type ShopNeed } from "@/components/dashboard/shopNav";
 
 interface ShellUser {
   displayName: string;
@@ -25,10 +25,10 @@ const MOBILE_NAV_ITEMS: { label: string; href: string; shop?: ShopNeed }[] = [
   { label: "علاقه‌مندی‌ها", href: "/dashboard/favorites" },
   { label: "پیام‌ها", href: "/dashboard/messages" },
   { label: "اعلان‌ها", href: "/dashboard/notifications" },
-  { label: "سفارش‌های من", href: "/dashboard/orders", shop: "any" },
+  { label: "سفارش‌های من", href: "/dashboard/orders", shop: "shop" },
   { label: "آگهی‌های من", href: "/dashboard/listings", shop: "market" },
   { label: "فروش‌های من", href: "/dashboard/sales", shop: "market" },
-  { label: "میت کیف", href: "/dashboard/wallet", shop: "any" },
+  { label: "میت کیف", href: "/dashboard/wallet", shop: "shop" },
   { label: "پروفایل", href: "/dashboard/profile" },
   { label: "تنظیمات", href: "/dashboard/settings" },
 ];
@@ -37,14 +37,14 @@ export function DashboardShell({
   user,
   unreadMessages,
   unreadNotifications,
-  shopAccess,
+  shopOpen,
   marketOpen,
   children,
 }: {
   user: ShellUser;
   unreadMessages: number;
   unreadNotifications: number;
-  shopAccess: ShopAccess;
+  shopOpen: boolean;
   marketOpen: boolean;
   children: ReactNode;
 }) {
@@ -69,7 +69,7 @@ export function DashboardShell({
 
   return (
     <div className="flex w-full flex-col lg:flex-row">
-      <DashboardSidebar user={user} shopAccess={shopAccess} marketOpen={marketOpen} />
+      <DashboardSidebar user={user} shopOpen={shopOpen} marketOpen={marketOpen} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="sticky top-0 z-20">
@@ -77,7 +77,7 @@ export function DashboardShell({
 
           {mobileOpen && (
             <div className="flex flex-col gap-1 border-b border-border bg-surface-alt px-4 py-4 lg:hidden">
-              {MOBILE_NAV_ITEMS.filter((item) => shopNavVisible(item.shop, shopAccess, marketOpen)).map((item) => (
+              {MOBILE_NAV_ITEMS.filter((item) => shopNavVisible(item.shop, shopOpen, marketOpen)).map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}

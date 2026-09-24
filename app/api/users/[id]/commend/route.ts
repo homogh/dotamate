@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
-import { getHeroLookup, type OpenDotaMatch } from "@/app/lib/opendota";
+import { getHeroLookup, openDotaFetch, type OpenDotaMatch } from "@/app/lib/opendota";
 import { steamId64ToAccountId } from "@/app/lib/steam";
 import {
   COMMEND_BONUS,
@@ -21,7 +21,6 @@ import {
 } from "@/app/lib/behavior";
 import type { ApiResponse } from "@/app/types/api";
 
-const OPENDOTA_BASE = "https://api.opendota.com/api";
 
 // Everything that decides whether `commenderId` may commend `targetId` at
 // all, independent of which match — shared by GET (to explain it in the
@@ -134,8 +133,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   // The core rule: only a teammate from that exact match can commend —
   // checked against OpenDota itself, not against anything the client sent.
-  const res = await fetch(`${OPENDOTA_BASE}/matches/${matchId}`);
-  const match = res.ok ? await res.json().catch(() => null) : null;
+  const res = await openDotaFetch(`/matches/${matchId}`);
+  const match = res?.ok ? await res.json().catch(() => null) : null;
   if (!match) {
     return NextResponse.json<ApiResponse>(
       { status: "error", message: "اطلاعات این مچ از OpenDota دریافت نشد. کمی بعد دوباره امتحان کن.", data: null },

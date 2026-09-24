@@ -2,10 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { isMarketEnabled } from "@/app/lib/platformSettings";
 import prisma from "@/app/lib/prisma";
 import { getViewerSession } from "@/app/lib/shopCatalog";
 import { processMarketTimeouts } from "@/app/lib/marketOrders";
-import { canUseMarket } from "@/app/lib/shopAccess";
 import { Card } from "@/components/general/card";
 import { OrderStatusBadge } from "@/components/pages/shop/orderStatusBadge";
 import { MarketStatusBadge } from "@/components/pages/shop/marketStatusBadge";
@@ -24,7 +24,7 @@ export default async function OrdersPage() {
   const viewer = await getViewerSession();
   if (!viewer) redirect("/login");
   await processMarketTimeouts();
-  const showMarket = await canUseMarket(viewer.id);
+  const showMarket = await isMarketEnabled();
 
   // Abandoned gateway checkouts stay out of the list — they never took money.
   const [shopOrders, marketOrders] = await Promise.all([

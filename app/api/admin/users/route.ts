@@ -4,6 +4,7 @@ import type { Prisma, Rank } from "@prisma/client";
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
 import { getAdminSession, hasAccess } from "@/app/lib/permissions";
+import { attributionLabel } from "@/app/lib/attribution";
 import type { ApiResponse } from "@/app/types/api";
 
 const PAGE_SIZE = 8;
@@ -28,7 +29,14 @@ export async function GET(request: NextRequest) {
 
   const where: Prisma.UserWhereInput = {
     ...(query
-      ? { OR: [{ displayName: { contains: query } }, { email: { contains: query } }] }
+      ? {
+          OR: [
+            { displayName: { contains: query } },
+            { email: { contains: query } },
+            { utmSource: { contains: query } },
+            { utmCampaign: { contains: query } },
+          ],
+        }
       : {}),
     ...(rank ? { rank: rank as Rank } : {}),
     ...(status === "active" ? { banned: false, suspendedUntil: null } : {}),
@@ -56,6 +64,8 @@ export async function GET(request: NextRequest) {
       rankVerification: u.rankVerification,
       banned: u.banned,
       suspendedUntil: u.suspendedUntil,
+      source: attributionLabel(u),
+      utmCampaign: u.utmCampaign,
       createdAt: u.createdAt,
     })),
     page,

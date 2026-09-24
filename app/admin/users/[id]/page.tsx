@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ExternalLink } from "lucide-react";
 
 import { Card } from "@/components/general/card";
 import { UserAvatar } from "@/components/general/userAvatar";
@@ -25,6 +26,13 @@ interface UserDetail {
   suspendedUntil: string | null;
   createdAt: string;
   lastActiveAt: string | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  utmTerm: string | null;
+  utmContent: string | null;
+  referrer: string | null;
+  landingPage: string | null;
   roleId: number | null;
   roleName: string | null;
   roles: { id: number; name: string }[];
@@ -100,6 +108,15 @@ export default function AdminUserDetailPage() {
         <button onClick={() => router.push("/admin/users")} className="rounded-[8px] border border-border px-4 py-2 text-[13px] text-text">
           بازگشت
         </button>
+        <Link
+          href={`/dashboard/profile/${user.id}`}
+          target="_blank"
+          className="flex items-center gap-1.5 rounded-[8px] bg-primary px-4 py-2 text-[13px] font-bold text-white"
+          dir="auto"
+        >
+          <ExternalLink size={14} />
+          مشاهده پروفایل
+        </Link>
         <div className="flex flex-1 items-center justify-end gap-2">
           <p className="text-[18px] font-black text-text" dir="auto">
             جزئیات کاربر
@@ -135,6 +152,47 @@ export default function AdminUserDetailPage() {
               <p className="w-full text-right text-[12px] text-text-dim" dir="auto">
                 فقط مدیرانی که به بخش «نقش‌ها» دسترسی ویرایش دارن می‌تونن نقش کاربران رو تغییر بدن.
               </p>
+            )}
+          </Card>
+
+          <Card tone="surface" noHover className="w-full gap-3 p-6">
+            <p className="w-full text-right text-[16px] font-black text-text" dir="auto">
+              منبع ورود
+            </p>
+            {!user.utmSource && !user.referrer ? (
+              <p className="w-full text-right text-[13px] text-text-dim" dir="auto">
+                مستقیم / نامشخص (بدون UTM و ارجاع‌دهنده)
+              </p>
+            ) : (
+              ([
+                ["Source", user.utmSource],
+                ["Medium", user.utmMedium],
+                ["Campaign", user.utmCampaign],
+                ["Term", user.utmTerm],
+                ["Content", user.utmContent],
+                ["ارجاع از", user.referrer],
+              ] as [string, string | null][])
+                .filter(([, value]) => value)
+                .map(([label, value]) => (
+                  <div key={label} className="flex w-full items-start justify-between gap-3">
+                    <p className="min-w-0 break-all text-left text-[13px] text-text" dir="ltr">
+                      {value}
+                    </p>
+                    <p className="shrink-0 text-[12px] text-text-dim" dir="auto">
+                      {label}
+                    </p>
+                  </div>
+                ))
+            )}
+            {user.landingPage && (
+              <div className="flex w-full items-start justify-between gap-3">
+                <p className="min-w-0 break-all text-left text-[12px] text-text-dim" dir="ltr">
+                  {user.landingPage}
+                </p>
+                <p className="shrink-0 text-[12px] text-text-dim" dir="auto">
+                  صفحه ورود
+                </p>
+              </div>
             )}
           </Card>
 

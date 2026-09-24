@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 
+import { isMarketEnabled } from "@/app/lib/platformSettings";
 import { PageBanner } from "@/components/general/pageBanner";
 import { ShopContent } from "@/components/pages/shop/shopContent";
 import { getShopLanding, getViewerSession } from "@/app/lib/shopCatalog";
 import { getWalletBalance } from "@/app/lib/wallet";
-import { canUseMarket } from "@/app/lib/shopAccess";
 
 export const metadata: Metadata = {
   title: "فروشگاه دوتامیت | خرید گیفت کارت استیم و آیتم دوتا ۲",
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default async function ShopPage() {
   const viewer = await getViewerSession();
-  const showMarket = await canUseMarket(viewer?.id ?? null);
+  const showMarket = await isMarketEnabled();
   const [landing, wallet] = await Promise.all([getShopLanding(showMarket), viewer ? getWalletBalance(viewer.id) : null]);
 
   return (

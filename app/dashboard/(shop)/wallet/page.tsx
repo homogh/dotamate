@@ -2,11 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CheckCircle2, Wallet, XCircle } from "lucide-react";
 
+import { isMarketEnabled } from "@/app/lib/platformSettings";
 import prisma from "@/app/lib/prisma";
 import { getViewerSession } from "@/app/lib/shopCatalog";
 import { getWalletBalance } from "@/app/lib/wallet";
 import { getShopSettings } from "@/app/lib/shopPricing";
-import { canUseMarket, canUseShop } from "@/app/lib/shopAccess";
 import { processMarketTimeouts } from "@/app/lib/marketOrders";
 import { Card } from "@/components/general/card";
 import { TopUpForm } from "@/components/pages/shop/topUpForm";
@@ -33,16 +33,14 @@ export default async function WalletPage({ searchParams }: PageProps<"/dashboard
 
   await processMarketTimeouts();
   const { payment } = await searchParams;
-  const [balance, transactions, withdrawals, settings, user, shopOpen] = await Promise.all([
+  const [balance, transactions, withdrawals, settings, user] = await Promise.all([
     getWalletBalance(viewer.id),
     prisma.walletTransaction.findMany({ where: { userId: viewer.id }, orderBy: { createdAt: "desc" }, take: 50 }),
     prisma.withdrawalRequest.findMany({ where: { userId: viewer.id }, orderBy: { createdAt: "desc" }, take: 10 }),
     getShopSettings(),
     prisma.user.findUnique({ where: { id: viewer.id }, select: { payoutSheba: true, payoutHolderName: true } }),
-    // Top-ups are part of buying, so they follow the shop switch; the wallet itself (and withdrawals) never do.
-    canUseShop(viewer.id),
   ]);
-  const marketOpen = await canUseMarket(viewer.id);
+  const marketOpen = await isMarketEnabled();
 
   return (
     <div className="flex w-full flex-col gap-6 p-6 md:p-10">
@@ -99,12 +97,10 @@ export default async function WalletPage({ searchParams }: PageProps<"/dashboard
               savedHolder={user?.payoutHolderName ?? null}
             />
           </Card>
-          {shopOpen && (
-            <Card tone="surface" noHover className="w-full gap-4 p-6">
-              <p className="w-full text-right text-[16px] font-black text-text">شارژ میت کیف</p>
-              <TopUpForm />
-            </Card>
-          )}
+          <Card tone="surface" noHover className="w-full gap-4 p-6">
+            <p className="w-full text-right text-[16px] font-black text-text">شارژ میت کیف</p>
+            <TopUpForm />
+          </Card>
         </div>
       </div>
 

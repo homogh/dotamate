@@ -1,13 +1,10 @@
-export type ShopAccess = "open" | "history" | "none";
 /**
- * "open": needs the shop switched on (buying).
- * "any": also shown to users with shop history (orders, wallet — their money).
- * "market": needs the user market switched on (selling, market orders).
+ * "shop": shown only while the shop is switched on (orders, wallet).
+ * "market": shown only while the user market is on too (listings, sales).
  */
-export type ShopNeed = "open" | "any" | "market";
+export type ShopNeed = "shop" | "market";
 
-export function shopNavVisible(need: ShopNeed | undefined, access: ShopAccess, marketOpen: boolean) {
+export function shopNavVisible(need: ShopNeed | undefined, shopOpen: boolean, marketOpen: boolean) {
   if (!need) return true;
-  if (need === "market") return marketOpen;
-  return access === "open" || (need === "any" && access === "history");
+  return need === "market" ? marketOpen : shopOpen;
 }

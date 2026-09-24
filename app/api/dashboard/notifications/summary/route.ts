@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     .catch(() => {});
 
   const [unreadNotifications, participants] = await Promise.all([
-    prisma.notification.count({ where: { userId: session.id, read: false, ...(await notificationVisibilityFilter(session.id)) } }),
+    prisma.notification.count({ where: { userId: session.id, read: false, ...(await notificationVisibilityFilter()) } }),
     prisma.conversationParticipant.findMany({
       where: { userId: session.id },
       select: {

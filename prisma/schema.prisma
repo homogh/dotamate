@@ -356,6 +356,16 @@ model User {
   suspendedUntil DateTime?
   lastActiveAt   DateTime?
 
+  // Where the user came from at signup — captured client-side by
+  // components/general/attributionTracker.tsx, see app/lib/attribution.ts.
+  utmSource   String? @db.VarChar(100)
+  utmMedium   String? @db.VarChar(100)
+  utmCampaign String? @db.VarChar(150)
+  utmTerm     String? @db.VarChar(150)
+  utmContent  String? @db.VarChar(150)
+  referrer    String? @db.VarChar(500)
+  landingPage String? @db.VarChar(500)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

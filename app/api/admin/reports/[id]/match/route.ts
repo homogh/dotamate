@@ -3,11 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
 import { getAdminSession, hasAccess } from "@/app/lib/permissions";
-import { getHeroLookup, getItemLookup } from "@/app/lib/opendota";
+import { getHeroLookup, getItemLookup, openDotaFetch } from "@/app/lib/opendota";
 import { steamId64ToAccountId } from "@/app/lib/steam";
 import type { ApiResponse } from "@/app/types/api";
 
-const OPENDOTA_BASE = "https://api.opendota.com/api";
 const ITEM_SLOTS = ["item_0", "item_1", "item_2", "item_3", "item_4", "item_5"] as const;
 
 // The full scoreboard of the match a behavior report points at, with the
@@ -34,8 +33,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json<ApiResponse>({ status: "error", message: "این گزارش به مچی لینک نشده.", data: null }, { status: 404 });
   }
 
-  const res = await fetch(`${OPENDOTA_BASE}/matches/${report.matchId}`);
-  if (!res.ok) {
+  const res = await openDotaFetch(`/matches/${report.matchId}`);
+  if (!res?.ok) {
     return NextResponse.json<ApiResponse>(
       { status: "error", message: "دریافت جزئیات مچ از OpenDota ناموفق بود.", data: null },
       { status: 502 },

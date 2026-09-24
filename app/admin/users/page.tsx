@@ -17,6 +17,8 @@ interface AdminUser {
   rankVerification: string;
   banned: boolean;
   suspendedUntil: string | null;
+  source: string;
+  utmCampaign: string | null;
   createdAt: string;
 }
 
@@ -77,7 +79,7 @@ export default function AdminUsersPage() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="جستجو بر اساس نام یا ایمیل..."
+          placeholder="جستجو بر اساس نام، ایمیل یا منبع..."
           dir="auto"
           className="w-full rounded-[8px] border border-border bg-surface-alt px-4 py-2.5 text-[13px] text-text placeholder:text-text-dim/60 focus:outline-none sm:max-w-[280px]"
         />
@@ -99,12 +101,13 @@ export default function AdminUsersPage() {
 
       <Card tone="surface" noHover className="w-full gap-4 p-5">
         <div className="w-full overflow-x-auto">
-          <table className="w-full min-w-[720px] text-right">
+          <table className="w-full min-w-[840px] text-right">
             <thead>
               <tr className="rounded-[8px] bg-surface-alt text-[13px] text-text-dim">
                 <th className="p-3 text-right font-bold">عملیات</th>
                 <th className="p-3 text-right font-bold">تایید استیم</th>
                 <th className="p-3 text-right font-bold">وضعیت</th>
+                <th className="p-3 text-right font-bold">منبع ورود</th>
                 <th className="p-3 text-right font-bold">تاریخ عضویت</th>
                 <th className="p-3 text-right font-bold">رنک</th>
                 <th className="p-3 text-right font-bold">ایمیل</th>
@@ -114,13 +117,13 @@ export default function AdminUsersPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-[13px] text-text-dim">
+                  <td colSpan={8} className="p-8 text-center text-[13px] text-text-dim">
                     در حال بارگذاری...
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-[13px] text-text-dim">
+                  <td colSpan={8} className="p-8 text-center text-[13px] text-text-dim">
                     کاربری با این فیلتر پیدا نشد.
                   </td>
                 </tr>
@@ -141,6 +144,14 @@ export default function AdminUsersPage() {
                         <span className={`rounded-[4px] px-2 py-0.5 text-[12px] font-bold ${st.cls}`} dir="auto">
                           {st.label}
                         </span>
+                      </td>
+                      <td className="p-3">
+                        <span className="text-text" dir="auto">{u.source}</span>
+                        {u.utmCampaign && (
+                          <span className="block text-[11px] text-text-dim" dir="auto">
+                            {u.utmCampaign}
+                          </span>
+                        )}
                       </td>
                       <td className="p-3 text-text-dim">
                         {new Date(u.createdAt).toLocaleDateString("fa-IR")}
