@@ -186,17 +186,23 @@ export default function PublicProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: profile.id }),
       });
-    } else if (state === "INCOMING") {
-      await fetch(`/api/friends/requests/${requestId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "accept" }),
-      });
     } else if (state === "OUTGOING") {
       await fetch(`/api/friends/requests/${requestId}`, { method: "DELETE" });
     } else {
       await fetch(`/api/friends/${profile.id}`, { method: "DELETE" });
     }
+    setBusy(false);
+    load();
+  }
+
+  async function handleAnswerFriend(action: "accept" | "decline") {
+    if (!profile?.friend.requestId) return;
+    setBusy(true);
+    await fetch(`/api/friends/requests/${profile.friend.requestId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
     setBusy(false);
     load();
   }
@@ -244,26 +250,46 @@ export default function PublicProfilePage() {
             </button>
           ) : (
             <>
-              <button
-                onClick={handleFriend}
-                disabled={busy}
-                className={`flex items-center gap-1.5 rounded-[8px] px-5 py-3 text-[14px] font-bold disabled:opacity-50 ${
-                  profile.friend.state === "NONE" || profile.friend.state === "INCOMING"
-                    ? "border border-primary text-accent hover:bg-primary/10"
-                    : "border border-border bg-surface-alt text-text-dim hover:text-text"
-                }`}
-                dir="auto"
-                title={profile.friend.state === "FRIENDS" ? "برای حذف از دوستان کلیک کن" : profile.friend.state === "OUTGOING" ? "برای لغو درخواست کلیک کن" : undefined}
-              >
-                {profile.friend.state === "FRIENDS" ? <UserCheck size={15} /> : profile.friend.state === "OUTGOING" ? <Clock size={15} /> : <UserPlus size={15} />}
-                {profile.friend.state === "FRIENDS"
-                  ? "دوست هستید"
-                  : profile.friend.state === "OUTGOING"
-                    ? "درخواست ارسال شد"
-                    : profile.friend.state === "INCOMING"
-                      ? "قبول درخواست دوستی"
+              {profile.friend.state === "INCOMING" ? (
+                <>
+                  <button
+                    onClick={() => handleAnswerFriend("decline")}
+                    disabled={busy}
+                    className="rounded-[8px] border border-border bg-surface-alt px-5 py-3 text-[14px] font-bold text-text-dim hover:text-text disabled:opacity-50"
+                    dir="auto"
+                  >
+                    رد درخواست
+                  </button>
+                  <button
+                    onClick={() => handleAnswerFriend("accept")}
+                    disabled={busy}
+                    className="flex items-center gap-1.5 rounded-[8px] border border-primary px-5 py-3 text-[14px] font-bold text-accent hover:bg-primary/10 disabled:opacity-50"
+                    dir="auto"
+                  >
+                    <UserPlus size={15} />
+                    قبول درخواست دوستی
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleFriend}
+                  disabled={busy}
+                  className={`flex items-center gap-1.5 rounded-[8px] px-5 py-3 text-[14px] font-bold disabled:opacity-50 ${
+                    profile.friend.state === "NONE"
+                      ? "border border-primary text-accent hover:bg-primary/10"
+                      : "border border-border bg-surface-alt text-text-dim hover:text-text"
+                  }`}
+                  dir="auto"
+                  title={profile.friend.state === "FRIENDS" ? "برای حذف از دوستان کلیک کن" : profile.friend.state === "OUTGOING" ? "برای لغو درخواست کلیک کن" : undefined}
+                >
+                  {profile.friend.state === "FRIENDS" ? <UserCheck size={15} /> : profile.friend.state === "OUTGOING" ? <Clock size={15} /> : <UserPlus size={15} />}
+                  {profile.friend.state === "FRIENDS"
+                    ? "دوست هستید"
+                    : profile.friend.state === "OUTGOING"
+                      ? "درخواست ارسال شد"
                       : "افزودن به دوستان"}
-              </button>
+                </button>
+              )}
               <button
                 onClick={handleFavorite}
                 disabled={busy}

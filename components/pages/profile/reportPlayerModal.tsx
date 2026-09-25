@@ -17,16 +17,7 @@ import {
   type ReportReasonValue,
 } from "@/app/lib/behavior";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
-
-interface ReportMatch {
-  matchId: string;
-  heroName: string;
-  heroIcon: string;
-  win: boolean;
-  startAt: string;
-  duration: number;
-  shared: boolean;
-}
+import { SharedMatchPicker, type SharedMatchOption } from "@/components/pages/profile/sharedMatchPicker";
 
 interface Evidence {
   file: File;
@@ -59,7 +50,8 @@ export function ReportPlayerModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [category, setCategory] = useState<ReportCategoryValue>("BEHAVIOR");
   const [reasonCode, setReasonCode] = useState<ReportReasonValue | null>(null);
-  const [matches, setMatches] = useState<ReportMatch[] | null>(null);
+  const [matches, setMatches] = useState<SharedMatchOption[] | null>(null);
+  const [matchNotice, setMatchNotice] = useState<string | null>(null);
   const [matchId, setMatchId] = useState("");
   const [description, setDescription] = useState("");
   const [evidence, setEvidence] = useState<Evidence[]>([]);
@@ -69,7 +61,10 @@ export function ReportPlayerModal({
     if (!open || matches) return;
     fetch(`/api/users/${player.id}/report-matches`, { cache: "no-store" })
       .then((res) => res.json())
-      .then((json) => setMatches(json.status === "success" ? json.data.matches : []));
+      .then((json) => {
+        setMatches(json.status === "success" ? json.data.matches : []);
+        setMatchNotice(json.status === "success" ? json.data.notice : json.message);
+      });
   }, [open, matches, player.id]);
 
   // Revoke preview blobs if the profile page unmounts with the modal open.
@@ -242,58 +237,15 @@ export function ReportPlayerModal({
           </Section>
 
           <Section title="مچ مربوطه">
-            {matches === null ? (
-              <p className="w-full py-2 text-center text-[12px] text-text-dim">در حال بارگذاری مچ‌ها...</p>
-            ) : matches.length > 0 ? (
-              <div className="flex max-h-48 w-full flex-col gap-1.5 overflow-y-auto">
-                {matches.map((m) => (
-                  <button
-                    key={m.matchId}
-                    type="button"
-                    onClick={() => setMatchId(m.matchId)}
-                    className={`flex w-full items-center justify-between gap-2 rounded-[8px] border p-2.5 transition-colors ${
-                      matchId === m.matchId ? "border-accent bg-accent/10" : "border-transparent bg-surface-alt hover:border-white/15"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      {m.heroIcon ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={m.heroIcon} alt="" className="size-7 shrink-0 rounded-[4px]" />
-                      ) : (
-                        <div className="size-7 shrink-0 rounded-[4px] bg-surface" />
-                      )}
-                      <div className="flex flex-col items-start">
-                        <span className="text-[12px] font-bold text-text" dir="auto">
-                          {m.heroName}
-                        </span>
-                        <span className="text-[10px] text-text-dim" dir="auto">
-                          {new Date(m.startAt).toLocaleDateString("fa-IR")} · {m.win ? "برد" : "باخت"}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {m.shared && (
-                        <span className="rounded-[4px] bg-success/10 px-1.5 py-0.5 text-[10px] font-bold text-success" dir="auto">
-                          بازی مشترک
-                        </span>
-                      )}
-                      <span className="text-[11px] text-text-dim" dir="ltr">
-                        #{m.matchId}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="w-full text-right text-[12px] text-text-dim" dir="auto">
-                مچ اخیری از حسابت پیدا نشد — شناسه مچ رو دستی وارد کن.
-              </p>
-            )}
+            <p className="w-full text-right text-[11px] text-text-dim" dir="auto">
+              مچ‌های اخیر {player.displayName} — فقط مچ‌هایی که خودت هم توش بودی قابل انتخابن.
+            </p>
+            <SharedMatchPicker matches={matches} notice={matchNotice} selected={matchId} onSelect={setMatchId} />
             <input
               value={matchId}
               onChange={(e) => setMatchId(e.target.value.replace(/\D/g, "").slice(0, 20))}
               inputMode="numeric"
-              placeholder="یا شناسه مچ (Match ID) رو وارد کن"
+              placeholder="مچ قدیمی‌تر؟ شناسه مچ (Match ID) رو وارد کن"
               className="w-full rounded-[8px] border border-border bg-surface-alt px-3 py-2.5 text-[13px] text-text placeholder:text-right placeholder:text-text-dim/60 focus:border-accent focus:outline-none"
               dir="ltr"
             />

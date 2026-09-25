@@ -34,7 +34,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });
 
   await prisma.$transaction([
-    prisma.postMember.create({ data: { postId, userId: targetUserId, status: "ACCEPTED" } }),
+    prisma.postMember.create({
+      data: { postId, userId: targetUserId, status: "ACCEPTED", position: targetUser?.mainPosition ?? null },
+    }),
     prisma.notification.create({
       data: {
         userId: targetUserId,
@@ -53,6 +55,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       },
     }),
   ]);
+
+  if (acceptedCount + 1 >= post.partySize) {
+    await prisma.post.update({ where: { id: postId }, data: { status: "FULL" } });
+  }
 
   return NextResponse.json<ApiResponse>({ status: "success", message: "دعوت ارسال شد.", data: null });
 }

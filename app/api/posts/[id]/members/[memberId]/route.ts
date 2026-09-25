@@ -94,7 +94,14 @@ export async function PATCH(
         : `${member.user.displayName} از پارتی کیک شد`;
 
   await prisma.$transaction([
-    prisma.postMember.update({ where: { id: member.id }, data: { status: action } }),
+    prisma.postMember.update({
+      where: { id: member.id },
+      data: {
+        status: action,
+        // Requests from before positions were recorded fall back to the profile's main position.
+        ...(action === "ACCEPTED" && !member.position ? { position: member.user.mainPosition } : {}),
+      },
+    }),
     prisma.notification.create({
       data: {
         userId: member.userId,

@@ -407,8 +407,16 @@ model Post {
   author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
   position    Position
   rank        Rank
+  rankTier    Int?
   gameMode    GameMode
+  // Primary server (first pick) — kept for older rows and simple displays;
+  // the full multi-server selection lives in `regions` (Region[] as JSON).
   region      Region
+  regions     Json?
+  // Positions the host is looking for (Position[] as JSON). An accepted
+  // member whose PostMember.position is in this list fills that slot —
+  // see app/lib/postSlots.ts.
+  neededPositions Json?
   sessionType SessionType
   startAt     DateTime?
   partySize   Int         @default(5)

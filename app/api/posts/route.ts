@@ -4,11 +4,11 @@ import type { GameMode, Position, Rank, Region, SessionType } from "@prisma/clie
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
 import type { ApiResponse } from "@/app/types/api";
+import { POSITION_VALUES, REGION_VALUES, parseEnumList } from "@/app/lib/postSlots";
 
 const POSITIONS = ["POS1", "POS2", "POS3", "POS4", "POS5"];
 const RANKS = ["UNRANKED", "HERALD", "GUARDIAN", "CRUSADER", "ARCHON", "LEGEND", "ANCIENT", "DIVINE", "IMMORTAL"];
 const GAME_MODES = ["RANKED_ALL_PICK", "ALL_PICK", "TURBO", "CAPTAINS_MODE"];
-const REGIONS = ["EU_WEST", "EU_EAST", "RUSSIA", "DUBAI"];
 
 export async function POST(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
@@ -25,14 +25,20 @@ export async function POST(request: NextRequest) {
   const position = String(body?.position ?? "");
   const rank = String(body?.rank ?? "");
   const gameMode = String(body?.gameMode ?? "");
-  const region = String(body?.region ?? "");
+  const regions = parseEnumList(Array.isArray(body?.regions) ? body.regions : [body?.region], REGION_VALUES);
+  const neededPositions = parseEnumList(body?.neededPositions, POSITION_VALUES).filter((p) => p !== position);
+  const rankTier = Number.isInteger(body?.rankTier) && body.rankTier >= 1 && body.rankTier <= 5 && rank !== "IMMORTAL" ? body.rankTier : null;
   const sessionType = body?.sessionType === "SCHEDULED" ? "SCHEDULED" : "NOW";
   const startAt = body?.startAt ? new Date(body.startAt) : null;
-  const partySize = Math.min(5, Math.max(2, Number(body?.partySize) || 5));
+  // With needed positions the party size follows them: host + one per slot.
+  const partySize = neededPositions.length
+    ? neededPositions.length + 1
+    : Math.min(5, Math.max(2, Number(body?.partySize) || 5));
   const hasVoice = Boolean(body?.hasVoice);
+  const voiceLink = hasVoice && typeof body?.voiceLink === "string" ? body.voiceLink.trim().slice(0, 300) || null : null;
   const description = String(body?.description ?? "").trim();
 
-  if (!POSITIONS.includes(position) || !RANKS.includes(rank) || !GAME_MODES.includes(gameMode) || !REGIONS.includes(region)) {
+  if (!POSITIONS.includes(position) || !RANKS.includes(rank) || !GAME_MODES.includes(gameMode) || !regions.length) {
     return NextResponse.json<ApiResponse>(
       { status: "error", message: "اطلاعات پست ناقصه.", data: null },
       { status: 400 },
@@ -69,12 +75,16 @@ export async function POST(request: NextRequest) {
       authorId: session.id,
       position: position as Position,
       rank: rank as Rank,
+      rankTier,
       gameMode: gameMode as GameMode,
-      region: region as Region,
+      region: regions[0] as Region,
+      regions,
+      neededPositions,
       sessionType: sessionType as SessionType,
       startAt: sessionType === "SCHEDULED" ? startAt : null,
       partySize,
       hasVoice,
+      voiceLink,
       description,
     },
   });

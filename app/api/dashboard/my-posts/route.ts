@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
 import type { ApiResponse } from "@/app/types/api";
+import { postNeededPositions, postOpenPositions, postRegions } from "@/app/lib/postSlots";
 
 const TAB_STATUS: Record<string, string[]> = {
   active: ["ACTIVE", "FULL"],
@@ -41,8 +42,12 @@ export async function GET(request: NextRequest) {
       id: post.id,
       position: post.position,
       rank: post.rank,
+      rankTier: post.rankTier,
       gameMode: post.gameMode,
       region: post.region,
+      regions: postRegions(post),
+      neededPositions: postNeededPositions(post),
+      openPositions: postOpenPositions(post, post.members),
       sessionType: post.sessionType,
       startAt: post.startAt,
       status: post.status,

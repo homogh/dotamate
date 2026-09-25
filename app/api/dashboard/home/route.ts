@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
 import type { ApiResponse } from "@/app/types/api";
+import { postRegions } from "@/app/lib/postSlots";
 
 const RANK_LABEL: Record<string, string> = {
   UNRANKED: "بدون رنک",
@@ -116,9 +117,9 @@ export async function GET(request: NextRequest) {
       authorName: post.author.displayName,
       authorAvatarUrl: post.author.avatarUrl,
       authorRank: RANK_LABEL[post.rank],
-      authorRankTier: post.author.rankTier,
+      authorRankTier: post.rankTier ?? post.author.rankTier,
       position: POSITION_LABEL[post.position],
-      region: REGION_LABEL[post.region],
+      region: postRegions(post).map((r) => REGION_LABEL[r]).join("، "),
       memberCount: post.members.filter((m) => m.status === "ACCEPTED").length + 1,
       partySize: post.partySize,
       createdAt: post.createdAt,

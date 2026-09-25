@@ -10,6 +10,7 @@ import { useToast } from "@/app/stores/useToast";
 import { Card } from "@/components/general/card";
 import { UserAvatar } from "@/components/general/userAvatar";
 import { POSITION_LABEL, type PositionValue } from "@/components/dashboard/positionMeta";
+import { NeededPositions } from "@/components/dashboard/neededPositions";
 import { RANK_LABEL } from "@/components/dashboard/postLabels";
 
 interface Detail {
@@ -25,7 +26,9 @@ interface Detail {
   createdAt: string;
   memberCount: number;
   accepted: { memberId: number; userId: number; displayName: string; avatarUrl: string | null; rank: string; rankTier: number | null; position: string | null; steamId: string | null }[];
-  pending: { memberId: number; userId: number; displayName: string; avatarUrl: string | null; rank: string; rankTier: number | null }[];
+  pending: { memberId: number; userId: number; displayName: string; avatarUrl: string | null; rank: string; rankTier: number | null; position: string | null }[];
+  neededPositions: string[];
+  openPositions: string[];
 }
 
 interface ChatMessage {
@@ -251,6 +254,7 @@ export default function PostDetailPage() {
           <p className="w-full text-right text-[15px] font-black text-text" dir="auto">
             اعضای پارتی و درخواست‌ها
           </p>
+          <NeededPositions needed={detail.neededPositions} open={detail.openPositions} />
           <div className="flex w-full flex-col gap-2.5">
             <MemberRow
               badge="میزبان"
@@ -289,7 +293,7 @@ export default function PostDetailPage() {
                   userId={p.userId}
                   name={p.displayName}
                   avatarUrl={p.avatarUrl}
-                  rank={`${RANK_LABEL[p.rank]} ${p.rankTier ?? ""}`}
+                  rank={`${RANK_LABEL[p.rank]} ${p.rankTier ?? ""}${p.position ? ` • ${POSITION_LABEL[p.position as PositionValue]}` : ""}`}
                   actions={
                     <div className="flex gap-2">
                       <button

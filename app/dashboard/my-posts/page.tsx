@@ -9,6 +9,7 @@ import { useToast } from "@/app/stores/useToast";
 import { Card } from "@/components/general/card";
 import { DashboardFadeIn } from "@/components/dashboard/fadeIn";
 import { POSITION_LABEL } from "@/components/dashboard/positionMeta";
+import { REGION_LABEL } from "@/components/dashboard/postLabels";
 
 type Tab = "active" | "completed" | "expired";
 
@@ -26,6 +27,9 @@ interface MyPost {
   position: string;
   rank: string;
   region: string;
+  regions: string[];
+  neededPositions: string[];
+  openPositions: string[];
   status: string;
   description: string;
   hasVoice: boolean;
@@ -52,8 +56,6 @@ export default function MyPostsPage() {
   const [posts, setPosts] = useState<MyPost[]>([]);
   const [counts, setCounts] = useState({ total: 0, active: 0, completed: 0, expired: 0 });
   const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editDescription, setEditDescription] = useState("");
   const [busyId, setBusyId] = useState<number | null>(null);
 
   const load = useCallback(() => {
@@ -80,18 +82,6 @@ export default function MyPostsPage() {
     setBusyId(null);
     if (res.ok) toast.success(json?.message ?? "پست حذف شد.");
     else toast.error(json?.message ?? "حذف پست با خطا مواجه شد.");
-    load();
-  }
-
-  async function handleSaveEdit(id: number) {
-    setBusyId(id);
-    await fetch(`/api/posts/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description: editDescription }),
-    });
-    setBusyId(null);
-    setEditingId(null);
     load();
   }
 
@@ -160,15 +150,12 @@ export default function MyPostsPage() {
                       >
                         حذف
                       </button>
-                      <button
-                        onClick={() => {
-                          setEditingId(editingId === activePost.id ? null : activePost.id);
-                          setEditDescription(activePost.description);
-                        }}
+                      <Link
+                        href={`/dashboard/my-posts/${activePost.id}/edit`}
                         className="rounded-[8px] bg-primary px-4 py-2 text-[13px] font-bold text-white hover:bg-primary-hover"
                       >
                         ویرایش
-                      </button>
+                      </Link>
                       <Link href={`/dashboard/post/${activePost.id}`}
                         className="rounded-[8px] bg-primary px-4 py-2 text-[13px] font-bold text-white hover:bg-primary-hover"
                       >
@@ -181,39 +168,12 @@ export default function MyPostsPage() {
                           {activePost.description}
                         </p>
                         <p className="text-[13px] text-text-dim" dir="auto">
-                          ثبت شده در: {timeAgo(activePost.createdAt)}
+                          ثبت شده در: {timeAgo(activePost.createdAt)} • سرور: {activePost.regions.map((r) => REGION_LABEL[r]).join("، ")}
                         </p>
                       </div>
                       <div className="size-2 shrink-0 rounded-full bg-success" />
                     </div>
                   </div>
-
-                  {editingId === activePost.id && (
-                    <div className="flex w-full flex-col items-end gap-3 rounded-[8px] bg-surface-alt p-4">
-                      <textarea
-                        value={editDescription}
-                        onChange={(e) => setEditDescription(e.target.value)}
-                        rows={3}
-                        dir="auto"
-                        className="w-full resize-none rounded-[8px] border border-border bg-bg-alt p-3 text-[13px] text-text focus:outline-none"
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleSaveEdit(activePost.id)}
-                          disabled={busyId === activePost.id}
-                          className="rounded-[6px] bg-primary px-4 py-2 text-[12px] font-bold text-white disabled:opacity-50"
-                        >
-                          ذخیره
-                        </button>
-                        <button
-                          onClick={() => setEditingId(null)}
-                          className="rounded-[6px] border border-border px-4 py-2 text-[12px] text-text-dim"
-                        >
-                          انصراف
-                        </button>
-                      </div>
-                    </div>
-                  )}
 
                   <div className="h-px w-full bg-border" />
 
@@ -243,11 +203,14 @@ export default function MyPostsPage() {
                       <p className="text-[13px] text-text-dim" dir="auto">
                         پوزیشن‌های خالی:
                       </p>
-                      {(Object.keys(POSITION_LABEL) as (keyof typeof POSITION_LABEL)[])
-                        .filter((p) => p !== activePost.position && !activePost.filledPositions.includes(p))
-                        .map((p) => (
+                      {(activePost.neededPositions.length
+                        ? activePost.openPositions
+                        : Object.keys(POSITION_LABEL).filter(
+                            (p) => p !== activePost.position && !activePost.filledPositions.includes(p),
+                          )
+                      ).map((p) => (
                           <span key={p} className="rounded-[4px] bg-surface-alt px-2.5 py-1 text-[11px] font-bold text-accent">
-                            {POSITION_LABEL[p].split(" - ")[0]}
+                            {POSITION_LABEL[p as keyof typeof POSITION_LABEL].split(" - ")[0]}
                           </span>
                         ))}
                     </div>

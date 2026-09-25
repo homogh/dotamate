@@ -39,7 +39,9 @@ export function DashboardTopbar({
 
   const title =
     PAGE_TITLES[pathname] ??
-    (pathname.startsWith("/dashboard/messages")
+    (pathname.startsWith("/dashboard/my-posts/") && pathname.endsWith("/edit")
+      ? "ویرایش پست"
+      : pathname.startsWith("/dashboard/messages")
       ? "پیام‌ها"
       : pathname.startsWith("/dashboard/browse")
         ? "مرور پست‌ها"

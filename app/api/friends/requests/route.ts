@@ -46,20 +46,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json<ApiResponse>({ status: "error", message: "درخواستت قبلاً ارسال شده.", data: null }, { status: 409 });
   }
 
-  // They already asked us — sending one back just means yes.
+  // They already asked us. Never turn this into an accept — only an explicit
+  // PATCH from the addressee (/api/friends/requests/[id]) creates a friendship.
   if (existing) {
-    await prisma.$transaction([
-      prisma.friendship.update({ where: { id: existing.id }, data: { status: "ACCEPTED", respondedAt: new Date() } }),
-      prisma.notification.create({
-        data: {
-          userId: targetUserId,
-          type: "FRIEND_ACCEPTED",
-          title: `${session.displayName} درخواست دوستیت رو قبول کرد`,
-          link: `/dashboard/friends?user=${session.id}`,
-        },
-      }),
-    ]);
-    return NextResponse.json<ApiResponse>({ status: "success", message: "حالا با هم دوستید.", data: { state: "FRIENDS", requestId: existing.id } });
+    return NextResponse.json<ApiResponse>(
+      {
+        status: "error",
+        message: "این کاربر قبلاً برات درخواست دوستی فرستاده — از اعلان‌ها یا صفحه دوستان جوابش رو بده.",
+        data: { state: "INCOMING", requestId: existing.id },
+      },
+      { status: 409 },
+    );
   }
 
   const friendship = await prisma.friendship.create({

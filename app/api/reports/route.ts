@@ -12,6 +12,7 @@ import {
   type ReportReasonValue,
 } from "@/app/lib/behavior";
 import { saveEvidence, validateEvidence, type SavedEvidence } from "@/app/lib/reportEvidence";
+import { verifyMatchTogether } from "@/app/lib/sharedMatches";
 import type { ApiResponse } from "@/app/types/api";
 
 function severityForPenalty(penalty: number): ReportSeverity {
@@ -97,14 +98,27 @@ async function createBehaviorReport(request: NextRequest, reporterId: number) {
   }
 
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const [reportedUser, recentCount, duplicate] = await Promise.all([
-    prisma.user.findUnique({ where: { id: reportedUserId }, select: { id: true } }),
+  const [reporter, reportedUser, recentCount, duplicate] = await Promise.all([
+    prisma.user.findUnique({ where: { id: reporterId }, select: { steamId: true } }),
+    prisma.user.findUnique({ where: { id: reportedUserId }, select: { id: true, steamId: true } }),
     prisma.report.count({ where: { reporterId, createdAt: { gte: dayAgo } } }),
     prisma.report.findFirst({ where: { reporterId, reportedUserId, matchId } }),
   ]);
 
   if (!reportedUser) {
     return NextResponse.json<ApiResponse>({ status: "error", message: "کاربر پیدا نشد.", data: null }, { status: 404 });
+  }
+  if (!reporter?.steamId) {
+    return NextResponse.json<ApiResponse>(
+      { status: "error", message: "اول اکانت استیمت رو وصل کن تا حضورت توی مچ قابل تایید باشه.", data: null },
+      { status: 403 },
+    );
+  }
+  if (!reportedUser.steamId) {
+    return NextResponse.json<ApiResponse>(
+      { status: "error", message: "این بازیکن اکانت استیم وصل نکرده، پس مچ مشترک قابل تایید نیست.", data: null },
+      { status: 400 },
+    );
   }
   if (duplicate) {
     return NextResponse.json<ApiResponse>(
@@ -117,6 +131,13 @@ async function createBehaviorReport(request: NextRequest, reporterId: number) {
       { status: "error", message: "امروز به سقف گزارش‌هات رسیدی. فردا دوباره امتحان کن.", data: null },
       { status: 429 },
     );
+  }
+
+  // Either team counts for a report (an enemy can grief or flame too), but
+  // the reporter's own Steam account has to actually be in that match.
+  const together = await verifyMatchTogether(matchId, reporter.steamId, reportedUser.steamId);
+  if (!together.ok) {
+    return NextResponse.json<ApiResponse>({ status: "error", message: together.message, data: null }, { status: together.status });
   }
 
   const saved: SavedEvidence[] = [];

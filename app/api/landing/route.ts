@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import prisma from "@/app/lib/prisma";
 import type { ApiResponse } from "@/app/types/api";
+import { postRegions } from "@/app/lib/postSlots";
 
 const RANK_LABEL: Record<string, string> = {
   UNRANKED: "بدون رنک", HERALD: "Herald", GUARDIAN: "Guardian", CRUSADER: "Crusader",
@@ -38,7 +39,7 @@ export async function GET() {
         authorAvatarUrl: latestPost.author.avatarUrl,
         rank: RANK_LABEL[latestPost.rank],
         position: POSITION_LABEL[latestPost.position],
-        region: REGION_LABEL[latestPost.region],
+        region: postRegions(latestPost).map((r) => REGION_LABEL[r]).join("، "),
         hasVoice: latestPost.hasVoice,
         description: latestPost.description,
         createdAt: latestPost.createdAt.toISOString(),

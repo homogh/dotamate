@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Pagination } from "@/components/general/pagination";
 import { DashboardFadeIn } from "@/components/dashboard/fadeIn";
 import { POSITION_ICON } from "@/components/dashboard/positionMeta";
+import { NeededPositions } from "@/components/dashboard/neededPositions";
 
 const GAME_MODE_OPTIONS = [
   { value: "", label: "همه حالت‌ها" },
@@ -57,6 +58,8 @@ interface FeedPost {
   createdAt: string;
   memberCount: number;
   partySize: number;
+  neededPositions: string[];
+  openPositions: string[];
   myRequestStatus: "PENDING" | "ACCEPTED" | "DECLINED" | "REMOVED" | null;
 }
 
@@ -349,6 +352,8 @@ export default function BrowseFeedPage() {
                     پارتی: {post.memberCount}/{post.partySize}
                   </span>
                 </div>
+
+                <NeededPositions needed={post.neededPositions} open={post.openPositions} />
 
                 <div className="h-1 w-full overflow-hidden rounded-full bg-surface-alt">
                   <div className="h-full rounded-full bg-primary" style={{ width: `${fillPercent}%` }} />

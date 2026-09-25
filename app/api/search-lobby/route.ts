@@ -4,6 +4,7 @@ import type { GameMode, Position, Prisma, Rank, Region } from "@prisma/client";
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
 import type { ApiResponse } from "@/app/types/api";
+import { postNeededPositions, postOpenPositions, postRegions } from "@/app/lib/postSlots";
 
 const RANK_LABEL: Record<string, string> = {
   UNRANKED: "بدون رنک",
@@ -64,7 +65,9 @@ export async function GET(request: NextRequest) {
     ...(onlyNow ? { sessionType: "NOW" as const } : {}),
     ...(hasVoice ? { hasVoice: true } : {}),
     ...(gameMode ? { gameMode: gameMode as GameMode } : {}),
-    ...(region ? { region: region as Region } : {}),
+    ...(region
+      ? { AND: [{ OR: [{ region: region as Region }, { regions: { array_contains: [region] } }] }] }
+      : {}),
     ...(rank ? { rank: rank as Rank } : {}),
     ...(position ? { position: position as Position } : {}),
     ...(query
@@ -95,9 +98,11 @@ export async function GET(request: NextRequest) {
       authorName: post.author.displayName,
       authorAvatarUrl: post.author.avatarUrl,
       authorRank: RANK_LABEL[post.rank],
-      authorRankTier: post.author.rankTier,
+      authorRankTier: post.rankTier ?? post.author.rankTier,
       position: POSITION_LABEL[post.position],
-      region: REGION_LABEL[post.region],
+      region: postRegions(post).map((r) => REGION_LABEL[r]).join("، "),
+      neededPositions: postNeededPositions(post),
+      openPositions: postOpenPositions(post, post.members),
       gameMode: GAME_MODE_LABEL[post.gameMode],
       description: post.description,
       hasVoice: post.hasVoice,

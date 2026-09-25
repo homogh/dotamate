@@ -116,3 +116,11 @@ export const INVENTORY_ERRORS: Record<"private" | "rate_limited" | "unavailable"
   rate_limited: "استیم موقتاً درخواست‌ها را محدود کرده. یک دقیقه دیگر دوباره تلاش کن.",
   unavailable: "ارتباط با استیم برقرار نشد. کمی بعد دوباره تلاش کن.",
 };
+
+// Never 502/504: Cloudflare swaps those for its own HTML error page, so the
+// client can't parse the JSON and the user never sees the message above.
+export const INVENTORY_ERROR_STATUS: Record<"private" | "rate_limited" | "unavailable", number> = {
+  private: 403,
+  rate_limited: 429,
+  unavailable: 503,
+};

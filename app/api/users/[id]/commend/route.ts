@@ -3,8 +3,7 @@ import { Prisma } from "@prisma/client";
 
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
-import { getHeroLookup, openDotaFetch, type OpenDotaMatch } from "@/app/lib/opendota";
-import { steamId64ToAccountId } from "@/app/lib/steam";
+import { getSharedMatchList, verifyMatchTogether } from "@/app/lib/sharedMatches";
 import {
   COMMEND_BONUS,
   COMMEND_BONUS_COOLDOWN_DAYS,
@@ -75,34 +74,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   const targetId = Number(id);
   const blocker = await commendBlocker(session.id, targetId);
+  const shared = blocker.reason ? { matches: [], notice: null } : await getSharedMatchList(session.id, targetId);
 
-  const [mine, theirs] = await Promise.all([
-    prisma.dotaMatchStats.findUnique({ where: { userId: session.id }, select: { matches: true } }),
-    prisma.dotaMatchStats.findUnique({ where: { userId: targetId }, select: { matches: true } }),
-  ]);
-
+  // Only the target's matches from the commend window are listed at all.
   const minStart = Date.now() - COMMEND_MATCH_MAX_AGE_DAYS * DAY_MS;
-  const myMatches = ((mine?.matches as unknown as OpenDotaMatch[] | null) ?? []).filter(
-    (m) => new Date(m.startAt).getTime() >= minStart,
-  );
-  const theirMatchIds = new Set(((theirs?.matches as unknown as OpenDotaMatch[] | null) ?? []).map((m) => m.matchId));
-  const heroes = myMatches.length ? await getHeroLookup() : {};
-
-  const matches = myMatches
-    .map((m) => ({
-      matchId: String(m.matchId),
-      heroName: heroes[m.heroId]?.localizedName ?? `Hero ${m.heroId}`,
-      heroIcon: heroes[m.heroId]?.icon ?? "",
-      win: m.win,
-      startAt: m.startAt,
-      shared: theirMatchIds.has(m.matchId),
-    }))
-    .sort((a, b) => Number(b.shared) - Number(a.shared));
+  const matches = shared.matches.filter((m) => new Date(m.startAt).getTime() >= minStart);
 
   return NextResponse.json<ApiResponse>({
     status: "success",
     message: "ok",
-    data: { blockedReason: blocker.reason, remainingToday: blocker.remainingToday, matches },
+    data: { blockedReason: blocker.reason, remainingToday: blocker.remainingToday, notice: shared.notice, matches },
   });
 }
 
@@ -133,38 +114,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   // The core rule: only a teammate from that exact match can commend —
   // checked against OpenDota itself, not against anything the client sent.
-  const res = await openDotaFetch(`/matches/${matchId}`);
-  const match = res?.ok ? await res.json().catch(() => null) : null;
-  if (!match) {
-    return NextResponse.json<ApiResponse>(
-      { status: "error", message: "اطلاعات این مچ از OpenDota دریافت نشد. کمی بعد دوباره امتحان کن.", data: null },
-      { status: 502 },
-    );
+  const together = await verifyMatchTogether(matchId, blocker.commender.steamId!, blocker.target.steamId!);
+  if (!together.ok) {
+    return NextResponse.json<ApiResponse>({ status: "error", message: together.message, data: null }, { status: together.status });
   }
 
-  if (Number(match.start_time) * 1000 < Date.now() - COMMEND_MATCH_MAX_AGE_DAYS * DAY_MS) {
+  if (together.startTime < Date.now() - COMMEND_MATCH_MAX_AGE_DAYS * DAY_MS) {
     return NextResponse.json<ApiResponse>(
       { status: "error", message: `فقط مچ‌های ${COMMEND_MATCH_MAX_AGE_DAYS.toLocaleString("fa-IR")} روز اخیر رو می‌شه کامند کرد.`, data: null },
       { status: 400 },
     );
   }
-
-  const players = Array.isArray(match.players) ? (match.players as Record<string, unknown>[]) : [];
-  const findSlot = (steamId: string) => {
-    const accountId = steamId64ToAccountId(steamId);
-    const player = players.find((p) => Number(p.account_id) === accountId);
-    return player ? Number(player.player_slot) : null;
-  };
-  const mySlot = findSlot(blocker.commender.steamId!);
-  const theirSlot = findSlot(blocker.target.steamId!);
-
-  if (mySlot === null || theirSlot === null) {
-    return NextResponse.json<ApiResponse>(
-      { status: "error", message: "حضور هر دوتون توی این مچ تایید نشد (ممکنه اطلاعات مچ یکی‌تون خصوصی باشه).", data: null },
-      { status: 400 },
-    );
-  }
-  if (mySlot < 128 !== theirSlot < 128) {
+  if (!together.sameTeam) {
     return NextResponse.json<ApiResponse>({ status: "error", message: "فقط هم‌تیمی‌های همون مچ می‌تونن کامند بدن.", data: null }, { status: 400 });
   }
 

@@ -78,7 +78,7 @@ function lastSeenLabel(player: Player) {
 const FRIEND_BUTTON: Record<FriendState, { label: string; icon: typeof UserPlus }> = {
   NONE: { label: "افزودن دوست", icon: UserPlus },
   OUTGOING: { label: "ارسال شد", icon: Clock },
-  INCOMING: { label: "قبول دوستی", icon: UserPlus },
+  INCOMING: { label: "پاسخ به درخواست", icon: Clock },
   FRIENDS: { label: "دوست هستید", icon: UserCheck },
 };
 
@@ -233,31 +233,27 @@ export function PlayersContent() {
 
   async function handleFriend(player: Player) {
     if (requireLogin() || !player.friend) return;
-    const { state, requestId } = player.friend;
+    const { state } = player.friend;
     if (state === "FRIENDS" || state === "OUTGOING") return;
 
+    // Accept/decline happens only where both choices are shown explicitly.
+    if (state === "INCOMING") {
+      router.push("/dashboard/friends");
+      return;
+    }
+
     setBusyKey(`friend-${player.id}`);
-    const res =
-      state === "INCOMING"
-        ? await fetch(`/api/friends/requests/${requestId}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "accept" }),
-          })
-        : await fetch("/api/friends/requests", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId: player.id }),
-          });
+    const res = await fetch("/api/friends/requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: player.id }),
+    });
     const json = await res.json();
     setBusyKey(null);
 
-    if (json.status === "success") {
-      toast.success(json.message);
-      updatePlayer(player.id, { friend: { state: json.data.state, requestId: json.data.requestId ?? requestId } });
-    } else {
-      toast.error(json.message);
-    }
+    if (json.status === "success") toast.success(json.message);
+    else toast.error(json.message);
+    if (json.data?.state) updatePlayer(player.id, { friend: { state: json.data.state, requestId: json.data.requestId } });
   }
 
   async function handleInvite(player: Player) {

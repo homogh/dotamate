@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
 import type { ApiResponse } from "@/app/types/api";
+import { postNeededPositions, postOpenPositions, postRegions } from "@/app/lib/postSlots";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
@@ -58,7 +59,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     },
     position: post.position,
     rank: post.rank,
+    rankTier: post.rankTier,
     region: post.region,
+    regions: postRegions(post),
+    neededPositions: postNeededPositions(post),
+    openPositions: postOpenPositions(post, post.members),
     gameMode: post.gameMode,
     sessionType: post.sessionType,
     startAt: post.startAt,
@@ -87,6 +92,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           avatarUrl: m.user.avatarUrl,
           rank: m.user.rank,
           rankTier: m.user.rankTier,
+          position: m.position ?? m.user.mainPosition,
         }))
       : [],
   };

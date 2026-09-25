@@ -76,9 +76,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     );
   }
 
+  // The joiner's profile main position is the slot they'll fill on accept.
+  const joiner = await prisma.user.findUnique({ where: { id: session.id }, select: { mainPosition: true } });
+
   const [member] = await prisma.$transaction([
     prisma.postMember.create({
-      data: { postId, userId: session.id, status: "PENDING" },
+      data: { postId, userId: session.id, status: "PENDING", position: joiner?.mainPosition ?? null },
     }),
     prisma.notification.create({
       data: {

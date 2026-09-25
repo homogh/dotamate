@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import prisma from "@/app/lib/prisma";
 import { requireMarketUser } from "@/app/lib/shopAccess";
-import { fetchDotaInventory, INVENTORY_ERRORS } from "@/app/lib/steamInventory";
+import { fetchDotaInventory, INVENTORY_ERROR_STATUS, INVENTORY_ERRORS } from "@/app/lib/steamInventory";
 import { MAX_ACTIVE_LISTINGS, MAX_LISTING_PRICE, MIN_LISTING_PRICE, parseListingPrice } from "@/app/lib/marketOrders";
 import type { ApiResponse } from "@/app/types/api";
 
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
 
   const inventory = await fetchDotaInventory(user.steamId, { fresh: true });
   if (!inventory.ok) {
-    return NextResponse.json<ApiResponse>({ status: "error", message: INVENTORY_ERRORS[inventory.reason], data: null }, { status: 502 });
+    return NextResponse.json<ApiResponse>({ status: "error", message: INVENTORY_ERRORS[inventory.reason], data: null }, { status: INVENTORY_ERROR_STATUS[inventory.reason] });
   }
   const item = inventory.items.find((i) => i.assetId === assetId);
   if (!item) {

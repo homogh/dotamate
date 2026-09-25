@@ -6,20 +6,13 @@ import { ThumbsUp, X } from "lucide-react";
 import { useToast } from "@/app/stores/useToast";
 import { COMMEND_TYPES, type CommendTypeValue } from "@/app/lib/behavior";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
-
-interface CommendMatch {
-  matchId: string;
-  heroName: string;
-  heroIcon: string;
-  win: boolean;
-  startAt: string;
-  shared: boolean;
-}
+import { SharedMatchPicker, type SharedMatchOption } from "@/components/pages/profile/sharedMatchPicker";
 
 interface CommendOptions {
   blockedReason: string | null;
   remainingToday: number;
-  matches: CommendMatch[];
+  notice: string | null;
+  matches: SharedMatchOption[];
 }
 
 export function CommendPlayerModal({
@@ -46,7 +39,7 @@ export function CommendPlayerModal({
       .then((res) => res.json())
       .then((json) => {
         if (!cancelled) {
-          setOptions(json.status === "success" ? json.data : { blockedReason: json.message, remainingToday: 0, matches: [] });
+          setOptions(json.status === "success" ? json.data : { blockedReason: json.message, remainingToday: 0, notice: null, matches: [] });
         }
       });
     return () => {
@@ -124,53 +117,22 @@ export function CommendPlayerModal({
                     {options.remainingToday.toLocaleString("fa-IR")} کامند امروز باقی مونده
                   </span>
                   <p className="text-[13px] font-bold text-text" dir="auto">
-                    مچی که با هم بودین
+                    مچ‌های ۷ روز اخیر {player.displayName}
                   </p>
                 </div>
-                {options.matches.length === 0 ? (
+                {options.matches.length === 0 && !options.notice ? (
                   <p className="w-full text-right text-[12px] text-text-dim" dir="auto">
-                    توی مچ‌های ۷ روز اخیرت مچی پیدا نشد.
+                    این بازیکن توی ۷ روز اخیر مچی نداشته.
                   </p>
                 ) : (
-                  <div className="flex max-h-56 w-full flex-col gap-1.5 overflow-y-auto">
-                    {options.matches.map((m) => (
-                      <button
-                        key={m.matchId}
-                        type="button"
-                        onClick={() => setMatchId(m.matchId)}
-                        className={`flex w-full items-center justify-between gap-2 rounded-[8px] border p-2.5 transition-colors ${
-                          matchId === m.matchId ? "border-success bg-success/10" : "border-transparent bg-surface-alt hover:border-white/15"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          {m.heroIcon ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={m.heroIcon} alt="" className="size-7 shrink-0 rounded-[4px]" />
-                          ) : (
-                            <div className="size-7 shrink-0 rounded-[4px] bg-surface" />
-                          )}
-                          <div className="flex flex-col items-start">
-                            <span className="text-[12px] font-bold text-text" dir="auto">
-                              {m.heroName}
-                            </span>
-                            <span className="text-[10px] text-text-dim" dir="auto">
-                              {new Date(m.startAt).toLocaleDateString("fa-IR")} · {m.win ? "برد" : "باخت"}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {m.shared && (
-                            <span className="rounded-[4px] bg-success/10 px-1.5 py-0.5 text-[10px] font-bold text-success" dir="auto">
-                              بازی مشترک
-                            </span>
-                          )}
-                          <span className="text-[11px] text-text-dim" dir="ltr">
-                            #{m.matchId}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                  <SharedMatchPicker
+                    matches={options.matches}
+                    notice={options.notice}
+                    selected={matchId}
+                    onSelect={setMatchId}
+                    requireSameTeam
+                    tone="success"
+                  />
                 )}
               </div>
 

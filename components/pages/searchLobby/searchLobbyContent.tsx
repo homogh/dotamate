@@ -17,6 +17,7 @@ import { UserAvatar } from "@/components/general/userAvatar";
 import { Pagination } from "@/components/general/pagination";
 import { RANK_OPTIONS, REGION_OPTIONS } from "@/components/dashboard/postLabels";
 import { POSITIONS, POSITION_LABEL } from "@/components/dashboard/positionMeta";
+import { NeededPositions } from "@/components/dashboard/neededPositions";
 
 const REGION_FILTER_OPTIONS = [{ value: "", label: "همه ریجن‌ها" }, ...REGION_OPTIONS];
 const RANK_FILTER_OPTIONS = [{ value: "", label: "همه رنک‌ها" }, ...RANK_OPTIONS];
@@ -42,6 +43,8 @@ interface Lobby {
   createdAt: string;
   memberCount: number;
   partySize: number;
+  neededPositions: string[];
+  openPositions: string[];
   isSelf: boolean;
   myRequestStatus: "PENDING" | "ACCEPTED" | "DECLINED" | "REMOVED" | null;
 }
@@ -310,6 +313,8 @@ export function SearchLobbyContent() {
                           </span>
                         )}
                       </div>
+
+                      <NeededPositions needed={lobby.neededPositions} open={lobby.openPositions} />
 
                       <div className="flex w-full flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
                         {lobby.isSelf ? (

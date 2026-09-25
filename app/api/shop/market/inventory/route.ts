@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import prisma from "@/app/lib/prisma";
 import { requireMarketUser } from "@/app/lib/shopAccess";
-import { fetchDotaInventory, INVENTORY_ERRORS } from "@/app/lib/steamInventory";
+import { fetchDotaInventory, INVENTORY_ERROR_STATUS, INVENTORY_ERRORS } from "@/app/lib/steamInventory";
 import { steamEconomyImageUrl } from "@/app/lib/cdnUrls";
 import type { ApiResponse } from "@/app/types/api";
 
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
   const inventory = await fetchDotaInventory(user.steamId, { fresh: request.nextUrl.searchParams.get("refresh") === "1" });
   if (!inventory.ok) {
-    return NextResponse.json<ApiResponse>({ status: "error", message: INVENTORY_ERRORS[inventory.reason], data: { reason: inventory.reason } }, { status: 502 });
+    return NextResponse.json<ApiResponse>({ status: "error", message: INVENTORY_ERRORS[inventory.reason], data: { reason: inventory.reason } }, { status: INVENTORY_ERROR_STATUS[inventory.reason] });
   }
 
   const listed = await prisma.marketListing.findMany({
