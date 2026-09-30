@@ -20,12 +20,29 @@ interface BuyBoxProps {
   soldOut: boolean;
   /** Overrides everything else with a message, e.g. "this is your own listing". */
   blockedReason?: string | null;
+  /** Market listings only: which trade modes the seller left enabled. */
+  allowDirectTrade?: boolean;
+  allowEscrow?: boolean;
 }
 
-export function BuyBox({ checkoutEndpoint, checkoutPayload, productPath, priceToman, isLoggedIn, walletBalance, needsTradeUrl, soldOut, blockedReason }: BuyBoxProps) {
+export function BuyBox({
+  checkoutEndpoint,
+  checkoutPayload,
+  productPath,
+  priceToman,
+  isLoggedIn,
+  walletBalance,
+  needsTradeUrl,
+  soldOut,
+  blockedReason,
+  allowDirectTrade,
+  allowEscrow,
+}: BuyBoxProps) {
   const toast = useToast();
   const canUseWallet = priceToman !== null && walletBalance >= priceToman;
   const [method, setMethod] = useState<"WALLET" | "GATEWAY">(canUseWallet ? "WALLET" : "GATEWAY");
+  const showTradeModePicker = allowDirectTrade !== undefined || allowEscrow !== undefined;
+  const [tradeMode, setTradeMode] = useState<"DIRECT" | "ESCROW">(allowDirectTrade ? "DIRECT" : "ESCROW");
   const [busy, setBusy] = useState(false);
 
   if (blockedReason) {
@@ -66,7 +83,7 @@ export function BuyBox({ checkoutEndpoint, checkoutPayload, productPath, priceTo
     const res = await fetch(checkoutEndpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...checkoutPayload, paymentMethod: method }),
+      body: JSON.stringify({ ...checkoutPayload, paymentMethod: method, ...(showTradeModePicker ? { tradeMode } : {}) }),
     });
     const json = await res.json().catch(() => null);
     if (json?.status === "success") {
@@ -79,6 +96,29 @@ export function BuyBox({ checkoutEndpoint, checkoutPayload, productPath, priceTo
 
   return (
     <div className="flex w-full flex-col gap-3">
+      {showTradeModePicker && (
+        <>
+          <p className="text-right text-[13px] font-bold text-text-dim">روش معامله</p>
+          {allowDirectTrade && (
+            <MethodOption
+              active={tradeMode === "DIRECT"}
+              onClick={() => setTradeMode("DIRECT")}
+              icon={Wallet}
+              title="ترید مستقیم"
+              subtitle="خودت و فروشنده مستقیم در استیم ترید می‌کنید؛ این روش ریسک دارد و دوتامیت ضامن انجام صحیح ترید نیست. حتماً از پیشنهاد ترید و تأییدیه استیم اسکرین‌شات بگیر."
+            />
+          )}
+          {allowEscrow && (
+            <MethodOption
+              active={tradeMode === "ESCROW"}
+              onClick={() => setTradeMode("ESCROW")}
+              icon={CreditCard}
+              title="واسطه‌گری دوتامیت"
+              subtitle="آیتم اول به ادمین دوتامیت می‌رسد و بعد برایت ترید می‌شود؛ حدود ۷ روز زمان‌بر است."
+            />
+          )}
+        </>
+      )}
       <p className="text-right text-[13px] font-bold text-text-dim">روش پرداخت</p>
       <MethodOption
         active={method === "WALLET"}

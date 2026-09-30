@@ -155,6 +155,7 @@ enum AdminResource {
   BLOG
   ROLES
   TICKETS
+  TESTIMONIALS
 }
 
 enum PermissionLevel {
@@ -183,6 +184,12 @@ enum TicketCategory {
   GENERAL
   BUG_REPORT
   SUGGESTION
+}
+
+enum TestimonialStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum BlogStatus {
@@ -230,6 +237,9 @@ enum AuditAction {
   RESOLVE_MARKET_DISPUTE
   PAY_WITHDRAWAL
   REJECT_WITHDRAWAL
+  APPROVE_TESTIMONIAL
+  REJECT_TESTIMONIAL
+  DELETE_TESTIMONIAL
 }
 
 enum MarketListingStatus {
@@ -242,12 +252,23 @@ enum MarketListingStatus {
 
 enum MarketOrderStatus {
   PENDING_PAYMENT
+  // ESCROW only: paid, waiting for an admin to accept the order and hand over their trade link.
+  AWAITING_ADMIN
   AWAITING_SELLER
   SELLER_SENT
+  // ESCROW only: admin confirmed receipt from the seller, waiting to hand off to the buyer.
+  ADMIN_RECEIVED
   COMPLETED
   DISPUTED
   REFUNDED
   CANCELLED
+}
+
+// DIRECT: buyer/seller trade in Steam themselves, DotaMate does not mediate delivery.
+// ESCROW: a human admin mediates — seller sends to the admin's Steam account, admin forwards to buyer.
+enum MarketTradeMode {
+  DIRECT
+  ESCROW
 }
 
 enum WithdrawalStatus {
@@ -390,6 +411,7 @@ model User {
   blogPosts              BlogPost[]
   tickets                Ticket[]
   ticketMessages         TicketMessage[]
+  testimonial            Testimonial?
   giftCodesAdded         GiftCode[]
   shopOrders             ShopOrder[]
   payments               Payment[]
@@ -399,34 +421,36 @@ model User {
   marketSales            MarketOrder[]             @relation("MarketSeller")
   withdrawals            WithdrawalRequest[]       @relation("WithdrawalUser")
   withdrawalsProcessed   WithdrawalRequest[]       @relation("WithdrawalProcessor")
+  marketOrderAttachments MarketOrderAttachment[]
+  marketOrdersAccepted   MarketOrder[]             @relation("MarketOrderAccepter")
 }
 
 model Post {
-  id          Int         @id @default(autoincrement())
-  authorId    Int
-  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  position    Position
-  rank        Rank
-  rankTier    Int?
-  gameMode    GameMode
+  id              Int         @id @default(autoincrement())
+  authorId        Int
+  author          User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  position        Position
+  rank            Rank
+  rankTier        Int?
+  gameMode        GameMode
   // Primary server (first pick) — kept for older rows and simple displays;
   // the full multi-server selection lives in `regions` (Region[] as JSON).
-  region      Region
-  regions     Json?
+  region          Region
+  regions         Json?
   // Positions the host is looking for (Position[] as JSON). An accepted
   // member whose PostMember.position is in this list fills that slot —
   // see app/lib/postSlots.ts.
   neededPositions Json?
-  sessionType SessionType
-  startAt     DateTime?
-  partySize   Int         @default(5)
-  description String      @db.Text
-  hasVoice    Boolean     @default(true)
-  voiceLink   String?
-  status      PostStatus  @default(ACTIVE)
-  bumpedAt    DateTime    @default(now())
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  sessionType     SessionType
+  startAt         DateTime?
+  partySize       Int         @default(5)
+  description     String      @db.Text
+  hasVoice        Boolean     @default(true)
+  voiceLink       String?
+  status          PostStatus  @default(ACTIVE)
+  bumpedAt        DateTime    @default(now())
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   members  PostMember[]
   messages Message[]
@@ -725,6 +749,20 @@ model TicketMessage {
   @@index([ticketId])
 }
 
+// One landing-page review per player; editing it sends it back to the moderation queue.
+model Testimonial {
+  id         Int               @id @default(autoincrement())
+  userId     Int               @unique
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body       String            @db.Text
+  status     TestimonialStatus @default(PENDING)
+  reviewedAt DateTime?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@index([status])
+}
+
 model DotaMatchStats {
   id           Int       @id @default(autoincrement())
   userId       Int       @unique
@@ -774,6 +812,8 @@ model ShopSetting {
   // how long the buyer has to confirm or dispute before it auto-completes.
   sellerDeadlineHours     Int      @default(24)
   buyerConfirmHours       Int      @default(72)
+  // DIRECT trade mode: how long both sides have to mutually confirm before auto-refund.
+  mutualConfirmHours      Int      @default(168)
   updatedAt               DateTime @updatedAt
 }
 
@@ -786,7 +826,7 @@ model ShopProduct {
   // One or two sentences shown next to the price and used as the meta description fallback.
   shortDescription String?         @db.Text
   description      String?         @db.Text
-  imageUrl         String?
+  imageUrl         String?         @db.Text
   imageAlt         String?
   // Bullet points for the product page, one per line.
   features         String?         @db.Text
@@ -907,24 +947,27 @@ model WalletTransaction {
 // held by DotaMate until the item is traded; see app/lib/marketOrders.ts.
 
 model MarketListing {
-  id          Int                 @id @default(autoincrement())
-  sellerId    Int
-  seller      User                @relation(fields: [sellerId], references: [id], onDelete: Restrict)
-  status      MarketListingStatus @default(ACTIVE)
+  id               Int                 @id @default(autoincrement())
+  sellerId         Int
+  seller           User                @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  status           MarketListingStatus @default(ACTIVE)
   // Snapshot of the Steam inventory entry at listing time.
-  assetId     String              @db.VarChar(32)
-  classId     String              @db.VarChar(32)
-  instanceId  String?             @db.VarChar(32)
-  itemName    String
-  itemType    String?
-  iconUrl     String?             @db.Text
-  rarity      ItemRarity?
-  heroName    String?
-  priceToman  Int
-  description String?             @db.Text
-  soldAt      DateTime?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  assetId          String              @db.VarChar(32)
+  classId          String              @db.VarChar(32)
+  instanceId       String?             @db.VarChar(32)
+  itemName         String
+  itemType         String?
+  iconUrl          String?             @db.Text
+  rarity           ItemRarity?
+  heroName         String?
+  priceToman       Int
+  description      String?             @db.Text
+  // Seller-chosen trade modes for this listing; at least one must stay true.
+  allowDirectTrade Boolean             @default(true)
+  allowEscrow      Boolean             @default(true)
+  soldAt           DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
 
   orders MarketOrder[]
 
@@ -934,39 +977,71 @@ model MarketListing {
 }
 
 model MarketOrder {
-  id                Int               @id @default(autoincrement())
-  listingId         Int
-  listing           MarketListing     @relation(fields: [listingId], references: [id], onDelete: Restrict)
-  buyerId           Int
-  buyer             User              @relation("MarketBuyer", fields: [buyerId], references: [id], onDelete: Restrict)
-  sellerId          Int
-  seller            User              @relation("MarketSeller", fields: [sellerId], references: [id], onDelete: Restrict)
-  status            MarketOrderStatus @default(PENDING_PAYMENT)
-  paymentMethod     ShopPaymentMethod
-  priceToman        Int
-  commissionPercent Float
-  commissionToman   Int
-  sellerPayoutToman Int
+  id                      Int               @id @default(autoincrement())
+  listingId               Int
+  listing                 MarketListing     @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  buyerId                 Int
+  buyer                   User              @relation("MarketBuyer", fields: [buyerId], references: [id], onDelete: Restrict)
+  sellerId                Int
+  seller                  User              @relation("MarketSeller", fields: [sellerId], references: [id], onDelete: Restrict)
+  status                  MarketOrderStatus @default(PENDING_PAYMENT)
+  tradeMode               MarketTradeMode   @default(DIRECT)
+  paymentMethod           ShopPaymentMethod
+  priceToman              Int
+  commissionPercent       Float
+  commissionToman         Int
+  sellerPayoutToman       Int
   // Where the seller must send the item (buyer's Trade URL at checkout).
-  buyerTradeUrl     String
+  buyerTradeUrl           String
   // Gateway checkouts hold the listing only this long before it's released.
-  reservedUntil     DateTime?
-  paidAt            DateTime?
-  sellerDeadlineAt  DateTime?
-  sentAt            DateTime?
-  autoCompleteAt    DateTime?
-  completedAt       DateTime?
-  disputeReason     String?           @db.Text
-  resolutionNote    String?           @db.Text
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  reservedUntil           DateTime?
+  paidAt                  DateTime?
+  sellerDeadlineAt        DateTime?
+  sentAt                  DateTime?
+  autoCompleteAt          DateTime?
+  completedAt             DateTime?
+  disputeReason           String?           @db.Text
+  resolutionNote          String?           @db.Text
+  // DIRECT mode only: each side confirms completion after trading in Steam themselves.
+  buyerConfirmedAt        DateTime?
+  sellerConfirmedAt       DateTime?
+  // DIRECT mode only: if neither side confirms by this time, auto-refund the buyer.
+  mutualConfirmDeadlineAt DateTime?
+  // ESCROW mode only: admin confirmed receiving the item from the seller.
+  adminReceivedAt         DateTime?
+  // ESCROW mode only: the accepting admin's own Steam trade link — where the seller must send the item.
+  adminTradeUrl           String?
+  acceptedById            Int?
+  acceptedBy              User?             @relation("MarketOrderAccepter", fields: [acceptedById], references: [id])
+  acceptedAt              DateTime?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
 
-  payments   Payment[]
-  walletTxns WalletTransaction[]
+  payments    Payment[]
+  walletTxns  WalletTransaction[]
+  attachments MarketOrderAttachment[]
 
   @@index([buyerId, createdAt])
   @@index([sellerId, createdAt])
   @@index([status])
+}
+
+// Dispute evidence for market orders — same private-storage pattern as
+// ReportAttachment (see app/lib/marketOrderEvidence.ts): files live outside
+// /public and are only served back through an admin-gated route.
+model MarketOrderAttachment {
+  id            Int            @id @default(autoincrement())
+  marketOrderId Int
+  marketOrder   MarketOrder    @relation(fields: [marketOrderId], references: [id], onDelete: Cascade)
+  uploaderId    Int
+  uploader      User           @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  kind          AttachmentKind
+  path          String
+  mimeType      String         @db.VarChar(60)
+  size          Int
+  createdAt     DateTime       @default(now())
+
+  @@index([marketOrderId])
 }
 
 model WithdrawalRequest {

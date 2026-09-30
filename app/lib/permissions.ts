@@ -12,7 +12,22 @@ export type AdminResource =
   | "AUDIT_LOG"
   | "BLOG"
   | "ROLES"
-  | "TICKETS";
+  | "TICKETS"
+  | "TESTIMONIALS";
+
+export const ADMIN_RESOURCES: AdminResource[] = [
+  "USERS",
+  "POSTS",
+  "REPORTS",
+  "SESSIONS",
+  "REFERENCE_DATA",
+  "ANNOUNCEMENTS",
+  "AUDIT_LOG",
+  "BLOG",
+  "ROLES",
+  "TICKETS",
+  "TESTIMONIALS",
+];
 
 export interface AdminSession {
   userId: number;
@@ -37,6 +52,11 @@ export async function getAdminSession(userId: number): Promise<AdminSession | nu
   const permissions = Object.fromEntries(
     user.role.permissions.map((p) => [p.resource, p.level]),
   ) as Record<AdminResource, PermissionLevel>;
+
+  // The seeded super-admin role is non-editable, so resources added after seeding must still be granted.
+  if (!user.role.editable) {
+    for (const resource of ADMIN_RESOURCES) permissions[resource] = "EDIT";
+  }
 
   return { userId, roleId: user.role.id, roleName: user.role.name, isSuperAdmin: !user.role.editable, permissions };
 }

@@ -8,6 +8,7 @@ const QUICK_LINKS = [
   { label: "قوانین پلتفرم", href: "/terms" },
   { label: "سوالات متداول", href: "/faq" },
   { label: "حریم خصوصی", href: "/privacy" },
+  { label: "ثبت نظر", href: "/testimonials" },
 ];
 
 const SUPPORT_LINKS = [
@@ -63,14 +64,13 @@ export function Footer() {
             <p className="text-[22px] font-black text-text" dir="auto">
               دوتامیت
             </p>
-            <div className="flex size-9 items-center justify-center rounded-[8px] bg-primary">
-              <Image
-                src="/images/landing/shield-check.svg"
-                alt=""
-                width={20}
-                height={20}
-              />
-            </div>
+            <Image
+              src="/images/brand/dotamate-logo.png"
+              alt="دوتامیت"
+              width={36}
+              height={33}
+              className="h-9 w-auto"
+            />
           </div>
           <p
             className="w-full text-right text-sm leading-[1.7] text-text-dim md:text-right"

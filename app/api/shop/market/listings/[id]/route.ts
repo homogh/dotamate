@@ -12,7 +12,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const { id } = await params;
   const body = await request.json().catch(() => null);
-  const data: { priceToman?: number; description?: string | null } = {};
+  const data: { priceToman?: number; description?: string | null; allowDirectTrade?: boolean; allowEscrow?: boolean } = {};
 
   if ("priceToman" in (body ?? {})) {
     const price = parseListingPrice(body.priceToman);
@@ -25,6 +25,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     data.priceToman = price;
   }
   if ("description" in (body ?? {})) data.description = String(body.description ?? "").trim().slice(0, 1000) || null;
+  if ("allowDirectTrade" in (body ?? {})) data.allowDirectTrade = Boolean(body.allowDirectTrade);
+  if ("allowEscrow" in (body ?? {})) data.allowEscrow = Boolean(body.allowEscrow);
+
+  if (data.allowDirectTrade === false || data.allowEscrow === false) {
+    const current = await prisma.marketListing.findUnique({ where: { id: Number(id) }, select: { allowDirectTrade: true, allowEscrow: true } });
+    const nextDirect = data.allowDirectTrade ?? current?.allowDirectTrade ?? true;
+    const nextEscrow = data.allowEscrow ?? current?.allowEscrow ?? true;
+    if (!nextDirect && !nextEscrow) {
+      return NextResponse.json<ApiResponse>({ status: "error", message: "حداقل یکی از روش‌های معامله باید فعال باشد.", data: null }, { status: 400 });
+    }
+  }
 
   const { count } = await prisma.marketListing.updateMany({ where: { id: Number(id), sellerId: auth.session.id, status: "ACTIVE" }, data });
   if (count === 0) {

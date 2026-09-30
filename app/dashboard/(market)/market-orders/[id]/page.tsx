@@ -10,6 +10,7 @@ import { Card } from "@/components/general/card";
 import { MarketItemImage } from "@/components/pages/shop/marketListingCard";
 import { MarketOrderActions } from "@/components/pages/shop/marketOrderActions";
 import { MarketStatusBadge } from "@/components/pages/shop/marketStatusBadge";
+import { MarketEvidenceUpload } from "@/components/pages/shop/marketEvidenceUpload";
 
 function timeLeft(until: Date | null) {
   if (!until) return null;
@@ -42,7 +43,7 @@ export default async function MarketOrderPage({ params, searchParams }: PageProp
   const role = order.sellerId === viewer.id ? "seller" : "buyer";
   const other = role === "seller" ? order.buyer.displayName : order.seller.displayName;
   const deadline = timeLeft(order.sellerDeadlineAt);
-  const confirmLeft = timeLeft(order.autoCompleteAt);
+  const mutualLeft = timeLeft(order.mutualConfirmDeadlineAt);
 
   return (
     <div className="flex w-full flex-col gap-6 p-6 md:p-10">
@@ -69,28 +70,59 @@ export default async function MarketOrderPage({ params, searchParams }: PageProp
         </div>
 
         {/* Stage guidance, written for whoever is looking. */}
-        {order.status === "AWAITING_SELLER" && role === "seller" && (
+        {order.tradeMode === "DIRECT" && order.status === "AWAITING_SELLER" && (
           <Banner
             tone="warning"
             icon={Clock}
-            text={`این آیتم فروخته شده. آن را از طریق Trade URL زیر برای خریدار ترید (گیفت) کن و بعد دکمه «ارسال کردم» را بزن. زمان باقی‌مانده: ${deadline}. اگر در این مهلت ارسال نکنی، سفارش لغو و مبلغ به خریدار برگردانده می‌شود.`}
+            text={
+              role === "seller"
+                ? `این یک ترید مستقیم است: آیتم را خودت مستقیماً از طریق Trade URL خریدار در استیم برایش ترید کن، و وقتی ترید را انجام دادی «تأیید می‌کنم» را بزن. مهلت تأیید متقابل: ${mutualLeft}. اسکرین‌شات پیشنهاد ترید و تأییدیه استیم را قبل و بعد از ترید نگه‌دار — بدون مدرک، پشتیبانی دوتامیت نمی‌تواند در اختلاف به نفع تو رأی بدهد.`
+                : `این یک ترید مستقیم است: باید مستقیماً با فروشنده در استیم ترید کنی. بعد از دریافت آیتم «تأیید می‌کنم» را بزن. مهلت تأیید متقابل: ${mutualLeft}. اسکرین‌شات پیشنهاد ترید و تأییدیه استیم را قبل و بعد از ترید نگه‌دار — بدون مدرک، پشتیبانی دوتامیت نمی‌تواند در اختلاف به نفع تو رأی بدهد.`
+            }
           />
         )}
-        {order.status === "AWAITING_SELLER" && role === "buyer" && (
-          <Banner tone="warning" icon={Clock} text={`پرداختت انجام شد و پول پیش دوتامیت امانت است. فروشنده تا ${deadline} دیگر فرصت دارد آیتم را برایت ترید کند؛ اگر نکند، کل مبلغ به میت کیف تو برمی‌گردد.`} />
+        {order.tradeMode === "DIRECT" && order.status === "AWAITING_SELLER" && (order.buyerConfirmedAt || order.sellerConfirmedAt) && (
+          <Banner
+            tone="neutral"
+            icon={Repeat}
+            text={
+              role === "seller"
+                ? order.sellerConfirmedAt
+                  ? "تأیید تو ثبت شده؛ منتظر تأیید خریدار هستیم."
+                  : "خریدار تأیید کرده؛ اگر ترید را انجام داده‌ای، تأییدش کن."
+                : order.buyerConfirmedAt
+                  ? "تأیید تو ثبت شده؛ منتظر تأیید فروشنده هستیم."
+                  : "فروشنده تأیید کرده؛ اگر آیتم را دریافت کرده‌ای، تأییدش کن."
+            }
+          />
         )}
-        {order.status === "SELLER_SENT" && role === "buyer" && (
+        {order.tradeMode === "ESCROW" && order.status === "AWAITING_ADMIN" && role === "seller" && (
+          <Banner tone="neutral" icon={Clock} text="آیتمت فروخته شد، اما هنوز یک ادمین دوتامیت سفارش را نپذیرفته. صبر کن تا ادمین لینک ترید خودش را برایت بفرستد؛ قبل از آن چیزی ارسال نکن." />
+        )}
+        {order.tradeMode === "ESCROW" && order.status === "AWAITING_ADMIN" && role === "buyer" && (
+          <Banner tone="neutral" icon={Clock} text="پرداختت انجام شد و پول پیش دوتامیت امانت است. یک ادمین دوتامیت به‌زودی سفارش را می‌پذیرد و فرآیند واسطه‌گری را شروع می‌کند." />
+        )}
+        {order.tradeMode === "ESCROW" && order.status === "AWAITING_SELLER" && role === "seller" && (
           <Banner
             tone="warning"
-            icon={Repeat}
-            text={`فروشنده اعلام کرده آیتم را ارسال کرده. پیشنهاد ترید را در استیم قبول کن و بعد دریافت را تأیید کن. اگر آیتم نرسیده، «مشکل دارم» را بزن. اگر تا ${confirmLeft} دیگر اقدامی نکنی، خرید خودکار تأیید می‌شود.`}
+            icon={Clock}
+            text={`ادمین دوتامیت سفارش را پذیرفت. آیتم را به Trade URL ادمین زیر ارسال کن و بعد دکمه «ارسال کردم» را بزن. زمان باقی‌مانده: ${deadline}. اگر در این مهلت ارسال نکنی، سفارش لغو و مبلغ به خریدار برگردانده می‌شود.`}
           />
         )}
-        {order.status === "SELLER_SENT" && role === "seller" && (
-          <Banner tone="neutral" icon={Repeat} text={`منتظر تأیید خریدار هستیم. اگر خریدار تا ${confirmLeft} دیگر اعتراضی ثبت نکند، پول خودکار به میت کیف تو واریز می‌شود.`} />
+        {order.tradeMode === "ESCROW" && order.status === "AWAITING_SELLER" && role === "buyer" && (
+          <Banner tone="warning" icon={Clock} text={`پرداختت انجام شد و پول پیش دوتامیت امانت است. فروشنده تا ${deadline} دیگر فرصت دارد آیتم را به ادمین دوتامیت تحویل بدهد؛ بعد ادمین آن را برایت ترید می‌کند. به‌خاطر Trade Hold استیم، این روند تا حدود ۷ روز زمان‌بر است.`} />
+        )}
+        {order.tradeMode === "ESCROW" && order.status === "SELLER_SENT" && (
+          <Banner tone="neutral" icon={Repeat} text="فروشنده اعلام کرده آیتم را برای ادمین دوتامیت ارسال کرده. منتظر تأیید دریافت توسط ادمین هستیم." />
+        )}
+        {order.tradeMode === "ESCROW" && order.status === "ADMIN_RECEIVED" && (
+          <Banner tone="neutral" icon={Repeat} text="ادمین دوتامیت آیتم را از فروشنده تحویل گرفته و در حال ترید به خریدار است." />
         )}
         {order.status === "DISPUTED" && (
-          <Banner tone="danger" icon={AlertTriangle} text={`اعتراض ثبت شده و پشتیبانی دوتامیت در حال بررسی است. دلیل: ${order.disputeReason ?? "—"}`} />
+          <>
+            <Banner tone="danger" icon={AlertTriangle} text={`اعتراض ثبت شده و پشتیبانی دوتامیت در حال بررسی است. دلیل: ${order.disputeReason ?? "—"}`} />
+            <MarketEvidenceUpload orderId={order.id} />
+          </>
         )}
         {order.status === "COMPLETED" && (
           <Banner
@@ -104,7 +136,7 @@ export default async function MarketOrderPage({ params, searchParams }: PageProp
           <Banner tone="danger" icon={XCircle} text="این سفارش پرداخت نشد یا مهلت پرداختش تمام شد." />
         )}
 
-        {role === "seller" && order.status === "AWAITING_SELLER" && (
+        {role === "seller" && order.status === "AWAITING_SELLER" && order.tradeMode === "DIRECT" && (
           <div className="flex w-full flex-col gap-2 rounded-[8px] border border-border bg-surface-alt p-4">
             <p className="text-right text-[13px] font-bold text-text">Trade URL خریدار</p>
             <a href={order.buyerTradeUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 break-all text-left font-mono text-[12px] text-accent hover:underline" dir="ltr">
@@ -114,8 +146,18 @@ export default async function MarketOrderPage({ params, searchParams }: PageProp
             <p className="text-right text-[11px] leading-[1.7] text-text-dim">روی لینک بزن تا صفحه ترید استیم باز شود، آیتم «{order.listing.itemName}» را اضافه کن و بدون درخواست چیزی در عوض، ترید را بفرست.</p>
           </div>
         )}
+        {role === "seller" && order.status === "AWAITING_SELLER" && order.tradeMode === "ESCROW" && order.adminTradeUrl && (
+          <div className="flex w-full flex-col gap-2 rounded-[8px] border border-border bg-surface-alt p-4">
+            <p className="text-right text-[13px] font-bold text-text">Trade URL ادمین دوتامیت</p>
+            <a href={order.adminTradeUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 break-all text-left font-mono text-[12px] text-accent hover:underline" dir="ltr">
+              <Copy size={13} className="shrink-0" />
+              {order.adminTradeUrl}
+            </a>
+            <p className="text-right text-[11px] leading-[1.7] text-text-dim">روی لینک بزن تا صفحه ترید استیم باز شود، آیتم «{order.listing.itemName}» را برای ادمین دوتامیت بفرست.</p>
+          </div>
+        )}
 
-        <MarketOrderActions orderId={order.id} role={role} status={order.status} />
+        <MarketOrderActions orderId={order.id} role={role} status={order.status} tradeMode={order.tradeMode} alreadyConfirmed={role === "seller" ? Boolean(order.sellerConfirmedAt) : Boolean(order.buyerConfirmedAt)} />
 
         <dl className="grid w-full gap-3 text-[13px] sm:grid-cols-2">
           <Row label="مبلغ خرید" value={`${order.priceToman.toLocaleString("fa-IR")} تومان`} />

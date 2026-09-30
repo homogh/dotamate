@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/app/lib/prisma";
 import { requireMarketUser } from "@/app/lib/shopAccess";
 import { getShopSettings } from "@/app/lib/shopPricing";
-import { completeMarketOrder, disputeMarketOrder, marketOrderHref, refundMarketOrder } from "@/app/lib/marketOrders";
+import { notifyShopAdmins } from "@/app/lib/shopOrders";
+import { buyerConfirmDirect, disputeMarketOrder, refundMarketOrder, sellerConfirmDirect } from "@/app/lib/marketOrders";
 import type { ApiResponse } from "@/app/types/api";
 
 const error = (message: string, status: number) => NextResponse.json<ApiResponse>({ status: "error", message, data: null }, { status });
@@ -29,28 +30,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const body = await request.json().catch(() => null);
   const action = body?.action;
 
-  if (action === "sent" && isSeller) {
-    const settings = await getShopSettings();
+  // ESCROW mode: seller sends the item to the DotaMate admin's Steam account.
+  if (action === "sent" && isSeller && order.tradeMode === "ESCROW") {
     const now = new Date();
     const updated = await prisma.$transaction(async (tx) => {
       const { count } = await tx.marketOrder.updateMany({
         where: { id: order.id, status: "AWAITING_SELLER" },
-        data: { status: "SELLER_SENT", sentAt: now, autoCompleteAt: new Date(now.getTime() + settings.buyerConfirmHours * 3_600_000) },
+        data: { status: "SELLER_SENT", sentAt: now },
       });
       if (count === 0) return false;
-      await tx.notification.create({
-        data: {
-          userId: order.buyerId,
-          type: "SHOP_ORDER",
-          title: "فروشنده آیتم را برایت ارسال کرد",
-          body: `پیشنهاد ترید «${order.listing.itemName}» را در استیم قبول کن و بعد دریافت را تأیید کن.`,
-          link: marketOrderHref(order.id),
-        },
-      });
       return true;
     });
+    if (updated) await notifyShopAdmins("آیتم بازار برای ادمین ارسال شد", `سفارش #${order.id} («${order.listing.itemName}»): فروشنده اعلام کرد آیتم را ارسال کرده.`, "/admin/shop/market");
     return updated
-      ? NextResponse.json<ApiResponse>({ status: "success", message: "ثبت شد. منتظر تأیید خریدار می‌مانیم.", data: null })
+      ? NextResponse.json<ApiResponse>({ status: "success", message: "ثبت شد. منتظر تأیید دریافت توسط ادمین دوتامیت می‌مانیم.", data: null })
       : error("این سفارش در مرحله ارسال نیست.", 409);
   }
 
@@ -63,20 +56,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       : error("فقط سفارش‌هایی که هنوز ارسال نشده‌اند قابل لغو هستند.", 409);
   }
 
-  if (action === "confirm" && !isSeller) {
+  // DIRECT mode: both buyer and seller confirm the trade they did between themselves in Steam.
+  if (action === "confirm" && order.tradeMode === "DIRECT") {
     const settings = await getShopSettings();
-    const done = await prisma.$transaction((tx) =>
-      completeMarketOrder(tx, order.id, ["AWAITING_SELLER", "SELLER_SENT"], settings.payoutHoldHours, "خریدار دریافت آیتم را تأیید کرد."),
-    );
+    const done = isSeller
+      ? await prisma.$transaction((tx) => sellerConfirmDirect(tx, order.id, settings.payoutHoldHours))
+      : await prisma.$transaction((tx) => buyerConfirmDirect(tx, order.id, settings.payoutHoldHours));
     return done
-      ? NextResponse.json<ApiResponse>({ status: "success", message: "دریافت تأیید شد. خریدت تکمیل شد.", data: null })
+      ? NextResponse.json<ApiResponse>({ status: "success", message: "تأیید ثبت شد.", data: null })
       : error("این سفارش قابل تأیید نیست.", 409);
   }
 
-  if (action === "dispute" && !isSeller) {
+  if (action === "dispute") {
     const reason = String(body?.reason ?? "").trim().slice(0, 1000);
     if (reason.length < 10) return error("لطفاً مشکل را حداقل در ۱۰ حرف توضیح بده.", 400);
-    return (await disputeMarketOrder(order.id, reason))
+    return (await disputeMarketOrder(order.id, session.id, reason))
       ? NextResponse.json<ApiResponse>({ status: "success", message: "اعتراض ثبت شد. پشتیبانی دوتامیت بررسی می‌کند.", data: null })
       : error("برای این سفارش نمی‌توان اعتراض ثبت کرد.", 409);
   }

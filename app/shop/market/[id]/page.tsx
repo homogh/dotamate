@@ -146,12 +146,15 @@ export default async function MarketListingPage({ params }: PageProps<"/shop/mar
               needsTradeUrl={!user?.steamTradeUrl}
               soldOut={false}
               blockedReason={isOwn ? "این آگهی خودت است. از بخش «آگهی‌های من» می‌توانی قیمتش را تغییر بدهی یا حذفش کنی." : available ? null : statusText}
+              allowDirectTrade={listing.allowDirectTrade}
+              allowEscrow={listing.allowEscrow}
             />
 
             <div className="flex flex-col gap-2">
               <Guarantee icon={ShieldCheck} text="پول تو پیش دوتامیت امانت می‌ماند و فقط بعد از تحویل آیتم به فروشنده پرداخت می‌شود." />
               <Guarantee icon={Clock} text={`فروشنده ${settings.sellerDeadlineHours.toLocaleString("fa-IR")} ساعت فرصت دارد آیتم را برایت ترید کند.`} />
               <Guarantee icon={Undo2} text="اگر آیتم به دستت نرسد، کل مبلغ به میت کیف تو برمی‌گردد." />
+              <Guarantee icon={Clock} text="در واسطه‌گری دوتامیت، به‌خاطر Trade Hold استیم، تحویل نهایی ممکن است تا حدود ۷ روز طول بکشد." />
             </div>
           </div>
         </div>

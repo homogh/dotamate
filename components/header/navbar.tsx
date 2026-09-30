@@ -77,14 +77,14 @@ export function Navbar() {
           <p className="text-[22px] font-black text-text" dir="auto">
             دوتامیت
           </p>
-          <div className="flex size-10 items-center justify-center rounded-[8px] bg-primary">
-            <Image
-              src="/images/landing/shield-check.svg"
-              alt=""
-              width={24}
-              height={24}
-            />
-          </div>
+          <Image
+            src="/images/brand/dotamate-logo.png"
+            alt="دوتامیت"
+            width={40}
+            height={37}
+            className="h-10 w-auto"
+            priority
+          />
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm font-bold lg:flex xl:gap-8">
@@ -122,15 +122,18 @@ export function Navbar() {
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="flex size-10 items-center justify-center rounded-[8px] border border-border text-text lg:hidden"
-          aria-label={open ? "بستن منو" : "باز کردن منو"}
-          aria-expanded={open}
-        >
-          {open ? <X size={20} /> : <Menu size={20} />}
-        </button>
+        <div className="flex items-center gap-3 lg:hidden">
+          {status === "authenticated" && user && <NotificationBell align="left" />}
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="flex size-10 items-center justify-center rounded-[8px] border border-border text-text"
+            aria-label={open ? "بستن منو" : "باز کردن منو"}
+            aria-expanded={open}
+          >
+            {open ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
       </div>
 
       {open && (

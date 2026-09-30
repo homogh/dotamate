@@ -22,6 +22,7 @@ interface ShopSettingsData {
   payoutHoldHours: number;
   sellerDeadlineHours: number;
   buyerConfirmHours: number;
+  mutualConfirmHours: number;
 }
 
 type FieldKey = keyof ShopSettingsData;
@@ -42,8 +43,9 @@ const FIELD_GROUPS: { title: string; fields: { key: FieldKey; label: string; hin
       { key: "marketCommissionPercent", label: "کمیسیون بازار کاربران", hint: "از سهم فروشنده کم می‌شود", suffix: "٪" },
       { key: "payoutHoldHours", label: "مدت نگهداری پول فروش", hint: "بعد از تأیید تحویل، پول تا این مدت قابل برداشت نیست", suffix: "ساعت" },
       { key: "minWithdrawalToman", label: "حداقل مبلغ برداشت", hint: "از میت کیف", suffix: "تومان" },
-      { key: "sellerDeadlineHours", label: "مهلت ارسال فروشنده", hint: "بعد از پرداخت؛ اگر ارسال نکند، مبلغ به خریدار برمی‌گردد", suffix: "ساعت" },
+      { key: "sellerDeadlineHours", label: "مهلت ارسال فروشنده", hint: "بعد از پرداخت (واسطه‌گری دوتامیت)؛ اگر ارسال نکند، مبلغ به خریدار برمی‌گردد", suffix: "ساعت" },
       { key: "buyerConfirmHours", label: "مهلت تأیید خریدار", hint: "بعد از ارسال؛ اگر اعتراض نکند، خرید خودکار تأیید می‌شود", suffix: "ساعت" },
+      { key: "mutualConfirmHours", label: "مهلت تأیید متقابل (ترید مستقیم)", hint: "اگر هیچ‌کدام از طرفین تا این مدت تأیید نکنند، مبلغ خودکار به خریدار برمی‌گردد", suffix: "ساعت" },
     ],
   },
   {

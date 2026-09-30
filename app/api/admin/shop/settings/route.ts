@@ -19,6 +19,7 @@ const FIELDS: [string, number, number, boolean][] = [
   ["payoutHoldHours", 0, 24 * 30, true],
   ["sellerDeadlineHours", 1, 24 * 7, true],
   ["buyerConfirmHours", 1, 24 * 14, true],
+  ["mutualConfirmHours", 1, 24 * 30, true],
 ];
 
 export async function PATCH(request: NextRequest) {

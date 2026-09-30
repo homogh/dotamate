@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Circle, ImagePlus, Loader2, Trash2 } from "lucide-react";
+import { CheckCircle2, Circle, ImagePlus, Loader2, Search, Trash2 } from "lucide-react";
 
 import { Card } from "@/components/general/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,17 @@ type Rarity = "COMMON" | "UNCOMMON" | "RARE" | "MYTHICAL" | "LEGENDARY" | "IMMOR
 const TYPE_LABELS: Record<ProductType, string> = { GIFT_CARD: "گیفت کارت", ITEM: "آیتم دوتا ۲" };
 const RARITIES: Rarity[] = ["COMMON", "UNCOMMON", "RARE", "MYTHICAL", "LEGENDARY", "IMMORTAL", "ARCANA"];
 
+interface SteamSearchItem {
+  marketHashName: string;
+  title: string;
+  type: string;
+  rarity: string | null;
+  priceUsd: number;
+  priceUsdText: string;
+  imageUrl: string;
+  tradable: boolean;
+}
+
 // Same rules as the server's slugify, so the preview matches what gets saved.
 function slugifyClient(title: string) {
   return title
@@ -28,6 +39,14 @@ function slugifyClient(title: string) {
     .replace(/[^؀-ۿa-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .slice(0, 80);
+}
+
+function computeTomanPrice(priceUsd: string, isItem: boolean, pricing: { usdCostToman: number; giftCardMarginPercent: number; itemMarginPercent: number } | null) {
+  const usd = Number(priceUsd);
+  if (!pricing || !(pricing.usdCostToman > 0) || !(usd > 0)) return null;
+  const margin = isItem ? pricing.itemMarginPercent : pricing.giftCardMarginPercent;
+  const raw = usd * pricing.usdCostToman * (1 + margin / 100);
+  return Math.ceil(raw / 1000) * 1000;
 }
 
 async function uploadImage(file: File): Promise<string> {
@@ -86,6 +105,10 @@ export function ProductEditor({ productId }: { productId?: number }) {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [heroNames, setHeroNames] = useState<string[]>([]);
+  const [pricing, setPricing] = useState<{ usdCostToman: number; giftCardMarginPercent: number; itemMarginPercent: number } | null>(null);
+  const [steamQuery, setSteamQuery] = useState("");
+  const [steamResults, setSteamResults] = useState<SteamSearchItem[] | null>(null);
+  const [steamSearching, setSteamSearching] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -117,6 +140,15 @@ export function ProductEditor({ productId }: { productId?: number }) {
   }, [isEdit, productId]);
 
   useEffect(() => {
+    fetch("/api/admin/shop", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.status === "success") setPricing(json.data.settings);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
     fetch("/api/meta/heroes", { cache: "force-cache" })
       .then((res) => res.json())
       .then((json) => {
@@ -141,6 +173,41 @@ export function ProductEditor({ productId }: { productId?: number }) {
     } finally {
       setUploading(false);
     }
+  }
+
+  async function searchSteam() {
+    if (steamQuery.trim().length < 2) return;
+    setSteamSearching(true);
+    try {
+      const res = await fetch(`/api/admin/shop/steam-search?q=${encodeURIComponent(steamQuery.trim())}`, { cache: "no-store" });
+      const json = await res.json();
+      if (json.status !== "success") {
+        toast.error(json.message ?? "جستجو ناموفق بود.");
+        setSteamResults([]);
+        return;
+      }
+      setSteamResults(json.data as SteamSearchItem[]);
+    } catch {
+      toast.error("ارتباط با استیم برقرار نشد.");
+      setSteamResults([]);
+    } finally {
+      setSteamSearching(false);
+    }
+  }
+
+  function applySteamItem(item: SteamSearchItem) {
+    const heroName = heroNames.find((h) => item.title.toLowerCase().includes(h.toLowerCase())) ?? state.heroName;
+    setState((s) => ({
+      ...s,
+      title: s.title || item.title,
+      slug: slugTouched ? s.slug : slugifyClient(item.title),
+      priceUsd: item.priceUsd > 0 ? String(item.priceUsd) : s.priceUsd,
+      imageUrl: item.imageUrl,
+      imageAlt: s.imageAlt || item.title,
+      heroName,
+      rarity: item.rarity && RARITIES.includes(item.rarity.toUpperCase() as Rarity) ? (item.rarity.toUpperCase() as Rarity) : s.rarity,
+    }));
+    if (!item.tradable) toast.error("این آیتم فعلاً در استیم مارکت قفل ترید دارد؛ قیمت درست است ولی تحویلش با تأخیر خواهد بود.");
   }
 
   async function handleSave() {
@@ -171,6 +238,7 @@ export function ProductEditor({ productId }: { productId?: number }) {
   }
 
   const isItem = state.type === "ITEM";
+  const tomanPrice = computeTomanPrice(state.priceUsd, isItem, pricing);
   const seoTitle = state.metaTitle || (state.title ? `خرید ${state.title} | فروشگاه دوتامیت` : "");
   const seoDescription = state.metaDescription || state.shortDescription;
   const checklist = [
@@ -353,7 +421,17 @@ export function ProductEditor({ productId }: { productId?: number }) {
           <div className="flex flex-col gap-2">
             <Label htmlFor="p-price">قیمت (دلار)</Label>
             <Input id="p-price" type="number" inputMode="decimal" value={state.priceUsd} onChange={(e) => set("priceUsd", e.target.value)} className="text-left" dir="ltr" />
-            <p className="text-right text-[11px] text-text-dim">قیمت تومانی از تنظیمات فروشگاه حساب می‌شود.</p>
+            {tomanPrice !== null ? (
+              <p className="text-right text-[13px] font-bold text-success" dir="auto">
+                ≈ {tomanPrice.toLocaleString("fa-IR")} تومان
+              </p>
+            ) : (
+              <p className="text-right text-[11px] text-text-dim" dir="auto">
+                {pricing && !(pricing.usdCostToman > 0)
+                  ? "نرخ دلار در تنظیمات فروشگاه تنظیم نشده."
+                  : "قیمت تومانی از تنظیمات فروشگاه حساب می‌شود."}
+              </p>
+            )}
           </div>
           {isItem ? (
             <div className="flex flex-col gap-2">
@@ -368,6 +446,52 @@ export function ProductEditor({ productId }: { productId?: number }) {
         {isItem && (
           <Card tone="surface" noHover className="w-full items-stretch gap-4 p-6">
             <p className="w-full text-right text-[14px] font-black text-text">مشخصات آیتم</p>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="p-steam-search">جستجو در استیم مارکت</Label>
+              <div className="flex w-full items-center gap-2">
+                <Input
+                  id="p-steam-search"
+                  value={steamQuery}
+                  onChange={(e) => setSteamQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), searchSteam())}
+                  placeholder="مثلاً: Arcana of Techies"
+                  dir="auto"
+                  className="flex-1"
+                />
+                <Button type="button" variant="outline" size="sm" onClick={searchSteam} disabled={steamSearching || steamQuery.trim().length < 2}>
+                  {steamSearching ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                </Button>
+              </div>
+              {steamResults && (
+                <div className="flex max-h-72 w-full flex-col gap-1.5 overflow-y-auto rounded-[8px] border border-border bg-surface-alt p-2">
+                  {steamResults.length === 0 && <p className="p-2 text-center text-[12px] text-text-dim">چیزی پیدا نشد.</p>}
+                  {steamResults.map((item) => (
+                    <button
+                      key={item.marketHashName}
+                      type="button"
+                      onClick={() => applySteamItem(item)}
+                      className="flex w-full items-center gap-3 rounded-[6px] border border-transparent p-2 text-right hover:border-primary/40 hover:bg-primary/10"
+                      dir="auto"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={item.imageUrl} alt="" className="size-10 shrink-0 rounded-[4px] bg-black/20 object-contain" />
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate text-[13px] font-bold text-text">{item.title}</span>
+                        <span className="truncate text-[11px] text-text-dim">{item.type}</span>
+                      </span>
+                      <span className="shrink-0 text-[12px] font-bold text-success" dir="ltr">
+                        {item.priceUsdText}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <p className="text-right text-[11px] leading-[1.6] text-text-dim" dir="auto">
+                با انتخاب یک نتیجه، عنوان، تصویر، هیرو، کمیابی و قیمت دلاری (بر اساس قیمت لحظه‌ای استیم مارکت) پر می‌شود؛ قبل از ذخیره بازبینی‌شان کن.
+              </p>
+            </div>
+
             <div className="flex flex-col gap-2">
               <Label htmlFor="p-hero">هیرو</Label>
               <Input id="p-hero" list="hero-names" value={state.heroName} onChange={(e) => set("heroName", e.target.value)} placeholder="مثلاً Pudge" dir="ltr" className="text-left" />

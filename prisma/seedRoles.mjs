@@ -13,6 +13,7 @@ const RESOURCES = [
   "BLOG",
   "ROLES",
   "TICKETS",
+  "TESTIMONIALS",
 ];
 
 const ROLES = [
@@ -37,6 +38,7 @@ const ROLES = [
       BLOG: "VIEW",
       ROLES: "NONE",
       TICKETS: "VIEW",
+      TESTIMONIALS: "EDIT",
     },
   },
   {
@@ -54,6 +56,7 @@ const ROLES = [
       BLOG: "EDIT",
       ROLES: "NONE",
       TICKETS: "NONE",
+      TESTIMONIALS: "NONE",
     },
   },
 ];

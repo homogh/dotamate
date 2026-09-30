@@ -16,6 +16,8 @@ export async function POST(request: NextRequest) {
   const assetId = String(body?.assetId ?? "").trim();
   const priceToman = parseListingPrice(body?.priceToman);
   const description = String(body?.description ?? "").trim().slice(0, 1000) || null;
+  const allowDirectTrade = body?.allowDirectTrade !== false;
+  const allowEscrow = body?.allowEscrow !== false;
 
   if (!/^\d{1,32}$/.test(assetId)) {
     return NextResponse.json<ApiResponse>({ status: "error", message: "آیتم انتخاب نشده.", data: null }, { status: 400 });
@@ -25,6 +27,9 @@ export async function POST(request: NextRequest) {
       { status: "error", message: `قیمت باید بین ${MIN_LISTING_PRICE.toLocaleString("fa-IR")} و ${MAX_LISTING_PRICE.toLocaleString("fa-IR")} تومان باشد.`, data: null },
       { status: 400 },
     );
+  }
+  if (!allowDirectTrade && !allowEscrow) {
+    return NextResponse.json<ApiResponse>({ status: "error", message: "حداقل یکی از روش‌های معامله (ترید مستقیم یا واسطه‌گری دوتامیت) باید فعال باشد.", data: null }, { status: 400 });
   }
 
   const [user, activeCount, clash] = await Promise.all([
@@ -71,6 +76,8 @@ export async function POST(request: NextRequest) {
       heroName: item.heroName,
       priceToman,
       description,
+      allowDirectTrade,
+      allowEscrow,
     },
   });
 

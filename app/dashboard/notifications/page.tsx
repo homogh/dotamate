@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { UserPlus, Clock, MessageSquare, CheckCircle, Shield, Bell, Users } from "lucide-react";
+import { UserPlus, Clock, MessageSquare, CheckCircle, Shield, Bell, Users, ShoppingBag } from "lucide-react";
 
 import { useNotifications, type NotificationItem as StoreNotificationItem } from "@/app/stores/useNotifications";
 import { FriendRequestActions } from "@/components/general/friendRequestActions";
@@ -16,7 +16,8 @@ type NotifType =
   | "SESSION_REMINDER"
   | "SYSTEM"
   | "FRIEND_REQUEST"
-  | "FRIEND_ACCEPTED";
+  | "FRIEND_ACCEPTED"
+  | "SHOP_ORDER";
 
 interface NotificationItem extends StoreNotificationItem {
   type: NotifType;
@@ -33,6 +34,7 @@ const TYPE_ICON: Record<NotifType, typeof Bell> = {
   SYSTEM: Shield,
   FRIEND_REQUEST: UserPlus,
   FRIEND_ACCEPTED: Users,
+  SHOP_ORDER: ShoppingBag,
 };
 
 function timeAgo(iso: string) {

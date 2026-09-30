@@ -14,6 +14,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { label: "پست‌ها", href: "/admin/posts", resource: "POSTS" },
   { label: "گزارش‌ها", href: "/admin/reports", resource: "REPORTS" },
   { label: "تیکت‌های پشتیبانی", href: "/admin/tickets", resource: "TICKETS" },
+  { label: "نظرات کاربران", href: "/admin/testimonials", resource: "TESTIMONIALS" },
   { label: "جلسات", href: "/admin/sessions", resource: "SESSIONS" },
   { label: "وبلاگ", href: "/admin/blog", resource: "BLOG" },
   { label: "داده‌های مرجع", href: "/admin/reference", resource: "REFERENCE_DATA" },

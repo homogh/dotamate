@@ -26,6 +26,7 @@ const RESOURCE_LABEL: Record<string, string> = {
   BLOG: "وبلاگ",
   ROLES: "نقش‌ها",
   TICKETS: "تیکت‌های پشتیبانی",
+  TESTIMONIALS: "نظرات کاربران",
 };
 
 const LEVEL_LABEL: Record<string, string> = { NONE: "بدون دسترسی", VIEW: "مشاهده", EDIT: "ویرایش" };

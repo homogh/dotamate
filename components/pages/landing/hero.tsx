@@ -101,7 +101,7 @@ export function Hero() {
         </div>
         <div data-hero-cta>
           <Button asChild variant="outline" size="default">
-            <Link href="/search-lobby">مشاهده لیست بازیکنان آنلاین</Link>
+            <Link href="/players">مشاهده لیست بازیکنان آنلاین</Link>
           </Button>
         </div>
       </div>

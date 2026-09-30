@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   const [platform, settings, marketInFlight] = await Promise.all([
     getPlatformSettings(),
     getShopSettings(),
-    prisma.marketOrder.count({ where: { status: { in: ["PENDING_PAYMENT", "AWAITING_SELLER", "SELLER_SENT", "DISPUTED"] } } }),
+    prisma.marketOrder.count({ where: { status: { in: ["PENDING_PAYMENT", "AWAITING_ADMIN", "AWAITING_SELLER", "SELLER_SENT", "ADMIN_RECEIVED", "DISPUTED"] } } }),
   ]);
 
   return NextResponse.json<ApiResponse>({

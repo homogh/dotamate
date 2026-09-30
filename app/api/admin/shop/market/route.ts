@@ -8,7 +8,7 @@ import type { ApiResponse } from "@/app/types/api";
 
 const ORDER_TABS: Record<string, MarketOrderStatus[]> = {
   disputes: ["DISPUTED"],
-  active: ["AWAITING_SELLER", "SELLER_SENT"],
+  active: ["AWAITING_ADMIN", "AWAITING_SELLER", "SELLER_SENT", "ADMIN_RECEIVED"],
   done: ["COMPLETED", "REFUNDED"],
 };
 
@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
       listing: { select: { id: true, itemName: true, assetId: true } },
       buyer: { select: { id: true, displayName: true } },
       seller: { select: { id: true, displayName: true } },
+      attachments: { include: { uploader: { select: { id: true, displayName: true } } }, orderBy: { createdAt: "asc" } },
     },
     orderBy: { paidAt: "desc" },
     take: 200,
@@ -68,6 +69,7 @@ export async function GET(request: NextRequest) {
       orders: orders.map((o) => ({
         id: o.id,
         status: o.status,
+        tradeMode: o.tradeMode,
         itemName: o.listing.itemName,
         listingId: o.listing.id,
         assetId: o.listing.assetId,
@@ -82,8 +84,23 @@ export async function GET(request: NextRequest) {
         sentAt: o.sentAt,
         sellerDeadlineAt: o.sellerDeadlineAt,
         autoCompleteAt: o.autoCompleteAt,
+        buyerConfirmedAt: o.buyerConfirmedAt,
+        sellerConfirmedAt: o.sellerConfirmedAt,
+        mutualConfirmDeadlineAt: o.mutualConfirmDeadlineAt,
+        adminReceivedAt: o.adminReceivedAt,
+        adminTradeUrl: o.adminTradeUrl,
         disputeReason: o.disputeReason,
         resolutionNote: o.resolutionNote,
+        attachments: o.attachments.map((a) => ({
+          id: a.id,
+          kind: a.kind,
+          mimeType: a.mimeType,
+          uploaderId: a.uploader.id,
+          uploaderName: a.uploader.displayName,
+          isBuyer: a.uploader.id === o.buyer.id,
+          createdAt: a.createdAt,
+          url: `/api/admin/shop/market/orders/${o.id}/attachments/${a.id}`,
+        })),
       })),
     },
   });

@@ -39,6 +39,9 @@ const ACTION_LABEL: Record<string, string> = {
   UPDATE_REFERENCE_DATA: "ویرایش داده مرجع",
   CLOSE_TICKET: "بستن تیکت",
   REPLY_TICKET: "پاسخ به تیکت",
+  APPROVE_TESTIMONIAL: "تایید نظر کاربر",
+  REJECT_TESTIMONIAL: "رد نظر کاربر",
+  DELETE_TESTIMONIAL: "حذف نظر کاربر",
 };
 
 const ACTION_COLOR: Record<string, string> = {

@@ -2,21 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
-import { getAdminSession, hasAccess, type AdminResource } from "@/app/lib/permissions";
+import { ADMIN_RESOURCES as RESOURCES, getAdminSession, hasAccess } from "@/app/lib/permissions";
 import type { ApiResponse } from "@/app/types/api";
-
-const RESOURCES: AdminResource[] = [
-  "USERS",
-  "POSTS",
-  "REPORTS",
-  "SESSIONS",
-  "REFERENCE_DATA",
-  "ANNOUNCEMENTS",
-  "AUDIT_LOG",
-  "BLOG",
-  "ROLES",
-  "TICKETS",
-];
 
 export async function GET(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;

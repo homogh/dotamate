@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/app/lib/prisma";
 import { verifyPayment } from "@/app/lib/paymentGateway";
 import { fulfillPaidOrder, markOrderPaid, refundOrderToWallet, reserveItemStock } from "@/app/lib/shopOrders";
-import { cancelPendingMarketOrder, marketOrderHref, startSellerClock } from "@/app/lib/marketOrders";
+import { cancelPendingMarketOrder, marketOrderHref, openEscrowOrder, startSellerClock } from "@/app/lib/marketOrders";
 import { getShopSettings } from "@/app/lib/shopPricing";
+import { notifyShopAdmins } from "@/app/lib/shopOrders";
 
 /**
  * Where the gateway sends the buyer back. Deliberately NOT gated by the shop
@@ -42,6 +43,8 @@ export async function GET(request: NextRequest) {
   }
 
   const settings = await getShopSettings();
+  let escrowOpenedId: number | null = null;
+  let escrowOpenedItemName = "";
 
   const paidOrderId = await prisma.$transaction(async (tx) => {
     const { count } = await tx.payment.updateMany({
@@ -51,7 +54,10 @@ export async function GET(request: NextRequest) {
     if (count === 0) return null; // another request already processed this payment
 
     if (payment.purpose === "MARKET_ORDER") {
-      const order = await tx.marketOrder.findUnique({ where: { id: payment.marketOrderId! }, select: { id: true, status: true, listingId: true } });
+      const order = await tx.marketOrder.findUnique({
+        where: { id: payment.marketOrderId! },
+        select: { id: true, status: true, listingId: true, tradeMode: true, listing: { select: { itemName: true } } },
+      });
       if (!order) return null;
 
       // Paid in time — or late, but nobody else grabbed the listing in the meantime.
@@ -62,7 +68,12 @@ export async function GET(request: NextRequest) {
         (await tx.marketListing.updateMany({ where: { id: order.listingId, status: "ACTIVE" }, data: { status: "RESERVED" } })).count === 1;
 
       if (stillHeld || reclaimed) {
-        await startSellerClock(tx, order.id, settings.sellerDeadlineHours);
+        if (order.tradeMode === "ESCROW") await openEscrowOrder(tx, order.id);
+        else await startSellerClock(tx, order.id, settings.sellerDeadlineHours, settings.mutualConfirmHours);
+        if (order.tradeMode === "ESCROW") {
+          escrowOpenedId = order.id;
+          escrowOpenedItemName = order.listing.itemName;
+        }
       } else {
         // Reservation expired and the item went to someone else: never keep the money.
         await tx.walletTransaction.create({
@@ -108,5 +119,12 @@ export async function GET(request: NextRequest) {
   });
 
   if (paidOrderId) await fulfillPaidOrder(paidOrderId);
+  if (escrowOpenedId !== null) {
+    await notifyShopAdmins(
+      "سفارش بازار جدید منتظر پذیرش",
+      `سفارش #${escrowOpenedId} («${escrowOpenedItemName}»): برای ارسال لینک ترید، سفارش را در پنل ادمین بپذیر.`,
+      "/admin/shop/market",
+    );
+  }
   return redirect(successPath);
 }

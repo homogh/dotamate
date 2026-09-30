@@ -8,6 +8,8 @@ import { Testimonials } from "@/components/pages/landing/testimonials";
 import { FinalCta } from "@/components/pages/landing/finalCta";
 import { FloatingCta } from "@/components/general/floatingCta";
 
+export const dynamic = "force-dynamic";
+
 export default function Home() {
   return (
     <div className="landing-page flex w-full flex-col items-center">

@@ -6,7 +6,8 @@ import { getShopSettings } from "@/app/lib/shopPricing";
 import { getWalletBalance, lockWallet } from "@/app/lib/wallet";
 import { gatewayName, requestPayment } from "@/app/lib/paymentGateway";
 import { fetchDotaInventory } from "@/app/lib/steamInventory";
-import { cancelPendingMarketOrder, marketOrderHref, RESERVATION_MINUTES, splitCommission, startSellerClock } from "@/app/lib/marketOrders";
+import { cancelPendingMarketOrder, marketOrderHref, openEscrowOrder, RESERVATION_MINUTES, splitCommission, startSellerClock } from "@/app/lib/marketOrders";
+import { notifyShopAdmins } from "@/app/lib/shopOrders";
 import type { ApiResponse } from "@/app/types/api";
 
 class CheckoutError extends Error {}
@@ -19,7 +20,8 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const listingId = Number(body?.listingId);
   const paymentMethod = body?.paymentMethod === "WALLET" ? "WALLET" : body?.paymentMethod === "GATEWAY" ? "GATEWAY" : null;
-  if (!listingId || !paymentMethod) {
+  const tradeMode = body?.tradeMode === "DIRECT" ? "DIRECT" : body?.tradeMode === "ESCROW" ? "ESCROW" : null;
+  if (!listingId || !paymentMethod || !tradeMode) {
     return NextResponse.json<ApiResponse>({ status: "error", message: "درخواست نامعتبر است.", data: null }, { status: 400 });
   }
 
@@ -37,6 +39,10 @@ export async function POST(request: NextRequest) {
   }
   if (listing.sellerId === buyerId) {
     return NextResponse.json<ApiResponse>({ status: "error", message: "نمی‌توانی آگهی خودت را بخری.", data: null }, { status: 409 });
+  }
+  if ((tradeMode === "DIRECT" && !listing.allowDirectTrade) || (tradeMode === "ESCROW" && !listing.allowEscrow)) {
+    // Never trust the client: re-check the chosen mode is one the seller actually left enabled.
+    return NextResponse.json<ApiResponse>({ status: "error", message: "فروشنده این روش معامله را برای این آگهی غیرفعال کرده است.", data: null }, { status: 409 });
   }
   if (!buyer.steamTradeUrl) {
     return NextResponse.json<ApiResponse>(
@@ -62,12 +68,14 @@ export async function POST(request: NextRequest) {
     buyerId,
     sellerId: listing.sellerId,
     paymentMethod,
+    tradeMode,
     priceToman: listing.priceToman,
     commissionPercent: settings.marketCommissionPercent,
     commissionToman,
     sellerPayoutToman,
     buyerTradeUrl: buyer.steamTradeUrl,
   } as const;
+  const mutualConfirmHours = tradeMode === "DIRECT" ? settings.mutualConfirmHours : undefined;
 
   if (paymentMethod === "WALLET") {
     let orderId: number;
@@ -85,7 +93,8 @@ export async function POST(request: NextRequest) {
         await tx.walletTransaction.create({
           data: { userId: buyerId, type: "PURCHASE", amountToman: -listing.priceToman, marketOrderId: order.id, note: listing.itemName },
         });
-        await startSellerClock(tx, order.id, settings.sellerDeadlineHours);
+        if (tradeMode === "ESCROW") await openEscrowOrder(tx, order.id);
+        else await startSellerClock(tx, order.id, settings.sellerDeadlineHours, mutualConfirmHours);
         return order.id;
       });
     } catch (error) {
@@ -95,6 +104,9 @@ export async function POST(request: NextRequest) {
       throw error;
     }
 
+    if (tradeMode === "ESCROW") {
+      await notifyShopAdmins("سفارش بازار جدید منتظر پذیرش", `سفارش #${orderId} («${listing.itemName}»): برای ارسال لینک ترید، سفارش را در پنل ادمین بپذیر.`, "/admin/shop/market");
+    }
     return NextResponse.json<ApiResponse>({ status: "success", message: "خرید انجام شد.", data: { orderId, redirectUrl: marketOrderHref(orderId) } });
   }
 

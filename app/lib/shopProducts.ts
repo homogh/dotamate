@@ -51,7 +51,7 @@ export function parseProductBody(body: Record<string, unknown> | null): ParseRes
       shortDescription: text(body?.shortDescription, 300),
       description: text(body?.description, 20_000),
       features: text(body?.features, 2_000),
-      imageUrl: text(body?.imageUrl, 500),
+      imageUrl: text(body?.imageUrl, 700),
       imageAlt: text(body?.imageAlt, 160),
       heroName: isItem ? text(body?.heroName, 60) : null,
       rarity,

@@ -36,6 +36,8 @@ export function ListingCreator({ commissionPercent, minPrice, payoutHoldHours, s
   const [selected, setSelected] = useState<InventoryItem | null>(null);
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
+  const [allowDirectTrade, setAllowDirectTrade] = useState(true);
+  const [allowEscrow, setAllowEscrow] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const fetchInventory = useCallback((refresh: boolean) => {
@@ -79,7 +81,7 @@ export function ListingCreator({ commissionPercent, minPrice, payoutHoldHours, s
     const res = await fetch("/api/shop/market/listings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ assetId: selected.assetId, priceToman: priceNum, description }),
+      body: JSON.stringify({ assetId: selected.assetId, priceToman: priceNum, description, allowDirectTrade, allowEscrow }),
     });
     const json = await res.json().catch(() => null);
     setSaving(false);
@@ -209,9 +211,22 @@ export function ListingCreator({ commissionPercent, minPrice, payoutHoldHours, s
               />
             </label>
 
+            <div className="flex flex-col gap-2">
+              <span className="text-right text-[13px] font-bold text-text">روش‌های معامله مجاز</span>
+              <label className="flex items-center justify-between gap-2 rounded-[8px] border border-border bg-surface-alt p-3 text-[12px]">
+                <input type="checkbox" checked={allowDirectTrade} onChange={(e) => setAllowDirectTrade(e.target.checked)} className="size-4 accent-primary" />
+                <span className="flex-1 text-right text-text">ترید مستقیم با خریدار در استیم (بدون کمیسیون اضافه، ریسک با طرفین)</span>
+              </label>
+              <label className="flex items-center justify-between gap-2 rounded-[8px] border border-border bg-surface-alt p-3 text-[12px]">
+                <input type="checkbox" checked={allowEscrow} onChange={(e) => setAllowEscrow(e.target.checked)} className="size-4 accent-primary" />
+                <span className="flex-1 text-right text-text">واسطه‌گری دوتامیت (آیتم اول برای ادمین ارسال می‌شود، حدود ۷ روز زمان‌بر است)</span>
+              </label>
+              {!allowDirectTrade && !allowEscrow && <p className="text-right text-[11px] text-danger">حداقل یک روش باید فعال باشد.</p>}
+            </div>
+
             <button
               onClick={submit}
-              disabled={saving || priceNum < minPrice}
+              disabled={saving || priceNum < minPrice || (!allowDirectTrade && !allowEscrow)}
               className="rounded-[8px] bg-primary px-4 py-3 text-[14px] font-black text-white hover:bg-primary-hover disabled:opacity-50"
             >
               {saving ? "در حال ثبت..." : "ثبت آگهی"}

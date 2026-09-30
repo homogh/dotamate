@@ -25,7 +25,7 @@ export default async function MyListingsPage() {
 
   const listings = await prisma.marketListing.findMany({
     where: { sellerId: viewer.id },
-    include: { orders: { where: { status: { in: ["AWAITING_SELLER", "SELLER_SENT", "DISPUTED"] } }, select: { id: true }, take: 1 } },
+    include: { orders: { where: { status: { in: ["AWAITING_ADMIN", "AWAITING_SELLER", "SELLER_SENT", "ADMIN_RECEIVED", "DISPUTED"] } }, select: { id: true }, take: 1 } },
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     take: 200,
   });
