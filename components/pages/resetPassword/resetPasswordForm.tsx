@@ -13,15 +13,29 @@ export function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const [sent, setSent] = useState(false);
+  const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleRequestSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleRequestSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSent(true);
-    // TODO: درخواست لینک بازیابی از API وقتی بک‌اند آماده شد.
+    const form = new FormData(event.currentTarget);
+    const contact = String(form.get("contact") ?? "");
+
+    setSubmitting(true);
+    try {
+      await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contact }),
+      });
+    } finally {
+      setSubmitting(false);
+      setSent(true);
+    }
   }
 
-  function handleSetPasswordSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSetPasswordSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const password = String(form.get("password") ?? "");
@@ -33,7 +47,24 @@ export function ResetPasswordForm() {
     }
 
     setError(null);
-    // TODO: ثبت رمز جدید از طریق API وقتی بک‌اند آماده شد.
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password }),
+      });
+      const result = await response.json();
+      if (result.status !== "success") {
+        setError(result.message ?? "خطایی پیش اومد.");
+        return;
+      }
+      setDone(true);
+    } catch {
+      setError("خطا در ارتباط با سرور. دوباره تلاش کن.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (token) {
@@ -42,33 +73,42 @@ export function ResetPasswordForm() {
         title="تعیین رمز جدید"
         subtitle="یک رمز عبور جدید برای حساب دوتامیت خودت انتخاب کن."
       >
-        <form className="flex w-full flex-col gap-5" onSubmit={handleSetPasswordSubmit}>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="password">رمز عبور جدید</Label>
-            <Input id="password" name="password" type="password" required dir="ltr" />
-          </div>
+        {done ? (
+          <p className="text-center text-sm leading-[1.8] text-text-dim" dir="auto">
+            رمز عبورت با موفقیت تغییر کرد.{" "}
+            <Link href="/login" className="font-bold text-accent">
+              وارد شو
+            </Link>
+          </p>
+        ) : (
+          <form className="flex w-full flex-col gap-5" onSubmit={handleSetPasswordSubmit}>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="password">رمز عبور جدید</Label>
+              <Input id="password" name="password" type="password" required dir="ltr" />
+            </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="confirmPassword">تکرار رمز عبور جدید</Label>
-            <Input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              required
-              dir="ltr"
-            />
-          </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="confirmPassword">تکرار رمز عبور جدید</Label>
+              <Input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                required
+                dir="ltr"
+              />
+            </div>
 
-          {error && (
-            <p className="text-sm text-red-400" dir="auto">
-              {error}
-            </p>
-          )}
+            {error && (
+              <p className="text-sm text-red-400" dir="auto">
+                {error}
+              </p>
+            )}
 
-          <Button type="submit" className="w-full">
-            ثبت رمز جدید
-          </Button>
-        </form>
+            <Button type="submit" className="w-full" disabled={submitting}>
+              {submitting ? "در حال ثبت..." : "ثبت رمز جدید"}
+            </Button>
+          </form>
+        )}
       </AuthShell>
     );
   }
@@ -104,8 +144,8 @@ export function ResetPasswordForm() {
             />
           </div>
 
-          <Button type="submit" className="w-full">
-            ارسال لینک بازیابی
+          <Button type="submit" className="w-full" disabled={submitting}>
+            {submitting ? "در حال ارسال..." : "ارسال لینک بازیابی"}
           </Button>
         </form>
       )}

@@ -423,6 +423,7 @@ model User {
   withdrawalsProcessed   WithdrawalRequest[]       @relation("WithdrawalProcessor")
   marketOrderAttachments MarketOrderAttachment[]
   marketOrdersAccepted   MarketOrder[]             @relation("MarketOrderAccepter")
+  passwordResetTokens    PasswordResetToken[]
 }
 
 model Post {
@@ -1042,6 +1043,20 @@ model MarketOrderAttachment {
   createdAt     DateTime       @default(now())
 
   @@index([marketOrderId])
+}
+
+// Forgot-password flow. token is the HMAC of the raw token mailed to the user
+// (see app/lib/mailer.ts) so the DB never holds a usable secret in plaintext.
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique @db.VarChar(64)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model WithdrawalRequest {
