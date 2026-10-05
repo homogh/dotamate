@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
+import { initialPostExpiry } from "@/app/lib/postExpiry";
 import type { ApiResponse } from "@/app/types/api";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       regions: original.regions ?? undefined,
       neededPositions: original.neededPositions ?? undefined,
       sessionType: "NOW",
+      expiresAt: initialPostExpiry(null),
       partySize: original.partySize,
       hasVoice: original.hasVoice,
       description: original.description,

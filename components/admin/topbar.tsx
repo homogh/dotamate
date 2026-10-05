@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Bell, Menu, Search, X } from "lucide-react";
 
 import { AccountMenu } from "@/components/general/accountMenu";
-import { ADMIN_NAV_ITEMS } from "@/components/admin/navItems";
+import { findActiveAdminNav } from "@/components/admin/navItems";
 
 export function AdminTopbar({
   mobileMenuOpen,
@@ -18,7 +18,8 @@ export function AdminTopbar({
   const router = useRouter();
   const [query, setQuery] = useState("");
 
-  const title = ADMIN_NAV_ITEMS.find((item) => item.href === pathname)?.label ?? "پیشخوان مدیریت دوتامیت";
+  const active = findActiveAdminNav(pathname);
+  const title = active?.item.label ?? "پیشخوان مدیریت دوتامیت";
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,9 +55,16 @@ export function AdminTopbar({
       </div>
 
       <div className="flex min-w-0 flex-1 items-center justify-end gap-3 lg:flex-none">
-        <p className="truncate text-[20px] font-black text-text" dir="auto">
-          {title}
-        </p>
+        <div className="flex min-w-0 flex-col items-end">
+          {active?.group && (
+            <p className="text-[11px] font-bold" style={{ color: active.group.tone }} dir="auto">
+              {active.group.label}
+            </p>
+          )}
+          <p className="truncate text-[20px] font-black text-text" dir="auto">
+            {title}
+          </p>
+        </div>
         {onToggleMobileMenu && (
           <button
             type="button"

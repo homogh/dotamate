@@ -61,6 +61,8 @@ enum PostStatus {
 
 enum MemberStatus {
   PENDING
+  // Host invited the player directly; not a member until they accept.
+  INVITED
   ACCEPTED
   DECLINED
   REMOVED
@@ -376,6 +378,10 @@ model User {
   banReason      String?   @db.Text
   suspendedUntil DateTime?
   lastActiveAt   DateTime?
+  // Chat the user is looking at right now (visible + focused tab), refreshed by
+  // the chat pages' poll; message notifications skip them while it's fresh.
+  activeChatKey  String?   @db.VarChar(32)
+  activeChatAt   DateTime?
 
   // Where the user came from at signup — captured client-side by
   // components/general/attributionTracker.tsx, see app/lib/attribution.ts.
@@ -450,6 +456,10 @@ model Post {
   voiceLink       String?
   status          PostStatus  @default(ACTIVE)
   bumpedAt        DateTime    @default(now())
+  // Auto-expiry (app/lib/postExpiry.ts): null on rows created before the
+  // feature — those fall back to createdAt + 24h.
+  expiresAt       DateTime?
+  expiryWarnedAt  DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -534,9 +544,14 @@ model Notification {
   friendshipId Int?
   friendship   Friendship?      @relation(fields: [friendshipId], references: [id], onDelete: SetNull)
   read         Boolean          @default(false)
+  // Message notifications collapse per chat + sender ("dm:12:34") into one
+  // unread row whose counter grows, instead of one row per message.
+  groupKey     String?          @db.VarChar(64)
+  count        Int              @default(1)
   createdAt    DateTime         @default(now())
 
   @@index([userId, read])
+  @@index([userId, groupKey, read])
 }
 
 // One row per pair. A declined or cancelled request is deleted outright so

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ExternalLink, Lock, Store, Users } from "lucide-react";
+import { ExternalLink, Lock, Store } from "lucide-react";
 
 import { Card } from "@/components/general/card";
 import { Input } from "@/components/ui/input";
@@ -12,17 +12,10 @@ import { useToast } from "@/app/stores/useToast";
 interface ShopSettingsData {
   usdCostToman: number;
   giftCardMarginPercent: number;
-  itemMarginPercent: number;
-  marketCommissionPercent: number;
   gatewayFeePercent: number;
   workStartHour: number;
   workEndHour: number;
   lowStockThreshold: number;
-  minWithdrawalToman: number;
-  payoutHoldHours: number;
-  sellerDeadlineHours: number;
-  buyerConfirmHours: number;
-  mutualConfirmHours: number;
 }
 
 type FieldKey = keyof ShopSettingsData;
@@ -33,27 +26,15 @@ const FIELD_GROUPS: { title: string; fields: { key: FieldKey; label: string; hin
     fields: [
       { key: "usdCostToman", label: "هزینه هر دلار استیم", hint: "نرخ واقعی شارژ ویزا کارت، با همه کارمزدها", suffix: "تومان" },
       { key: "giftCardMarginPercent", label: "سود گیفت کارت", hint: "روی هزینه تمام‌شده اضافه می‌شود", suffix: "٪" },
-      { key: "itemMarginPercent", label: "سود آیتم‌های فروشگاه", hint: "روی هزینه تمام‌شده اضافه می‌شود", suffix: "٪" },
       { key: "gatewayFeePercent", label: "کارمزد درگاه پرداخت", hint: "برای محاسبه سود خالص", suffix: "٪" },
     ],
   },
   {
-    title: "بازار کاربران و میت کیف",
-    fields: [
-      { key: "marketCommissionPercent", label: "کمیسیون بازار کاربران", hint: "از سهم فروشنده کم می‌شود", suffix: "٪" },
-      { key: "payoutHoldHours", label: "مدت نگهداری پول فروش", hint: "بعد از تأیید تحویل، پول تا این مدت قابل برداشت نیست", suffix: "ساعت" },
-      { key: "minWithdrawalToman", label: "حداقل مبلغ برداشت", hint: "از میت کیف", suffix: "تومان" },
-      { key: "sellerDeadlineHours", label: "مهلت ارسال فروشنده", hint: "بعد از پرداخت (واسطه‌گری دوتامیت)؛ اگر ارسال نکند، مبلغ به خریدار برمی‌گردد", suffix: "ساعت" },
-      { key: "buyerConfirmHours", label: "مهلت تأیید خریدار", hint: "بعد از ارسال؛ اگر اعتراض نکند، خرید خودکار تأیید می‌شود", suffix: "ساعت" },
-      { key: "mutualConfirmHours", label: "مهلت تأیید متقابل (ترید مستقیم)", hint: "اگر هیچ‌کدام از طرفین تا این مدت تأیید نکنند، مبلغ خودکار به خریدار برمی‌گردد", suffix: "ساعت" },
-    ],
-  },
-  {
-    title: "گیفت کارت و ساعت کاری",
+    title: "بانک کد و ساعت کاری",
     fields: [
       { key: "workStartHour", label: "شروع ساعت کاری", hint: "به وقت تهران؛ برای وقتی که بانک کد خالی است", suffix: "ساعت" },
       { key: "workEndHour", label: "پایان ساعت کاری", hint: "به وقت تهران", suffix: "ساعت" },
-      { key: "lowStockThreshold", label: "هشدار کمبود کد", hint: "وقتی موجودی کد یک محصول به این عدد برسد", suffix: "عدد" },
+      { key: "lowStockThreshold", label: "هشدار کمبود کد", hint: "وقتی موجودی کد یک گیفت کارت به این عدد برسد", suffix: "عدد" },
     ],
   },
 ];
@@ -62,9 +43,6 @@ const toman = (n: number) => n.toLocaleString("fa-IR");
 
 export function ShopSettings() {
   const [enabled, setEnabled] = useState<boolean | null>(null);
-  const [marketEnabled, setMarketEnabled] = useState(false);
-  const [marketInFlight, setMarketInFlight] = useState(0);
-  const [togglingMarket, setTogglingMarket] = useState(false);
   const [form, setForm] = useState<Record<FieldKey, string> | null>(null);
   const [toggling, setToggling] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -76,8 +54,6 @@ export function ShopSettings() {
       .then((json) => {
         if (json.status !== "success") return;
         setEnabled(json.data.shopEnabled);
-        setMarketEnabled(json.data.marketEnabled);
-        setMarketInFlight(json.data.marketInFlight);
         setForm(toForm(json.data.settings));
       });
   }, []);
@@ -93,23 +69,6 @@ export function ShopSettings() {
     setToggling(false);
     if (json.status === "success") {
       setEnabled(json.data.shopEnabled);
-      toast.success(json.message);
-    } else {
-      toast.error(json.message);
-    }
-  }
-
-  async function toggleMarket(next: boolean) {
-    setTogglingMarket(true);
-    const res = await fetch("/api/admin/shop", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ marketEnabled: next }),
-    });
-    const json = await res.json();
-    setTogglingMarket(false);
-    if (json.status === "success") {
-      setMarketEnabled(json.data.marketEnabled);
       toast.success(json.message);
     } else {
       toast.error(json.message);
@@ -157,7 +116,7 @@ export function ShopSettings() {
         </div>
 
         <p className="w-full text-right text-[14px] leading-[1.7] text-text-dim" dir="auto">
-          با روشن کردن این گزینه، لینک «فروشگاه» در منوی بالای سایت ظاهر می‌شود و کاربران می‌توانند وارد فروشگاه شوند. وقتی خاموش است، فروشگاه و همه بخش‌های مربوط به آن در پنل کاربر («سفارش‌های من»، «میت کیف» و ...) برای همه، حتی مدیرها، بسته است و ورود مستقیم با آدرس هم صفحه ۴۰۴ نشان می‌دهد. مدیریت فروشگاه از همین پنل ادمین ادامه دارد.
+          با روشن کردن این گزینه، لینک «فروشگاه» در منوی بالای سایت ظاهر می‌شود و کاربران می‌توانند گیفت کارت بخرند. وقتی خاموش است، فروشگاه و همه بخش‌های مربوط به آن در پنل کاربر («سفارش‌های من» و «میت کیف») برای همه، حتی مدیرها، بسته است و ورود مستقیم با آدرس هم صفحه ۴۰۴ نشان می‌دهد. مدیریت فروشگاه از همین پنل ادمین ادامه دارد.
         </p>
 
         <div
@@ -183,47 +142,6 @@ export function ShopSettings() {
         </div>
       </Card>
 
-      <Card tone="surface" noHover className="w-full gap-5 p-6">
-        <div className="flex w-full items-center justify-between gap-4">
-          <div className={togglingMarket ? "pointer-events-none opacity-50" : ""}>
-            <Switch checked={marketEnabled} onChange={toggleMarket} />
-          </div>
-          <div className="flex items-center gap-3">
-            <p className="text-[18px] font-black text-text">بازار کاربران</p>
-            <div className="flex size-9 items-center justify-center rounded-[8px] bg-primary/15">
-              <Users size={18} className="text-primary" />
-            </div>
-          </div>
-        </div>
-
-        <p className="w-full text-right text-[14px] leading-[1.7] text-text-dim">
-          وقتی خاموش است، هیچ اثری از بازار کاربران برای کاربران باقی نمی‌ماند: بخش و دسته آن از فروشگاه، «آگهی‌های من» و «فروش‌های من» از پنل کاربر، سفارش‌های بازار و اعلان‌هایش حذف می‌شوند و ورود با آدرس هم برای همه ۴۰۴ می‌دهد.
-          {!enabled && " بازار فقط وقتی برای کاربران باز است که خود فروشگاه هم روشن باشد."}
-        </p>
-
-        {marketEnabled && marketInFlight > 0 && (
-          <div className="flex w-full items-start gap-3 rounded-[8px] border border-[#f59e0b]/60 bg-[#f59e0b]/[0.1] px-4 py-3">
-            <AlertTriangle size={18} className="mt-0.5 shrink-0 text-[#f59e0b]" />
-            <p className="text-right text-[13px] leading-[1.8] text-[#f59e0b]">
-              {marketInFlight.toLocaleString("fa-IR")} سفارش بازار در جریان است. اگر بازار را خاموش کنی، طرفین دیگر به صفحه سفارش دسترسی ندارند و سفارش‌ها خودکار تسویه می‌شوند: ارسال‌نشده‌ها بعد از مهلت فروشنده به خریدار برمی‌گردند و ارسال‌شده‌ها بعد از مهلت تأیید به فروشنده پرداخت می‌شوند. اعتراض‌ها در پنل مدیریت باقی می‌مانند.
-            </p>
-          </div>
-        )}
-
-        <div className={`flex w-full items-center justify-between rounded-[8px] border px-4 py-3 ${marketEnabled && enabled ? "border-success/40 bg-success/10" : "border-border bg-surface-alt"}`}>
-          <Link href="/shop/market" target="_blank" className="flex items-center gap-1.5 text-[13px] font-bold text-primary hover:underline">
-            <ExternalLink size={14} />
-            مشاهده بازار
-          </Link>
-          <div className="flex items-center gap-2">
-            {!(marketEnabled && enabled) && <Lock size={14} className="text-text-dim" />}
-            <p className={`text-[13px] font-bold ${marketEnabled && enabled ? "text-success" : "text-text-dim"}`}>
-              {marketEnabled && enabled ? "بازار کاربران برای همه فعال است" : marketEnabled ? "روشن است، ولی تا فروشگاه خاموش است بسته می‌ماند" : "بازار کاربران غیرفعال و از دسترس خارج است"}
-            </p>
-          </div>
-        </div>
-      </Card>
-
       <Card tone="surface" noHover className="w-full gap-6 p-6">
         <div className="flex w-full items-center justify-between">
           <button
@@ -241,7 +159,7 @@ export function ShopSettings() {
 
         {Number(form.usdCostToman) <= 0 && (
           <p className="w-full rounded-[8px] border border-[#f59e0b] bg-[#f59e0b]/[0.13] px-4 py-2.5 text-right text-[13px] text-[#f59e0b]" dir="auto">
-            «هزینه هر دلار استیم» هنوز وارد نشده. تا وقتی صفر است هیچ محصولی قیمت نمی‌گیرد و قابل خرید نیست.
+            «هزینه هر دلار استیم» هنوز وارد نشده. تا وقتی صفر است هیچ گیفت کارتی قیمت نمی‌گیرد و قابل خرید نیست.
           </p>
         )}
 

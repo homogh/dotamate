@@ -16,6 +16,7 @@ import {
 import { steamId64ToAccountId } from "@/app/lib/steam";
 import { findFriendship, isOnline, relationFrom } from "@/app/lib/friends";
 import { RANK_LABEL } from "@/components/dashboard/postLabels";
+import { getPlatformSettings } from "@/app/lib/platformSettings";
 import type { ApiResponse } from "@/app/types/api";
 
 // Re-pull OpenDota stats at most this often per profile — keeps every
@@ -48,8 +49,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (isStale && matchStats) {
       // Already have stats to show — refresh in the background instead of
       // making the viewer wait on OpenDota (which can be slow or down). The
-      // new numbers and rank show up on the next view.
-      void syncProfileStats(user.id, user.steamId).catch((error) => console.error("[profile] OpenDota sync failed", error));
+      // new numbers and rank show up on the next view. This is the "auto sync"
+      // admins can switch off; the first sync (nothing to show yet) always runs.
+      if ((await getPlatformSettings()).steamAutoSyncEnabled) {
+        void syncProfileStats(user.id, user.steamId).catch((error) => console.error("[profile] OpenDota sync failed", error));
+      }
     } else if (isStale) {
       const synced = await syncProfileStats(user.id, user.steamId);
       matchStats = synced.matchStats ?? matchStats;

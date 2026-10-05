@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 
+import { cn } from "@/app/lib/utils";
 import { useNotifications } from "@/app/stores/useNotifications";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardTopbar } from "@/components/dashboard/topbar";
-import { shopNavVisible, type ShopNeed } from "@/components/dashboard/shopNav";
+import { DashboardNavMenu } from "@/components/dashboard/navMenu";
 
 interface ShellUser {
   displayName: string;
@@ -15,40 +14,19 @@ interface ShellUser {
   avatarUrl: string | null;
 }
 
-const MOBILE_NAV_ITEMS: { label: string; href: string; shop?: ShopNeed }[] = [
-  { label: "داشبورد", href: "/dashboard" },
-  { label: "مرور پست‌ها", href: "/dashboard/browse" },
-  { label: "ایجاد پست", href: "/dashboard/create-post" },
-  { label: "پست‌های من", href: "/dashboard/my-posts" },
-  { label: "جلسات هماهنگ‌شده", href: "/dashboard/sessions" },
-  { label: "دوستان", href: "/dashboard/friends" },
-  { label: "علاقه‌مندی‌ها", href: "/dashboard/favorites" },
-  { label: "پیام‌ها", href: "/dashboard/messages" },
-  { label: "اعلان‌ها", href: "/dashboard/notifications" },
-  { label: "سفارش‌های من", href: "/dashboard/orders", shop: "shop" },
-  { label: "آگهی‌های من", href: "/dashboard/listings", shop: "market" },
-  { label: "فروش‌های من", href: "/dashboard/sales", shop: "market" },
-  { label: "میت کیف", href: "/dashboard/wallet", shop: "shop" },
-  { label: "پروفایل", href: "/dashboard/profile" },
-  { label: "تنظیمات", href: "/dashboard/settings" },
-];
-
 export function DashboardShell({
   user,
   unreadMessages,
   unreadNotifications,
   shopOpen,
-  marketOpen,
   children,
 }: {
   user: ShellUser;
   unreadMessages: number;
   unreadNotifications: number;
   shopOpen: boolean;
-  marketOpen: boolean;
   children: ReactNode;
 }) {
-  const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const setInitialCounts = useNotifications((s) => s.setInitialCounts);
 
@@ -69,29 +47,25 @@ export function DashboardShell({
 
   return (
     <div className="flex w-full flex-col lg:flex-row">
-      <DashboardSidebar user={user} shopOpen={shopOpen} marketOpen={marketOpen} />
+      <DashboardSidebar user={user} shopOpen={shopOpen} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="sticky top-0 z-20">
           <DashboardTopbar mobileMenuOpen={mobileOpen} onToggleMobileMenu={() => setMobileOpen((v) => !v)} />
 
-          {mobileOpen && (
-            <div className="flex flex-col gap-1 border-b border-border bg-surface-alt px-4 py-4 lg:hidden">
-              {MOBILE_NAV_ITEMS.filter((item) => shopNavVisible(item.shop, shopOpen, marketOpen)).map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={`rounded-[8px] px-4 py-3 text-right text-sm font-bold ${
-                    pathname === item.href ? "bg-primary text-white" : "text-text-dim hover:bg-white/5"
-                  }`}
-                  dir="auto"
-                >
-                  {item.label}
-                </Link>
-              ))}
+          <div
+            inert={!mobileOpen}
+            className={cn(
+              "grid border-b bg-surface-alt transition-[grid-template-rows,opacity,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] lg:hidden",
+              mobileOpen ? "grid-rows-[1fr] border-border opacity-100" : "grid-rows-[0fr] border-transparent opacity-0"
+            )}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <div className="max-h-[calc(100dvh-80px)] overflow-y-auto px-4 py-4">
+                <DashboardNavMenu shopOpen={shopOpen} onNavigate={() => setMobileOpen(false)} />
+              </div>
             </div>
-          )}
+          </div>
         </div>
 
         <main className="flex-1">{children}</main>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { CheckCircle2, Clock, Repeat, Undo2, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, Undo2, XCircle } from "lucide-react";
 
 import prisma from "@/app/lib/prisma";
 import { getViewerSession } from "@/app/lib/shopCatalog";
@@ -21,7 +21,7 @@ export default async function OrderDetailPage({ params, searchParams }: PageProp
   const order = await prisma.shopOrder.findUnique({
     where: { id: Number(id) },
     include: {
-      product: { select: { id: true, slug: true, title: true, type: true } },
+      product: { select: { id: true, slug: true, title: true } },
       giftCode: { select: { codeEncrypted: true } },
       payments: { where: { status: "SUCCESS" }, select: { refId: true, cardPan: true }, take: 1 },
     },
@@ -67,18 +67,6 @@ export default async function OrderDetailPage({ params, searchParams }: PageProp
           />
         )}
 
-        {order.status === "AWAITING_DELIVERY" && (
-          <Banner
-            tone="warning"
-            icon={Repeat}
-            text="پرداختت انجام شد. آیتم به‌زودی با ترید استیم به Trade URL زیر ارسال می‌شود؛ پیشنهاد ترید را در استیم قبول کن."
-          />
-        )}
-
-        {order.status === "DELIVERED" && order.product.type === "ITEM" && (
-          <Banner tone="success" icon={CheckCircle2} text="آیتم برایت ترید شد. اگر هنوز در اینونتوری‌ات نیست، پیشنهادهای ترید استیم را چک کن." />
-        )}
-
         {order.status === "REFUNDED" && (
           <Banner tone="neutral" icon={Undo2} text="این سفارش لغو شد و کل مبلغ به میت کیف تو برگشت." />
         )}
@@ -90,7 +78,6 @@ export default async function OrderDetailPage({ params, searchParams }: PageProp
           {order.paidAt && <Row label="تاریخ پرداخت" value={order.paidAt.toLocaleString("fa-IR")} />}
           {order.deliveredAt && <Row label="تاریخ تحویل" value={order.deliveredAt.toLocaleString("fa-IR")} />}
           {paidRef?.refId && <Row label="کد پیگیری بانک" value={paidRef.refId} ltr />}
-          {order.tradeUrl && <Row label="Trade URL" value={order.tradeUrl} ltr />}
         </dl>
 
         <div className="flex w-full items-center justify-between border-t border-border pt-4">

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/app/lib/prisma";
 import { requireShopUser } from "@/app/lib/shopAccess";
 import { getShopSettings, priceToman } from "@/app/lib/shopPricing";
-import { fulfillPaidOrder, markOrderPaid, reserveItemStock } from "@/app/lib/shopOrders";
+import { fulfillPaidOrder, markOrderPaid } from "@/app/lib/shopOrders";
 import { getWalletBalance, lockWallet } from "@/app/lib/wallet";
 import { gatewayName, requestPayment } from "@/app/lib/paymentGateway";
 import type { ApiResponse } from "@/app/types/api";
@@ -25,31 +25,20 @@ export async function POST(request: NextRequest) {
   const [product, settings, user] = await Promise.all([
     prisma.shopProduct.findUnique({ where: { id: productId } }),
     getShopSettings(),
-    prisma.user.findUnique({ where: { id: userId }, select: { email: true, phone: true, steamTradeUrl: true, banned: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { email: true, phone: true, banned: true } }),
   ]);
 
-  if (!product || !product.active || !user) {
-    return NextResponse.json<ApiResponse>({ status: "error", message: "این محصول در دسترس نیست.", data: null }, { status: 404 });
+  // The shop sells gift cards only; any other product row is treated as missing.
+  if (!product || !product.active || product.type !== "GIFT_CARD" || !user) {
+    return NextResponse.json<ApiResponse>({ status: "error", message: "این گیفت کارت در دسترس نیست.", data: null }, { status: 404 });
   }
   if (user.banned) {
     return NextResponse.json<ApiResponse>({ status: "error", message: "حساب شما مسدود است.", data: null }, { status: 403 });
   }
 
-  const total = priceToman(product.priceUsdCents, product.type, settings);
+  const total = priceToman(product.priceUsdCents, settings);
   if (total === null) {
-    return NextResponse.json<ApiResponse>({ status: "error", message: "قیمت این محصول هنوز تعیین نشده.", data: null }, { status: 409 });
-  }
-
-  if (product.type === "ITEM") {
-    if (!user.steamTradeUrl) {
-      return NextResponse.json<ApiResponse>(
-        { status: "error", message: "برای خرید آیتم، اول Trade URL استیمت را در تنظیمات ثبت کن.", data: { needsTradeUrl: true } },
-        { status: 409 },
-      );
-    }
-    if (product.stock !== null && product.stock <= 0) {
-      return NextResponse.json<ApiResponse>({ status: "error", message: "موجودی این آیتم تمام شده.", data: null }, { status: 409 });
-    }
+    return NextResponse.json<ApiResponse>({ status: "error", message: "قیمت این گیفت کارت هنوز تعیین نشده.", data: null }, { status: 409 });
   }
 
   const orderData = {
@@ -59,7 +48,6 @@ export async function POST(request: NextRequest) {
     priceUsdCents: product.priceUsdCents,
     usdCostToman: settings.usdCostToman,
     totalToman: total,
-    tradeUrl: product.type === "ITEM" ? user.steamTradeUrl : null,
   } as const;
 
   if (paymentMethod === "WALLET") {
@@ -70,15 +58,11 @@ export async function POST(request: NextRequest) {
         const { total: balance } = await getWalletBalance(userId, tx);
         if (balance < total) throw new CheckoutError("موجودی میت کیف کافی نیست.");
 
-        if (product.type === "ITEM" && !(await reserveItemStock(tx, productId))) {
-          throw new CheckoutError("موجودی این آیتم تمام شده.");
-        }
-
         const order = await tx.shopOrder.create({ data: orderData });
         await tx.walletTransaction.create({
           data: { userId, type: "PURCHASE", amountToman: -total, orderId: order.id, note: product.title },
         });
-        await markOrderPaid(tx, order.id, product.type);
+        await markOrderPaid(tx, order.id);
         return order.id;
       });
     } catch (error) {

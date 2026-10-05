@@ -3,8 +3,10 @@ import type { GameMode, Position, Rank, Region, SessionType } from "@prisma/clie
 
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
+import { getPlatformSettings } from "@/app/lib/platformSettings";
 import type { ApiResponse } from "@/app/types/api";
 import { POSITION_VALUES, REGION_VALUES, parseEnumList } from "@/app/lib/postSlots";
+import { initialPostExpiry } from "@/app/lib/postExpiry";
 
 const POSITIONS = ["POS1", "POS2", "POS3", "POS4", "POS5"];
 const RANKS = ["UNRANKED", "HERALD", "GUARDIAN", "CRUSADER", "ARCHON", "LEGEND", "ANCIENT", "DIVINE", "IMMORTAL"];
@@ -59,6 +61,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (sessionType === "SCHEDULED" && !(await getPlatformSettings()).scheduledSessionsEnabled) {
+    return NextResponse.json<ApiResponse>(
+      { status: "error", message: "ساخت جلسه زمان‌بندی‌شده موقتاً توسط مدیریت غیرفعال شده.", data: null },
+      { status: 403 },
+    );
+  }
+
   const existingActive = await prisma.post.findFirst({
     where: { authorId: session.id, status: "ACTIVE" },
   });
@@ -82,6 +91,7 @@ export async function POST(request: NextRequest) {
       neededPositions,
       sessionType: sessionType as SessionType,
       startAt: sessionType === "SCHEDULED" ? startAt : null,
+      expiresAt: initialPostExpiry(sessionType === "SCHEDULED" ? startAt : null),
       partySize,
       hasVoice,
       voiceLink,

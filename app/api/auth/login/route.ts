@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import prisma from "@/app/lib/prisma";
 import { verifyPassword, signSession, SESSION_COOKIE, SESSION_COOKIE_OPTIONS } from "@/app/lib/auth";
+import { accountBlockMessage } from "@/app/lib/accountStatus";
 import type { ApiResponse } from "@/app/types/api";
 
 export async function POST(request: NextRequest) {
@@ -34,6 +35,12 @@ export async function POST(request: NextRequest) {
       { status: "error", message: "رمز عبور اشتباهه.", data: null },
       { status: 401 },
     );
+  }
+
+  // Checked after the password so account status is never revealed to someone who doesn't know it.
+  const blockMessage = accountBlockMessage(user);
+  if (blockMessage) {
+    return NextResponse.json<ApiResponse>({ status: "error", message: blockMessage, data: null }, { status: 403 });
   }
 
   const token = await signSession({ id: user.id, displayName: user.displayName, email: user.email });

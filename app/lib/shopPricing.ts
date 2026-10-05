@@ -1,4 +1,4 @@
-import type { ShopProductType, ShopSetting } from "@prisma/client";
+import type { ShopSetting } from "@prisma/client";
 
 import prisma from "@/app/lib/prisma";
 
@@ -9,18 +9,17 @@ export async function getShopSettings() {
   return prisma.shopSetting.create({ data: { id: 1 } });
 }
 
-type PricingSettings = Pick<ShopSetting, "usdCostToman" | "giftCardMarginPercent" | "itemMarginPercent">;
+type PricingSettings = Pick<ShopSetting, "usdCostToman" | "giftCardMarginPercent">;
 
 /**
  * Cost-plus Toman price: dollars × what a Steam dollar costs us × (1 + margin),
  * rounded up to the next 1,000 Toman. Returns null while the dollar cost
  * hasn't been set yet, so nothing can be sold at a price of zero.
  */
-export function priceToman(priceUsdCents: number, type: ShopProductType, settings: PricingSettings) {
+export function priceToman(priceUsdCents: number, settings: PricingSettings) {
   if (settings.usdCostToman <= 0) return null;
 
-  const margin = type === "GIFT_CARD" ? settings.giftCardMarginPercent : settings.itemMarginPercent;
-  const raw = (priceUsdCents / 100) * settings.usdCostToman * (1 + margin / 100);
+  const raw = (priceUsdCents / 100) * settings.usdCostToman * (1 + settings.giftCardMarginPercent / 100);
   return Math.ceil(raw / 1000) * 1000;
 }
 

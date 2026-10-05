@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Circle, ImagePlus, Loader2, Search, Trash2 } from "lucide-react";
+import { CheckCircle2, Circle, ImagePlus, Loader2, Trash2 } from "lucide-react";
 
 import { Card } from "@/components/general/card";
 import { Button } from "@/components/ui/button";
@@ -14,23 +14,6 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/app/stores/useToast";
 import { cn } from "@/app/lib/utils";
 
-type ProductType = "GIFT_CARD" | "ITEM";
-type Rarity = "COMMON" | "UNCOMMON" | "RARE" | "MYTHICAL" | "LEGENDARY" | "IMMORTAL" | "ARCANA";
-
-const TYPE_LABELS: Record<ProductType, string> = { GIFT_CARD: "گیفت کارت", ITEM: "آیتم دوتا ۲" };
-const RARITIES: Rarity[] = ["COMMON", "UNCOMMON", "RARE", "MYTHICAL", "LEGENDARY", "IMMORTAL", "ARCANA"];
-
-interface SteamSearchItem {
-  marketHashName: string;
-  title: string;
-  type: string;
-  rarity: string | null;
-  priceUsd: number;
-  priceUsdText: string;
-  imageUrl: string;
-  tradable: boolean;
-}
-
 // Same rules as the server's slugify, so the preview matches what gets saved.
 function slugifyClient(title: string) {
   return title
@@ -41,11 +24,15 @@ function slugifyClient(title: string) {
     .slice(0, 80);
 }
 
-function computeTomanPrice(priceUsd: string, isItem: boolean, pricing: { usdCostToman: number; giftCardMarginPercent: number; itemMarginPercent: number } | null) {
+interface Pricing {
+  usdCostToman: number;
+  giftCardMarginPercent: number;
+}
+
+function computeTomanPrice(priceUsd: string, pricing: Pricing | null) {
   const usd = Number(priceUsd);
   if (!pricing || !(pricing.usdCostToman > 0) || !(usd > 0)) return null;
-  const margin = isItem ? pricing.itemMarginPercent : pricing.giftCardMarginPercent;
-  const raw = usd * pricing.usdCostToman * (1 + margin / 100);
+  const raw = usd * pricing.usdCostToman * (1 + pricing.giftCardMarginPercent / 100);
   return Math.ceil(raw / 1000) * 1000;
 }
 
@@ -59,36 +46,28 @@ async function uploadImage(file: File): Promise<string> {
 }
 
 interface EditorState {
-  type: ProductType;
   title: string;
   slug: string;
   priceUsd: string;
-  stock: string;
   shortDescription: string;
   description: string;
   features: string;
   imageUrl: string;
   imageAlt: string;
-  heroName: string;
-  rarity: Rarity | "";
   metaTitle: string;
   metaDescription: string;
   active: boolean;
 }
 
 const EMPTY_STATE: EditorState = {
-  type: "GIFT_CARD",
   title: "",
   slug: "",
   priceUsd: "",
-  stock: "",
   shortDescription: "",
   description: "",
   features: "",
   imageUrl: "",
   imageAlt: "",
-  heroName: "",
-  rarity: "",
   metaTitle: "",
   metaDescription: "",
   active: true,
@@ -104,11 +83,7 @@ export function ProductEditor({ productId }: { productId?: number }) {
   const [slugTouched, setSlugTouched] = useState(isEdit);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [heroNames, setHeroNames] = useState<string[]>([]);
-  const [pricing, setPricing] = useState<{ usdCostToman: number; giftCardMarginPercent: number; itemMarginPercent: number } | null>(null);
-  const [steamQuery, setSteamQuery] = useState("");
-  const [steamResults, setSteamResults] = useState<SteamSearchItem[] | null>(null);
-  const [steamSearching, setSteamSearching] = useState(false);
+  const [pricing, setPricing] = useState<Pricing | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -119,18 +94,14 @@ export function ProductEditor({ productId }: { productId?: number }) {
         if (json.status !== "success") return;
         const p = json.data;
         setState({
-          type: p.type,
           title: p.title,
           slug: p.slug ?? "",
           priceUsd: String(p.priceUsdCents / 100),
-          stock: p.stock === null ? "" : String(p.stock),
           shortDescription: p.shortDescription ?? "",
           description: p.description ?? "",
           features: p.features ?? "",
           imageUrl: p.imageUrl ?? "",
           imageAlt: p.imageAlt ?? "",
-          heroName: p.heroName ?? "",
-          rarity: p.rarity ?? "",
           metaTitle: p.metaTitle ?? "",
           metaDescription: p.metaDescription ?? "",
           active: p.active,
@@ -144,15 +115,6 @@ export function ProductEditor({ productId }: { productId?: number }) {
       .then((res) => res.json())
       .then((json) => {
         if (json.status === "success") setPricing(json.data.settings);
-      })
-      .catch(() => undefined);
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/meta/heroes", { cache: "force-cache" })
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.status === "success") setHeroNames((json.data as { name: string }[]).map((h) => h.name).sort());
       })
       .catch(() => undefined);
   }, []);
@@ -175,47 +137,12 @@ export function ProductEditor({ productId }: { productId?: number }) {
     }
   }
 
-  async function searchSteam() {
-    if (steamQuery.trim().length < 2) return;
-    setSteamSearching(true);
-    try {
-      const res = await fetch(`/api/admin/shop/steam-search?q=${encodeURIComponent(steamQuery.trim())}`, { cache: "no-store" });
-      const json = await res.json();
-      if (json.status !== "success") {
-        toast.error(json.message ?? "جستجو ناموفق بود.");
-        setSteamResults([]);
-        return;
-      }
-      setSteamResults(json.data as SteamSearchItem[]);
-    } catch {
-      toast.error("ارتباط با استیم برقرار نشد.");
-      setSteamResults([]);
-    } finally {
-      setSteamSearching(false);
-    }
-  }
-
-  function applySteamItem(item: SteamSearchItem) {
-    const heroName = heroNames.find((h) => item.title.toLowerCase().includes(h.toLowerCase())) ?? state.heroName;
-    setState((s) => ({
-      ...s,
-      title: s.title || item.title,
-      slug: slugTouched ? s.slug : slugifyClient(item.title),
-      priceUsd: item.priceUsd > 0 ? String(item.priceUsd) : s.priceUsd,
-      imageUrl: item.imageUrl,
-      imageAlt: s.imageAlt || item.title,
-      heroName,
-      rarity: item.rarity && RARITIES.includes(item.rarity.toUpperCase() as Rarity) ? (item.rarity.toUpperCase() as Rarity) : s.rarity,
-    }));
-    if (!item.tradable) toast.error("این آیتم فعلاً در استیم مارکت قفل ترید دارد؛ قیمت درست است ولی تحویلش با تأخیر خواهد بود.");
-  }
-
   async function handleSave() {
     setSaving(true);
     const res = await fetch(isEdit ? `/api/admin/shop/products/${productId}` : "/api/admin/shop/products", {
       method: isEdit ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...state, rarity: state.rarity || null }),
+      body: JSON.stringify(state),
     });
     const json = await res.json();
     setSaving(false);
@@ -223,7 +150,7 @@ export function ProductEditor({ productId }: { productId?: number }) {
       toast.error(json.message ?? "ذخیره ناموفق بود.");
       return;
     }
-    toast.success(isEdit ? "تغییرات ذخیره شد." : "محصول اضافه شد.");
+    toast.success(isEdit ? "تغییرات ذخیره شد." : "گیفت کارت اضافه شد.");
     router.push("/admin/shop/products");
     router.refresh();
   }
@@ -237,8 +164,7 @@ export function ProductEditor({ productId }: { productId?: number }) {
     );
   }
 
-  const isItem = state.type === "ITEM";
-  const tomanPrice = computeTomanPrice(state.priceUsd, isItem, pricing);
+  const tomanPrice = computeTomanPrice(state.priceUsd, pricing);
   const seoTitle = state.metaTitle || (state.title ? `خرید ${state.title} | فروشگاه دوتامیت` : "");
   const seoDescription = state.metaDescription || state.shortDescription;
   const checklist = [
@@ -268,7 +194,7 @@ export function ProductEditor({ productId }: { productId?: number }) {
       <div className="flex flex-1 flex-col gap-6">
         <Card tone="surface" noHover className="w-full items-stretch gap-5 p-6">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="p-title">عنوان محصول</Label>
+            <Label htmlFor="p-title">عنوان گیفت کارت</Label>
             <Input id="p-title" value={state.title} onChange={(e) => updateTitle(e.target.value)} placeholder="مثلاً: گیفت کارت استیم ۱۰ دلاری" dir="auto" />
           </div>
 
@@ -313,7 +239,7 @@ export function ProductEditor({ productId }: { productId?: number }) {
         </Card>
 
         <Card tone="surface" noHover className="w-full items-stretch gap-5 p-6">
-          <p className="w-full text-right text-[16px] font-black text-text">درباره محصول</p>
+          <p className="w-full text-right text-[16px] font-black text-text">درباره گیفت کارت</p>
           <div className="flex flex-col gap-2">
             <div className="flex w-full items-center justify-between">
               <span className="text-[11px] text-text-dim">{state.description.length.toLocaleString("fa-IR")} حرف</span>
@@ -348,7 +274,7 @@ export function ProductEditor({ productId }: { productId?: number }) {
               </span>
               <Label htmlFor="p-meta-title">عنوان سئو (اختیاری)</Label>
             </div>
-            <Input id="p-meta-title" value={state.metaTitle} onChange={(e) => set("metaTitle", e.target.value)} placeholder={seoTitle || "اگر خالی بماند از عنوان محصول ساخته می‌شود"} dir="auto" />
+            <Input id="p-meta-title" value={state.metaTitle} onChange={(e) => set("metaTitle", e.target.value)} placeholder={seoTitle || "اگر خالی بماند از عنوان گیفت کارت ساخته می‌شود"} dir="auto" />
           </div>
 
           <div className="flex flex-col gap-2">
@@ -369,11 +295,11 @@ export function ProductEditor({ productId }: { productId?: number }) {
           </div>
 
           <div className="flex w-full flex-col gap-1.5 rounded-[8px] border border-border bg-surface-alt p-4">
-            <p className="truncate text-right text-[13px] text-[#8ab4f8]">{seoTitle || "عنوان محصول"}</p>
+            <p className="truncate text-right text-[13px] text-[#8ab4f8]">{seoTitle || "عنوان گیفت کارت"}</p>
             <p className="truncate text-left text-[12px] text-[#34a853]" dir="ltr">
               dotamate.ir/shop/product/{state.slug || "slug"}
             </p>
-            <p className="line-clamp-2 text-right text-[12px] text-[#bdc1c6]">{seoDescription || "توضیحات محصول اینجا در نتایج گوگل نمایش داده می‌شود."}</p>
+            <p className="line-clamp-2 text-right text-[12px] text-[#bdc1c6]">{seoDescription || "توضیحات گیفت کارت اینجا در نتایج گوگل نمایش داده می‌شود."}</p>
           </div>
 
           <div className="flex w-full flex-col gap-2 rounded-[8px] border border-border p-4">
@@ -397,29 +323,14 @@ export function ProductEditor({ productId }: { productId?: number }) {
             <p className="text-[14px] font-black text-text">وضعیت</p>
           </div>
           <Button type="button" onClick={handleSave} disabled={saving || uploading} className="w-full">
-            {saving ? "در حال ذخیره..." : isEdit ? "ذخیره تغییرات" : "افزودن محصول"}
+            {saving ? "در حال ذخیره..." : isEdit ? "ذخیره تغییرات" : "افزودن گیفت کارت"}
           </Button>
         </Card>
 
         <Card tone="surface" noHover className="w-full items-stretch gap-4 p-6">
-          <p className="w-full text-right text-[14px] font-black text-text">نوع و قیمت</p>
-          <div className="flex gap-2">
-            {(Object.keys(TYPE_LABELS) as ProductType[]).map((type) => (
-              <button
-                key={type}
-                type="button"
-                onClick={() => set("type", type)}
-                className={cn(
-                  "flex-1 rounded-[8px] border px-3 py-2 text-[13px] font-bold",
-                  state.type === type ? "border-primary bg-primary/15 text-text" : "border-border text-text-dim",
-                )}
-              >
-                {TYPE_LABELS[type]}
-              </button>
-            ))}
-          </div>
+          <p className="w-full text-right text-[14px] font-black text-text">مبلغ و قیمت</p>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="p-price">قیمت (دلار)</Label>
+            <Label htmlFor="p-price">مبلغ گیفت کارت (دلار)</Label>
             <Input id="p-price" type="number" inputMode="decimal" value={state.priceUsd} onChange={(e) => set("priceUsd", e.target.value)} className="text-left" dir="ltr" />
             {tomanPrice !== null ? (
               <p className="text-right text-[13px] font-bold text-success" dir="auto">
@@ -433,97 +344,11 @@ export function ProductEditor({ productId }: { productId?: number }) {
               </p>
             )}
           </div>
-          {isItem ? (
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="p-stock">موجودی (خالی = نامحدود)</Label>
-              <Input id="p-stock" type="number" inputMode="numeric" value={state.stock} onChange={(e) => set("stock", e.target.value)} className="text-left" dir="ltr" />
-            </div>
-          ) : (
-            <p className="text-right text-[11px] leading-[1.7] text-text-dim">موجودی گیفت کارت از بانک کد خوانده می‌شود.</p>
-          )}
+          <p className="text-right text-[11px] leading-[1.7] text-text-dim">موجودی کد این گیفت کارت در بخش «بانک گیفت کارت» مدیریت می‌شود.</p>
         </Card>
 
-        {isItem && (
-          <Card tone="surface" noHover className="w-full items-stretch gap-4 p-6">
-            <p className="w-full text-right text-[14px] font-black text-text">مشخصات آیتم</p>
-
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="p-steam-search">جستجو در استیم مارکت</Label>
-              <div className="flex w-full items-center gap-2">
-                <Input
-                  id="p-steam-search"
-                  value={steamQuery}
-                  onChange={(e) => setSteamQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), searchSteam())}
-                  placeholder="مثلاً: Arcana of Techies"
-                  dir="auto"
-                  className="flex-1"
-                />
-                <Button type="button" variant="outline" size="sm" onClick={searchSteam} disabled={steamSearching || steamQuery.trim().length < 2}>
-                  {steamSearching ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-                </Button>
-              </div>
-              {steamResults && (
-                <div className="flex max-h-72 w-full flex-col gap-1.5 overflow-y-auto rounded-[8px] border border-border bg-surface-alt p-2">
-                  {steamResults.length === 0 && <p className="p-2 text-center text-[12px] text-text-dim">چیزی پیدا نشد.</p>}
-                  {steamResults.map((item) => (
-                    <button
-                      key={item.marketHashName}
-                      type="button"
-                      onClick={() => applySteamItem(item)}
-                      className="flex w-full items-center gap-3 rounded-[6px] border border-transparent p-2 text-right hover:border-primary/40 hover:bg-primary/10"
-                      dir="auto"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={item.imageUrl} alt="" className="size-10 shrink-0 rounded-[4px] bg-black/20 object-contain" />
-                      <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="truncate text-[13px] font-bold text-text">{item.title}</span>
-                        <span className="truncate text-[11px] text-text-dim">{item.type}</span>
-                      </span>
-                      <span className="shrink-0 text-[12px] font-bold text-success" dir="ltr">
-                        {item.priceUsdText}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              <p className="text-right text-[11px] leading-[1.6] text-text-dim" dir="auto">
-                با انتخاب یک نتیجه، عنوان، تصویر، هیرو، کمیابی و قیمت دلاری (بر اساس قیمت لحظه‌ای استیم مارکت) پر می‌شود؛ قبل از ذخیره بازبینی‌شان کن.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="p-hero">هیرو</Label>
-              <Input id="p-hero" list="hero-names" value={state.heroName} onChange={(e) => set("heroName", e.target.value)} placeholder="مثلاً Pudge" dir="ltr" className="text-left" />
-              <datalist id="hero-names">
-                {heroNames.map((name) => (
-                  <option key={name} value={name} />
-                ))}
-              </datalist>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>کمیابی (Rarity)</Label>
-              <div className="flex flex-wrap gap-1.5" dir="ltr">
-                {RARITIES.map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => set("rarity", state.rarity === r ? "" : r)}
-                    className={cn(
-                      "rounded-[6px] border px-2.5 py-1 text-[11px] font-bold",
-                      state.rarity === r ? "border-primary bg-primary/15 text-text" : "border-border text-text-dim",
-                    )}
-                  >
-                    {r.charAt(0) + r.slice(1).toLowerCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </Card>
-        )}
-
         <Card tone="surface" noHover className="w-full items-stretch gap-4 p-6">
-          <p className="w-full text-right text-[14px] font-black text-text">تصویر محصول</p>
+          <p className="w-full text-right text-[14px] font-black text-text">تصویر (اختیاری)</p>
           {state.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={state.imageUrl} alt={state.imageAlt} className="aspect-[1.6] w-full rounded-[8px] bg-surface-alt object-contain" />
@@ -549,8 +374,8 @@ export function ProductEditor({ productId }: { productId?: number }) {
             </div>
           )}
           <Input value={state.imageAlt} onChange={(e) => set("imageAlt", e.target.value)} placeholder="متن جایگزین تصویر (alt) — برای سئو" dir="auto" />
-          {!isItem && !state.imageUrl && (
-            <p className="text-right text-[11px] leading-[1.7] text-text-dim">بدون تصویر، برای گیفت کارت خودکار یک کارت استیم با مبلغ ساخته می‌شود.</p>
+          {!state.imageUrl && (
+            <p className="text-right text-[11px] leading-[1.7] text-text-dim">بدون تصویر، خودکار یک کارت استیم با همین مبلغ نمایش داده می‌شود.</p>
           )}
         </Card>
       </div>

@@ -8,51 +8,22 @@ import { cn } from "@/app/lib/utils";
 import { useToast } from "@/app/stores/useToast";
 
 interface BuyBoxProps {
-  /** e.g. "/api/shop/orders" with { productId }, or "/api/shop/market/orders" with { listingId }. */
-  checkoutEndpoint: string;
-  checkoutPayload: Record<string, unknown>;
+  productId: number;
   /** Where to come back to after logging in. */
   productPath: string;
   priceToman: number | null;
   isLoggedIn: boolean;
   walletBalance: number;
-  needsTradeUrl: boolean;
-  soldOut: boolean;
-  /** Overrides everything else with a message, e.g. "this is your own listing". */
-  blockedReason?: string | null;
-  /** Market listings only: which trade modes the seller left enabled. */
-  allowDirectTrade?: boolean;
-  allowEscrow?: boolean;
 }
 
-export function BuyBox({
-  checkoutEndpoint,
-  checkoutPayload,
-  productPath,
-  priceToman,
-  isLoggedIn,
-  walletBalance,
-  needsTradeUrl,
-  soldOut,
-  blockedReason,
-  allowDirectTrade,
-  allowEscrow,
-}: BuyBoxProps) {
+export function BuyBox({ productId, productPath, priceToman, isLoggedIn, walletBalance }: BuyBoxProps) {
   const toast = useToast();
   const canUseWallet = priceToman !== null && walletBalance >= priceToman;
   const [method, setMethod] = useState<"WALLET" | "GATEWAY">(canUseWallet ? "WALLET" : "GATEWAY");
-  const showTradeModePicker = allowDirectTrade !== undefined || allowEscrow !== undefined;
-  const [tradeMode, setTradeMode] = useState<"DIRECT" | "ESCROW">(allowDirectTrade ? "DIRECT" : "ESCROW");
   const [busy, setBusy] = useState(false);
 
-  if (blockedReason) {
-    return <Notice text={blockedReason} />;
-  }
   if (priceToman === null) {
-    return <Notice text="قیمت این محصول هنوز تعیین نشده و فعلاً قابل خرید نیست." />;
-  }
-  if (soldOut) {
-    return <Notice text="موجودی این محصول تمام شده." />;
+    return <Notice text="قیمت این گیفت کارت هنوز تعیین نشده و فعلاً قابل خرید نیست." />;
   }
   if (!isLoggedIn) {
     return (
@@ -64,26 +35,13 @@ export function BuyBox({
       </Link>
     );
   }
-  if (needsTradeUrl) {
-    return (
-      <div className="flex w-full flex-col gap-3">
-        <Notice text="برای خرید آیتم باید Trade URL استیمت را ثبت کنی تا آیتم برایت ترید شود." />
-        <Link
-          href="/dashboard/settings?tab=steam"
-          className="flex w-full items-center justify-center rounded-[8px] bg-primary px-6 py-4 text-[15px] font-black text-white hover:bg-primary-hover"
-        >
-          ثبت Trade URL
-        </Link>
-      </div>
-    );
-  }
 
   async function handleBuy() {
     setBusy(true);
-    const res = await fetch(checkoutEndpoint, {
+    const res = await fetch("/api/shop/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...checkoutPayload, paymentMethod: method, ...(showTradeModePicker ? { tradeMode } : {}) }),
+      body: JSON.stringify({ productId, paymentMethod: method }),
     });
     const json = await res.json().catch(() => null);
     if (json?.status === "success") {
@@ -96,29 +54,6 @@ export function BuyBox({
 
   return (
     <div className="flex w-full flex-col gap-3">
-      {showTradeModePicker && (
-        <>
-          <p className="text-right text-[13px] font-bold text-text-dim">روش معامله</p>
-          {allowDirectTrade && (
-            <MethodOption
-              active={tradeMode === "DIRECT"}
-              onClick={() => setTradeMode("DIRECT")}
-              icon={Wallet}
-              title="ترید مستقیم"
-              subtitle="خودت و فروشنده مستقیم در استیم ترید می‌کنید؛ این روش ریسک دارد و دوتامیت ضامن انجام صحیح ترید نیست. حتماً از پیشنهاد ترید و تأییدیه استیم اسکرین‌شات بگیر."
-            />
-          )}
-          {allowEscrow && (
-            <MethodOption
-              active={tradeMode === "ESCROW"}
-              onClick={() => setTradeMode("ESCROW")}
-              icon={CreditCard}
-              title="واسطه‌گری دوتامیت"
-              subtitle="آیتم اول به ادمین دوتامیت می‌رسد و بعد برایت ترید می‌شود؛ حدود ۷ روز زمان‌بر است."
-            />
-          )}
-        </>
-      )}
       <p className="text-right text-[13px] font-bold text-text-dim">روش پرداخت</p>
       <MethodOption
         active={method === "WALLET"}

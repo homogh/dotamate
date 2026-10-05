@@ -1,11 +1,13 @@
 import { cookies } from "next/headers";
-import type { Prisma, ShopProduct, ShopProductType, ShopSetting } from "@prisma/client";
+import type { Prisma, ShopProduct, ShopSetting } from "@prisma/client";
 
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
 import { getShopSettings, priceToman } from "@/app/lib/shopPricing";
 import { SHOP_PAGE_SIZE, type ShopSort } from "@/app/lib/shopCategories";
-import { countActiveListings, getLatestListings } from "@/app/lib/marketCatalog";
+
+/** Every storefront query: the shop only sells gift cards, so any other product row stays invisible. */
+const ON_SALE = { type: "GIFT_CARD", active: true } satisfies Prisma.ShopProductWhereInput;
 
 /** Signed-in viewer for server components, or null. */
 export async function getViewerSession() {
@@ -25,71 +27,56 @@ async function availableCodesFor(productIds: number[]) {
 }
 
 function toListProduct(product: ShopProduct, settings: ShopSetting, availableCodes: number) {
-  const isGift = product.type === "GIFT_CARD";
   return {
     id: product.id,
     slug: product.slug,
-    type: product.type,
     title: product.title,
     shortDescription: product.shortDescription,
     imageUrl: product.imageUrl,
     imageAlt: product.imageAlt,
-    heroName: product.heroName,
-    rarity: product.rarity,
     priceUsdCents: product.priceUsdCents,
-    priceToman: priceToman(product.priceUsdCents, product.type, settings),
+    priceToman: priceToman(product.priceUsdCents, settings),
     // Gift cards never sell out: an empty code bank just means an admin activates it in working hours.
-    instant: isGift && availableCodes > 0,
-    soldOut: !isGift && product.stock !== null && product.stock <= 0,
+    instant: availableCodes > 0,
   };
 }
 
 export type ShopListProduct = ReturnType<typeof toListProduct>;
 
 async function toList(products: ShopProduct[], settings: ShopSetting) {
-  const codes = await availableCodesFor(products.filter((p) => p.type === "GIFT_CARD").map((p) => p.id));
+  const codes = await availableCodesFor(products.map((p) => p.id));
   return products.map((p) => toListProduct(p, settings, codes.get(p.id) ?? 0));
 }
 
-/** Shop home: every gift card, the newest few items, and per-category counts for the category tiles. */
-export async function getShopLanding(includeMarket: boolean) {
+const PRICE_LADDER: Prisma.ShopProductOrderByWithRelationInput[] = [{ sortOrder: "asc" }, { id: "asc" }];
+
+/** Shop home: the first gift cards on the price ladder plus the total, for the «مشاهده همه» link. */
+export async function getShopLanding() {
   const settings = await getShopSettings();
-  const [giftCards, latestItems, giftCount, itemCount, latestListings, listingCount] = await Promise.all([
-    prisma.shopProduct.findMany({ where: { type: "GIFT_CARD", active: true }, orderBy: [{ sortOrder: "asc" }, { id: "asc" }], take: 6 }),
-    prisma.shopProduct.findMany({ where: { type: "ITEM", active: true }, orderBy: { createdAt: "desc" }, take: 4 }),
-    prisma.shopProduct.count({ where: { type: "GIFT_CARD", active: true } }),
-    prisma.shopProduct.count({ where: { type: "ITEM", active: true } }),
-    includeMarket ? getLatestListings(4) : [],
-    includeMarket ? countActiveListings() : 0,
+  const [giftCards, giftCount] = await Promise.all([
+    prisma.shopProduct.findMany({ where: ON_SALE, orderBy: PRICE_LADDER, take: 9 }),
+    prisma.shopProduct.count({ where: ON_SALE }),
   ]);
 
-  return {
-    settings,
-    giftCards: await toList(giftCards, settings),
-    latestItems: await toList(latestItems, settings),
-    latestListings,
-    counts: { "gift-cards": giftCount, "dota-items": itemCount, market: listingCount } as Record<string, number>,
-  };
+  return { settings, giftCards: await toList(giftCards, settings), giftCount };
 }
 
 const SORT_ORDER: Record<ShopSort, Prisma.ShopProductOrderByWithRelationInput[]> = {
-  new: [{ createdAt: "desc" }, { id: "desc" }],
-  // Within one category every product shares a margin, so dollar order == Toman order.
+  new: PRICE_LADDER,
+  // Every gift card shares one margin, so dollar order == Toman order.
   cheap: [{ priceUsdCents: "asc" }, { id: "asc" }],
   expensive: [{ priceUsdCents: "desc" }, { id: "desc" }],
 };
 
-export async function getCategoryProducts(type: ShopProductType, page: number, sort: ShopSort) {
+export async function getCategoryProducts(page: number, sort: ShopSort) {
   const settings = await getShopSettings();
-  const where = { type, active: true };
-  const total = await prisma.shopProduct.count({ where });
+  const total = await prisma.shopProduct.count({ where: ON_SALE });
   const totalPages = Math.max(1, Math.ceil(total / SHOP_PAGE_SIZE));
   const current = Math.min(Math.max(1, page), totalPages);
 
   const products = await prisma.shopProduct.findMany({
-    where,
-    // Gift cards read best as a price ladder by default; items newest-first.
-    orderBy: sort === "new" && type === "GIFT_CARD" ? [{ sortOrder: "asc" }, { id: "asc" }] : SORT_ORDER[sort],
+    where: ON_SALE,
+    orderBy: SORT_ORDER[sort],
     skip: (current - 1) * SHOP_PAGE_SIZE,
     take: SHOP_PAGE_SIZE,
   });
@@ -106,10 +93,10 @@ async function findProduct(slugOrId: string) {
 
 export async function getShopProductPage(slugOrId: string) {
   const product = await findProduct(slugOrId);
-  if (!product || !product.active) return null;
+  if (!product || !product.active || product.type !== ON_SALE.type) return null;
 
   const settings = await getShopSettings();
-  const codes = await availableCodesFor(product.type === "GIFT_CARD" ? [product.id] : []);
+  const codes = await availableCodesFor([product.id]);
 
   return {
     raw: product,
@@ -119,24 +106,16 @@ export async function getShopProductPage(slugOrId: string) {
   };
 }
 
-/**
- * Four look-alikes from the same category: gift cards closest in value;
- * items sharing the hero first, then the rarity, then the newest.
- */
+/** Four other gift cards, closest in value first. */
 async function getSimilarProducts(product: ShopProduct, settings: ShopSetting) {
   const candidates = await prisma.shopProduct.findMany({
-    where: { type: product.type, active: true, id: { not: product.id } },
+    where: { ...ON_SALE, id: { not: product.id } },
     orderBy: { createdAt: "desc" },
     take: 60,
   });
 
-  const score = (p: ShopProduct) =>
-    product.type === "GIFT_CARD"
-      ? -Math.abs(p.priceUsdCents - product.priceUsdCents)
-      : (p.heroName && p.heroName === product.heroName ? 2 : 0) + (p.rarity && p.rarity === product.rarity ? 1 : 0);
-
   const ranked = candidates
-    .map((p, index) => ({ p, s: score(p), index }))
+    .map((p, index) => ({ p, s: -Math.abs(p.priceUsdCents - product.priceUsdCents), index }))
     .sort((a, b) => b.s - a.s || a.index - b.index)
     .slice(0, 4)
     .map((x) => x.p);

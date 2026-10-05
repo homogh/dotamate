@@ -3,6 +3,8 @@ import type { GameMode, Position, Prisma, Rank, Region, SessionType } from "@pri
 
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
+import { getPlatformSettings } from "@/app/lib/platformSettings";
+import { effectivePostExpiry, initialPostExpiry } from "@/app/lib/postExpiry";
 import type { ApiResponse } from "@/app/types/api";
 import { POSITION_VALUES, REGION_VALUES, parseEnumList, postNeededPositions } from "@/app/lib/postSlots";
 
@@ -79,8 +81,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const sessionType = (body?.sessionType ?? post.sessionType) === "SCHEDULED" ? "SCHEDULED" : "NOW";
       const startAt = body?.startAt ? new Date(body.startAt) : sessionType === "SCHEDULED" ? post.startAt : null;
       if (sessionType === "SCHEDULED" && (!startAt || Number.isNaN(startAt.getTime()))) return fail("زمان جلسه رو مشخص کن.");
+      if (sessionType === "SCHEDULED" && post.sessionType !== "SCHEDULED" && !(await getPlatformSettings()).scheduledSessionsEnabled) {
+        return fail("ساخت جلسه زمان‌بندی‌شده موقتاً توسط مدیریت غیرفعال شده.");
+      }
       data.sessionType = sessionType as SessionType;
       data.startAt = sessionType === "SCHEDULED" ? startAt : null;
+      // Moving a session later pushes the auto-expiry with it (never earlier).
+      if (startAt) {
+        const expiry = effectivePostExpiry(post);
+        const wanted = initialPostExpiry(startAt);
+        if (wanted > expiry) {
+          data.expiresAt = wanted;
+          data.expiryWarnedAt = null;
+        }
+      }
     }
 
     const neededPositions = (

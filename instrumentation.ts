@@ -6,10 +6,9 @@ export async function register() {
   // the warm-up is a nice-to-have that runs quietly in the background.
   setTimeout(() => void warmStaticAssets(), 5_000);
 
-  // User-market deadlines (unpaid reservations, late sellers, silent buyers)
-  // must fire even when nobody is browsing the market.
-  const { processMarketTimeouts } = await import("@/app/lib/marketOrders");
-  setInterval(() => {
-    processMarketTimeouts({ force: true }).catch((error) => console.error("[market] timeout sweep failed", error));
-  }, 5 * 60_000);
+  // Lobby posts auto-expire after 24h (with a warning an hour before).
+  const { processPostExpiry } = await import("@/app/lib/postExpiry");
+  const sweepPosts = () => processPostExpiry().catch((error) => console.error("[posts] expiry sweep failed", error));
+  setTimeout(sweepPosts, 15_000);
+  setInterval(sweepPosts, 5 * 60_000);
 }

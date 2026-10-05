@@ -2,11 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-import { ArrowLeft, Check, ChevronLeft, Clock, Repeat, ShieldCheck, Zap } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, Clock, ShieldCheck, Zap } from "lucide-react";
 
-import prisma from "@/app/lib/prisma";
 import { getShopProductPage, getViewerSession } from "@/app/lib/shopCatalog";
-import { categoryForType, productHref, RARITY_META } from "@/app/lib/shopCategories";
+import { categoryForType, productHref } from "@/app/lib/shopCategories";
 import { isWithinWorkHours } from "@/app/lib/shopPricing";
 import { getWalletBalance } from "@/app/lib/wallet";
 import { Card } from "@/components/general/card";
@@ -28,31 +27,17 @@ function safeDecode(value: string) {
   }
 }
 
-const GUIDES = {
-  GIFT_CARD: {
-    steps: [
-      "روش پرداخت را انتخاب کن و مبلغ را از میت کیف یا درگاه بانکی بپرداز.",
-      "کد گیفت کارت در صفحه سفارش نمایش داده می‌شود؛ اگر کد آماده نباشد در ساعات کاری فعال می‌شود و اعلان می‌گیری.",
-      "در استیم به Account details → Add funds → Redeem a Steam Gift Card or Wallet Code برو و کد را وارد کن.",
-    ],
-    faq: [
-      { q: "کد را کجا وارد کنم؟", a: "در سایت یا اپ استیم، از منوی حساب کاربری گزینه Redeem a Steam Gift Card or Wallet Code را بزن و کد را وارد کن تا مبلغ به کیف پول استیمت اضافه شود." },
-      { q: "اگر ارز کیف پول استیم من دلار نباشد چه می‌شود؟", a: "مبلغ هنگام فعال‌سازی به ارز کیف پول حسابت تبدیل می‌شود." },
-      { q: "اگر کد تحویل داده نشود چه می‌شود؟", a: "اگر سفارش به هر دلیلی تحویل نشود، کل مبلغ به میت کیف تو برمی‌گردد." },
-    ],
-  },
-  ITEM: {
-    steps: [
-      "Trade URL استیمت را در تنظیمات حساب، بخش اتصال استیم، ثبت کن.",
-      "مبلغ را از میت کیف یا درگاه بانکی بپرداز.",
-      "آیتم با ترید استیم برایت ارسال می‌شود؛ پیشنهاد ترید را در استیم قبول کن.",
-    ],
-    faq: [
-      { q: "آیتم چطور به دستم می‌رسد؟", a: "آیتم از طریق پیشنهاد ترید (Trade Offer) به Trade URL ثبت‌شده در حسابت ارسال می‌شود و کافی است آن را در استیم قبول کنی." },
-      { q: "Trade URL را از کجا پیدا کنم؟", a: "در استیم به Inventory → Trade Offers → Who can send me Trade Offers? برو؛ لینک Trade URL پایین همان صفحه است." },
-      { q: "اگر آیتم ارسال نشود چه می‌شود؟", a: "اگر سفارش به هر دلیلی تحویل نشود، کل مبلغ به میت کیف تو برمی‌گردد." },
-    ],
-  },
+const GUIDE = {
+  steps: [
+    "روش پرداخت را انتخاب کن و مبلغ را از میت کیف یا درگاه بانکی بپرداز.",
+    "کد گیفت کارت در صفحه سفارش نمایش داده می‌شود؛ اگر کد آماده نباشد در ساعات کاری فعال می‌شود و اعلانش را می‌گیری.",
+    "در استیم به Account details → Add funds → Redeem a Steam Gift Card or Wallet Code برو و کد را وارد کن.",
+  ],
+  faq: [
+    { q: "کد را کجا وارد کنم؟", a: "در سایت یا اپ استیم، از منوی حساب کاربری گزینه Redeem a Steam Gift Card or Wallet Code را بزن و کد را وارد کن تا مبلغ به کیف پول استیمت اضافه شود." },
+    { q: "اگر ارز کیف پول استیم من دلار نباشد چه می‌شود؟", a: "مبلغ هنگام فعال‌سازی به ارز کیف پول حسابت تبدیل می‌شود." },
+    { q: "اگر کد تحویل داده نشود چه می‌شود؟", a: "اگر سفارش به هر دلیلی تحویل نشود، کل مبلغ به میت کیف تو برمی‌گردد." },
+  ],
 };
 
 export async function generateMetadata({ params }: PageProps<"/shop/product/[slug]">): Promise<Metadata> {
@@ -82,15 +67,10 @@ export default async function ShopProductPage({ params }: PageProps<"/shop/produ
 
   const { raw, product, settings, similar } = data;
   const viewer = await getViewerSession();
-  const [wallet, user] = viewer
-    ? await Promise.all([getWalletBalance(viewer.id), prisma.user.findUnique({ where: { id: viewer.id }, select: { steamTradeUrl: true } })])
-    : [null, null];
+  const wallet = viewer ? await getWalletBalance(viewer.id) : null;
 
-  const isGift = product.type === "GIFT_CARD";
-  const category = categoryForType(product.type);
-  const guide = GUIDES[product.type];
+  const category = categoryForType(raw.type);
   const features = (raw.features ?? "").split("\n").map((f) => f.trim()).filter(Boolean);
-  const rarity = product.rarity ? RARITY_META[product.rarity] : null;
   const start = settings.workStartHour.toLocaleString("fa-IR");
   const end = settings.workEndHour.toLocaleString("fa-IR");
   const url = `${SITE_URL}${productHref(raw)}`;
@@ -103,7 +83,7 @@ export default async function ShopProductPage({ params }: PageProps<"/shop/produ
       description: raw.shortDescription || raw.description || undefined,
       image: raw.imageUrl ? [raw.imageUrl.startsWith("http") ? raw.imageUrl : `${SITE_URL}${raw.imageUrl}`] : undefined,
       sku: `DM-${raw.id}`,
-      brand: { "@type": "Brand", name: isGift ? "Steam" : "Dota 2" },
+      brand: { "@type": "Brand", name: "Steam" },
       category: category.title,
       offers:
         product.priceToman === null
@@ -114,7 +94,7 @@ export default async function ShopProductPage({ params }: PageProps<"/shop/produ
               // Schema.org expects ISO 4217 — the Rial is IRR, and 1 Toman = 10 Rial.
               priceCurrency: "IRR",
               price: product.priceToman * 10,
-              availability: product.soldOut ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
+              availability: "https://schema.org/InStock",
               seller: { "@type": "Organization", name: "دوتامیت" },
             },
     },
@@ -130,7 +110,7 @@ export default async function ShopProductPage({ params }: PageProps<"/shop/produ
     {
       "@context": "https://schema.org",
       "@type": "FAQPage",
-      mainEntity: guide.faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+      mainEntity: GUIDE.faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
     },
   ];
 
@@ -169,16 +149,6 @@ export default async function ShopProductPage({ params }: PageProps<"/shop/produ
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-3">
               <h1 className="text-[28px] font-black leading-[1.5] text-text">{raw.title}</h1>
-              {(rarity || product.heroName) && (
-                <div className="flex flex-wrap items-center gap-2 text-[12px]">
-                  {rarity && (
-                    <span className="rounded-[4px] px-2.5 py-1 font-bold" style={{ color: rarity.color, backgroundColor: `${rarity.color}1f` }} dir="ltr">
-                      {rarity.label}
-                    </span>
-                  )}
-                  {product.heroName && <span className="rounded-[4px] bg-surface-alt px-2.5 py-1 text-text-dim">هیرو: {product.heroName}</span>}
-                </div>
-              )}
               {raw.shortDescription && <p className="text-[14px] leading-[1.9] text-text-dim">{raw.shortDescription}</p>}
             </div>
 
@@ -187,31 +157,24 @@ export default async function ShopProductPage({ params }: PageProps<"/shop/produ
               <span className="mr-2 text-[15px] font-bold text-text-dim">تومان</span>
             </p>
 
-            {isGift ? (
-              product.instant ? (
-                <InfoRow icon={Zap} tone="success" text="کد آماده است؛ بلافاصله بعد از پرداخت در صفحه سفارش تحویل می‌گیری." />
-              ) : (
-                <InfoRow
-                  icon={Clock}
-                  tone="warning"
-                  text={`موجودی آنی این گیفت کارت تمام شده است. بعد از پرداخت، کد شما در ساعات کاری (${start} تا ${end}) توسط ادمین فعال می‌شود.${
-                    isWithinWorkHours(settings) ? "" : ` الان خارج از ساعت کاری است؛ کد از ساعت ${start} فعال می‌شود.`
-                  }`}
-                />
-              )
+            {product.instant ? (
+              <InfoRow icon={Zap} tone="success" text="کد آماده است؛ بلافاصله بعد از پرداخت در صفحه سفارش تحویل می‌گیری." />
             ) : (
-              <InfoRow icon={Repeat} tone="neutral" text="بعد از پرداخت، آیتم با ترید استیم به Trade URL ثبت‌شده در حسابت ارسال می‌شود." />
+              <InfoRow
+                icon={Clock}
+                tone="warning"
+                text={`کد آماده این گیفت کارت فعلاً تمام شده است. بعد از پرداخت، کدت در ساعات کاری (${start} تا ${end}) توسط ادمین فعال می‌شود.${
+                  isWithinWorkHours(settings) ? "" : ` الان خارج از ساعت کاری است؛ کد از ساعت ${start} فعال می‌شود.`
+                }`}
+              />
             )}
 
             <BuyBox
-              checkoutEndpoint="/api/shop/orders"
-              checkoutPayload={{ productId: product.id }}
+              productId={product.id}
               productPath={productHref(raw)}
               priceToman={product.priceToman}
               isLoggedIn={Boolean(viewer)}
               walletBalance={wallet?.total ?? 0}
-              needsTradeUrl={!isGift && !user?.steamTradeUrl}
-              soldOut={product.soldOut}
             />
 
             <InfoRow icon={ShieldCheck} tone="neutral" text="اگر سفارشت به هر دلیلی تحویل نشود، کل مبلغ به میت کیف تو برمی‌گردد." />
@@ -220,11 +183,11 @@ export default async function ShopProductPage({ params }: PageProps<"/shop/produ
 
         <div className="grid w-full gap-6 lg:grid-cols-[1fr_380px]">
           <Card tone="surface" noHover className="w-full gap-4 p-6 md:p-8">
-            <h2 className="text-[20px] font-black text-text">درباره محصول</h2>
+            <h2 className="text-[20px] font-black text-text">درباره این گیفت کارت</h2>
             {raw.description ? (
               <ProductDescription text={raw.description} />
             ) : (
-              <p className="text-[14px] leading-[1.9] text-text-dim">{raw.shortDescription ?? "توضیحاتی برای این محصول ثبت نشده."}</p>
+              <p className="text-[14px] leading-[1.9] text-text-dim">{raw.shortDescription ?? "توضیحاتی برای این گیفت کارت ثبت نشده."}</p>
             )}
           </Card>
 
@@ -232,7 +195,7 @@ export default async function ShopProductPage({ params }: PageProps<"/shop/produ
             <Card tone="surface" noHover className="w-full gap-4 p-6">
               <h2 className="text-[17px] font-black text-text">مراحل خرید و تحویل</h2>
               <ol className="flex flex-col gap-3">
-                {guide.steps.map((step, i) => (
+                {GUIDE.steps.map((step, i) => (
                   <li key={step} className="flex items-start gap-3 text-[13px] leading-[1.8] text-text-dim">
                     <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-[12px] font-black text-white">
                       {(i + 1).toLocaleString("fa-IR")}
@@ -245,7 +208,7 @@ export default async function ShopProductPage({ params }: PageProps<"/shop/produ
 
             <Card tone="surface" noHover className="w-full gap-3 p-6">
               <h2 className="text-[17px] font-black text-text">سوالات متداول</h2>
-              {guide.faq.map((f) => (
+              {GUIDE.faq.map((f) => (
                 <details key={f.q} className="group w-full rounded-[8px] bg-surface-alt px-4 py-3">
                   <summary className="cursor-pointer list-none text-[13px] font-bold text-text marker:hidden">{f.q}</summary>
                   <p className="pt-2 text-[13px] leading-[1.8] text-text-dim">{f.a}</p>
@@ -258,9 +221,9 @@ export default async function ShopProductPage({ params }: PageProps<"/shop/produ
         {similar.length > 0 && (
           <section className="flex w-full flex-col gap-6">
             <div className="flex w-full items-center justify-between">
-              <h2 className="text-[22px] font-black text-text">محصولات مشابه</h2>
+              <h2 className="text-[22px] font-black text-text">گیفت کارت‌های دیگر</h2>
               <Link href={`/shop/${category.key}`} className="flex items-center gap-1.5 text-[13px] font-bold text-accent hover:underline">
-                مشاهده همه {category.title}
+                مشاهده همه
                 <ArrowLeft size={15} />
               </Link>
             </div>

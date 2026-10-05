@@ -46,7 +46,10 @@ export async function PATCH(
     );
   }
 
-  if ((action === "ACCEPTED" || action === "DECLINED") && member.status !== "PENDING") {
+  // Rejecting an INVITED member cancels the host's own invite.
+  const isCancelInvite = action === "DECLINED" && member.status === "INVITED";
+
+  if ((action === "ACCEPTED" || action === "DECLINED") && member.status !== "PENDING" && !isCancelInvite) {
     return NextResponse.json<ApiResponse>(
       { status: "error", message: "این درخواست قبلاً بررسی شده.", data: null },
       { status: 409 },
@@ -89,7 +92,9 @@ export async function PATCH(
   const logBody =
     action === "ACCEPTED"
       ? `${session.displayName} درخواست ${member.user.displayName} رو قبول کرد`
-      : action === "DECLINED"
+      : isCancelInvite
+        ? `${session.displayName} دعوت ${member.user.displayName} رو لغو کرد`
+        : action === "DECLINED"
         ? `${session.displayName} درخواست ${member.user.displayName} رو رد کرد`
         : `${member.user.displayName} از پارتی کیک شد`;
 
@@ -102,7 +107,9 @@ export async function PATCH(
         ...(action === "ACCEPTED" && !member.position ? { position: member.user.mainPosition } : {}),
       },
     }),
-    prisma.notification.create({
+    ...(isCancelInvite
+      ? []
+      : [prisma.notification.create({
       data: {
         userId: member.userId,
         type: action === "ACCEPTED" ? "REQUEST_ACCEPTED" : action === "DECLINED" ? "REQUEST_DECLINED" : "SYSTEM",
@@ -115,7 +122,7 @@ export async function PATCH(
               : null,
         link: action === "ACCEPTED" ? `/dashboard/post/${post.id}` : null,
       },
-    }),
+    })]),
     prisma.message.create({
       data: { postId: post.id, senderId: session.id, body: logBody, system: true },
     }),

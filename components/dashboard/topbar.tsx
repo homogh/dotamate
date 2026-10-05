@@ -6,6 +6,7 @@ import { Menu, Search, X } from "lucide-react";
 
 import { AccountMenu } from "@/components/general/accountMenu";
 import { NotificationBell } from "@/components/general/notificationBell";
+import { findActiveDashboardNav } from "@/components/dashboard/navItems";
 
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "پنل مدیریت هم‌تیمی",
@@ -37,6 +38,7 @@ export function DashboardTopbar({
   const router = useRouter();
   const [query, setQuery] = useState("");
 
+  const activeGroup = findActiveDashboardNav(pathname)?.group ?? null;
   const title =
     PAGE_TITLES[pathname] ??
     (pathname.startsWith("/dashboard/my-posts/") && pathname.endsWith("/edit")
@@ -45,7 +47,7 @@ export function DashboardTopbar({
       ? "پیام‌ها"
       : pathname.startsWith("/dashboard/browse")
         ? "مرور پست‌ها"
-        : pathname.startsWith("/dashboard/orders") || pathname.startsWith("/dashboard/market-orders")
+        : pathname.startsWith("/dashboard/orders")
           ? "جزئیات سفارش"
           : "داشبورد");
 
@@ -81,9 +83,16 @@ export function DashboardTopbar({
       </div>
 
       <div className="flex min-w-0 flex-1 items-center justify-end gap-3 lg:flex-none">
-        <p className="truncate text-[20px] font-black text-text" dir="auto">
-          {title}
-        </p>
+        <div className="flex min-w-0 flex-col items-end">
+          {activeGroup && (
+            <p className="text-[11px] font-bold" style={{ color: activeGroup.tone }} dir="auto">
+              {activeGroup.label}
+            </p>
+          )}
+          <p className="truncate text-[20px] font-black text-text" dir="auto">
+            {title}
+          </p>
+        </div>
         {onToggleMobileMenu && (
           <button
             type="button"

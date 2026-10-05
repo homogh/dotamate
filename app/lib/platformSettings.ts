@@ -12,9 +12,3 @@ export async function isShopEnabled() {
   const settings = await getPlatformSettings();
   return settings.shopEnabled;
 }
-
-/** The user market is a part of the shop: it's open only while both switches are on. */
-export async function isMarketEnabled() {
-  const settings = await getPlatformSettings();
-  return settings.shopEnabled && settings.marketEnabled;
-}

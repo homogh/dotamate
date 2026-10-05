@@ -6,7 +6,7 @@ import { isShopEnabled } from "@/app/lib/platformSettings";
 
 export const metadata: Metadata = {
   title: "فروشگاه | دوتامیت",
-  description: "خرید گیفت کارت، آیتم‌های دوتا ۲ و بازار خرید و فروش آیتم بین بازیکنان.",
+  description: "خرید گیفت کارت استیم با قیمت تومانی و تحویل آنی کد.",
 };
 
 /** Gate for every /shop route: while the shop switch is off it 404s for everyone. */

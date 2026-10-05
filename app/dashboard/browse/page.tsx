@@ -60,7 +60,7 @@ interface FeedPost {
   partySize: number;
   neededPositions: string[];
   openPositions: string[];
-  myRequestStatus: "PENDING" | "ACCEPTED" | "DECLINED" | "REMOVED" | null;
+  myRequestStatus: "PENDING" | "INVITED" | "ACCEPTED" | "DECLINED" | "REMOVED" | null;
 }
 
 function timeLabel(post: FeedPost) {
@@ -371,6 +371,8 @@ export default function BrowseFeedPage() {
                       ? "عضو این لابی هستی"
                       : post.myRequestStatus === "PENDING"
                         ? "درخواست ارسال شد"
+                        : post.myRequestStatus === "INVITED"
+                          ? "دعوت شدی — از اعلان‌ها پاسخ بده"
                         : post.myRequestStatus === "DECLINED"
                           ? "درخواست رد شد"
                           : joiningId === post.id

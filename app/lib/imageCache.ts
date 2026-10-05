@@ -25,8 +25,6 @@ export function isCdnSource(source: string): source is CdnSource {
 }
 
 export function contentTypeFor(relPath: string) {
-  // Steam economy icons have no extension in their URL; they're always PNG.
-  if (relPath.startsWith("economy/image/")) return "image/png";
   return CONTENT_TYPES[path.extname(relPath).toLowerCase()] ?? "application/octet-stream";
 }
 

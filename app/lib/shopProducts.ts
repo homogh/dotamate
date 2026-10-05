@@ -1,9 +1,4 @@
-import type { ItemRarity, ShopProductType } from "@prisma/client";
-
-/** Shared validation for admin product create/update bodies. */
-const TYPES: ShopProductType[] = ["GIFT_CARD", "ITEM"];
-const RARITIES: ItemRarity[] = ["COMMON", "UNCOMMON", "RARE", "MYTHICAL", "LEGENDARY", "IMMORTAL", "ARCANA"];
-
+/** Shared validation for admin product create/update bodies. The shop sells gift cards only. */
 interface ProductData {
   title: string;
   /** Raw slug input (or empty) — the route turns it into a unique slug. */
@@ -13,13 +8,10 @@ interface ProductData {
   features: string | null;
   imageUrl: string | null;
   imageAlt: string | null;
-  heroName: string | null;
-  rarity: ItemRarity | null;
   metaTitle: string | null;
   metaDescription: string | null;
-  type: ShopProductType;
+  type: "GIFT_CARD";
   priceUsdCents: number;
-  stock: number | null;
   active: boolean;
 }
 
@@ -30,19 +22,9 @@ const text = (value: unknown, max: number) => String(value ?? "").trim().slice(0
 export function parseProductBody(body: Record<string, unknown> | null): ParseResult {
   const title = String(body?.title ?? "").trim().slice(0, 120);
   const priceUsd = Number(body?.priceUsd);
-  const type = TYPES.find((t) => t === body?.type);
 
-  if (!title) return { error: "عنوان محصول لازم است." };
-  if (!type) return { error: "نوع محصول نامعتبر است." };
-  if (!Number.isFinite(priceUsd) || priceUsd <= 0 || priceUsd > 10_000) return { error: "قیمت دلاری نامعتبر است." };
-
-  // Items: blank = unlimited. Gift cards are stocked by codes, so stock stays null.
-  const rawStock = body?.stock;
-  const stock = type === "ITEM" && rawStock !== "" && rawStock !== null && rawStock !== undefined ? Number(rawStock) : null;
-  if (stock !== null && (!Number.isInteger(stock) || stock < 0)) return { error: "موجودی نامعتبر است." };
-
-  const isItem = type === "ITEM";
-  const rarity = isItem ? (RARITIES.find((r) => r === body?.rarity) ?? null) : null;
+  if (!title) return { error: "عنوان گیفت کارت لازم است." };
+  if (!Number.isFinite(priceUsd) || priceUsd <= 0 || priceUsd > 10_000) return { error: "مبلغ دلاری نامعتبر است." };
 
   return {
     data: {
@@ -53,13 +35,10 @@ export function parseProductBody(body: Record<string, unknown> | null): ParseRes
       features: text(body?.features, 2_000),
       imageUrl: text(body?.imageUrl, 700),
       imageAlt: text(body?.imageAlt, 160),
-      heroName: isItem ? text(body?.heroName, 60) : null,
-      rarity,
       metaTitle: text(body?.metaTitle, 90),
       metaDescription: text(body?.metaDescription, 300),
-      type,
+      type: "GIFT_CARD",
       priceUsdCents: Math.round(priceUsd * 100),
-      stock,
       active: body?.active !== false,
     },
   };

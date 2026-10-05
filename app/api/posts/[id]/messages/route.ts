@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
+import { getPlatformSettings } from "@/app/lib/platformSettings";
+import { lobbyChatKey, markWatchingChat, notifyChatMessage, stopWatchingChat } from "@/app/lib/chatNotifications";
 import type { ApiResponse } from "@/app/types/api";
 
 async function guardAccess(postId: number, userId: number) {
@@ -38,12 +40,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json<ApiResponse>({ status: "error", message: "دسترسی نداری.", data: null }, { status: 403 });
   }
 
-  const messages = await prisma.message.findMany({
-    where: { postId },
-    include: { sender: true },
-    orderBy: { createdAt: "asc" },
-    take: 200,
-  });
+  // The page sends viewing=0 while its tab is hidden or blurred, so lobby
+  // message notifications keep reaching it until the user looks again.
+  const viewing = request.nextUrl.searchParams.get("viewing") !== "0";
+  const [messages] = await Promise.all([
+    prisma.message.findMany({
+      where: { postId },
+      include: { sender: true },
+      orderBy: { createdAt: "asc" },
+      take: 200,
+    }),
+    viewing ? markWatchingChat(session.id, lobbyChatKey(postId)) : stopWatchingChat(session.id, lobbyChatKey(postId)),
+  ]);
 
   return NextResponse.json<ApiResponse>({
     status: "success",
@@ -68,6 +76,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json<ApiResponse>({ status: "error", message: "وارد نشدی.", data: null }, { status: 401 });
   }
 
+  if (!(await getPlatformSettings()).lobbyChatEnabled) {
+    return NextResponse.json<ApiResponse>({ status: "error", message: "چت لابی موقتاً توسط مدیریت غیرفعال شده.", data: null }, { status: 403 });
+  }
+
   const { id } = await params;
   const postId = Number(id);
   const post = await guardAccess(postId, session.id);
@@ -85,18 +97,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     data: { postId, senderId: session.id, body: text.slice(0, 1000) },
   });
 
-  const recipients = await otherPartyIds(postId, post.authorId, session.id);
-  if (recipients.length > 0) {
-    await prisma.notification.createMany({
-      data: recipients.map((userId) => ({
-        userId,
-        type: "NEW_MESSAGE" as const,
-        title: `پیام جدید از ${session.displayName}`,
-        body: text.slice(0, 200),
-        link: `/dashboard/post/${postId}`,
-      })),
-    });
-  }
+  await notifyChatMessage({
+    chatKey: lobbyChatKey(postId),
+    recipientIds: await otherPartyIds(postId, post.authorId, session.id),
+    senderId: session.id,
+    senderName: session.displayName,
+    text,
+    link: `/dashboard/post/${postId}`,
+  });
 
   return NextResponse.json<ApiResponse>({ status: "success", message: "ارسال شد.", data: { id: message.id } });
 }

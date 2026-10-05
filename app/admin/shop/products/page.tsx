@@ -11,30 +11,19 @@ import { cn } from "@/app/lib/utils";
 import { Card } from "@/components/general/card";
 import { Input } from "@/components/ui/input";
 
-type ProductType = "GIFT_CARD" | "ITEM";
-
 interface Product {
   id: number;
-  type: ProductType;
   title: string;
   slug: string | null;
   shortDescription: string | null;
   description: string | null;
   imageUrl: string | null;
   priceUsdCents: number;
-  stock: number | null;
   active: boolean;
   priceToman: number | null;
   availableCodes: number;
   waitingOrders: number;
 }
-
-const TYPE_LABELS: Record<ProductType, string> = { GIFT_CARD: "گیفت کارت", ITEM: "آیتم دوتا ۲" };
-const FILTERS: { value: ProductType | "ALL"; label: string }[] = [
-  { value: "ALL", label: "همه" },
-  { value: "GIFT_CARD", label: "گیفت کارت" },
-  { value: "ITEM", label: "آیتم دوتا ۲" },
-];
 
 export default function AdminShopProductsPage() {
   const confirmAction = useConfirm();
@@ -42,7 +31,6 @@ export default function AdminShopProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [lowStock, setLowStock] = useState(3);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<ProductType | "ALL">("ALL");
   const [query, setQuery] = useState("");
 
   const load = useCallback(() => {
@@ -71,7 +59,7 @@ export default function AdminShopProductsPage() {
   }
 
   async function handleDelete(p: Product) {
-    if (!(await confirmAction({ message: `محصول «${p.title}» حذف شود؟`, danger: true, confirmLabel: "حذف" }))) return;
+    if (!(await confirmAction({ message: `گیفت کارت «${p.title}» حذف شود؟`, danger: true, confirmLabel: "حذف" }))) return;
     const res = await fetch(`/api/admin/shop/products/${p.id}`, { method: "DELETE" });
     const json = await res.json();
     if (json.status === "success") toast.success(json.message);
@@ -84,41 +72,25 @@ export default function AdminShopProductsPage() {
   }
 
   const q = query.trim().toLowerCase();
-  const visible = products.filter((p) => (filter === "ALL" || p.type === filter) && (!q || p.title.toLowerCase().includes(q)));
+  const visible = products.filter((p) => !q || p.title.toLowerCase().includes(q));
 
   return (
     <div className="flex w-full flex-col gap-6 p-6 md:p-8">
       <Card tone="surface" noHover className="w-full gap-4 p-6">
         <div className="flex w-full flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
           <Link href="/admin/shop/products/new" className="whitespace-nowrap rounded-[6px] bg-primary px-3 py-1.5 text-[12px] font-bold text-white">
-            افزودن محصول جدید +
+            افزودن گیفت کارت +
           </Link>
-          <p className="text-[16px] font-black text-text">محصولات فروشگاه</p>
+          <p className="text-[16px] font-black text-text">گیفت کارت‌های فروشگاه</p>
         </div>
 
-        <div className="flex w-full flex-wrap items-center justify-between gap-3">
-          <div className="relative w-full max-w-[280px]">
-            <Search size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-dim" />
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="جستجوی عنوان..." className="h-10 pr-9" dir="auto" />
-          </div>
-          <div className="flex gap-2">
-            {FILTERS.map((f) => (
-              <button
-                key={f.value}
-                onClick={() => setFilter(f.value)}
-                className={cn(
-                  "rounded-[20px] px-4 py-1.5 text-[12px] font-bold transition-colors",
-                  filter === f.value ? "bg-primary text-white" : "border border-border text-text-dim hover:text-text",
-                )}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+        <div className="relative w-full max-w-[280px]">
+          <Search size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-dim" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="جستجوی عنوان..." className="h-10 pr-9" dir="auto" />
         </div>
 
         {visible.length === 0 ? (
-          <p className="w-full py-8 text-center text-[13px] text-text-dim">{products.length === 0 ? "هنوز محصولی ثبت نشده." : "محصولی با این فیلتر پیدا نشد."}</p>
+          <p className="w-full py-8 text-center text-[13px] text-text-dim">{products.length === 0 ? "هنوز گیفت کارتی ثبت نشده." : "گیفت کارتی با این عنوان پیدا نشد."}</p>
         ) : (
           <div className="flex w-full flex-col gap-2">
             {visible.map((p) => {
@@ -150,47 +122,31 @@ export default function AdminShopProductsPage() {
                     {incomplete && (
                       <span className="whitespace-nowrap rounded-[6px] bg-[#f59e0b]/[0.13] px-2.5 py-1 text-[11px] font-bold text-[#f59e0b]">توضیحات ناقص</span>
                     )}
-                    {p.type === "ITEM" ? (
-                      <span
-                        className={cn(
-                          "whitespace-nowrap rounded-[6px] px-2.5 py-1 text-[12px] font-bold",
-                          p.stock !== null && p.stock <= 0 ? "bg-danger/15 text-danger" : "bg-surface text-text-dim",
-                        )}
-                      >
-                        {p.stock === null ? "موجودی نامحدود" : `${p.stock.toLocaleString("fa-IR")} عدد موجود`}
-                      </span>
-                    ) : (
-                      <Link
-                        href={`/admin/shop/gift-codes?productId=${p.id}`}
-                        className={cn(
-                          "whitespace-nowrap rounded-[6px] px-2.5 py-1 text-[12px] font-bold",
-                          p.availableCodes <= lowStock ? "bg-danger/15 text-danger" : "bg-success/10 text-success",
-                        )}
-                      >
-                        {p.availableCodes.toLocaleString("fa-IR")} کد موجود
-                        {p.waitingOrders > 0 && ` · ${p.waitingOrders.toLocaleString("fa-IR")} سفارش منتظر`}
-                      </Link>
-                    )}
+                    <Link
+                      href={`/admin/shop/gift-codes?productId=${p.id}`}
+                      className={cn(
+                        "whitespace-nowrap rounded-[6px] px-2.5 py-1 text-[12px] font-bold",
+                        p.availableCodes <= lowStock ? "bg-danger/15 text-danger" : "bg-success/10 text-success",
+                      )}
+                    >
+                      {p.availableCodes.toLocaleString("fa-IR")} کد موجود
+                      {p.waitingOrders > 0 && ` · ${p.waitingOrders.toLocaleString("fa-IR")} سفارش منتظر`}
+                    </Link>
                     <div className="flex flex-col items-end">
                       <p className="text-[13px] font-bold text-text">{p.priceToman === null ? "بدون قیمت" : `${p.priceToman.toLocaleString("fa-IR")} تومان`}</p>
                       <p className="text-[11px] text-text-dim" dir="ltr">
                         ${(p.priceUsdCents / 100).toFixed(2)}
                       </p>
                     </div>
-                    <div className="flex flex-col items-end gap-0.5">
-                      <p className="max-w-[260px] truncate text-[14px] font-black text-text">{p.title}</p>
-                      <p className="text-[11px] text-text-dim">{TYPE_LABELS[p.type]}</p>
-                    </div>
+                    <p className="max-w-[260px] truncate text-[14px] font-black text-text">{p.title}</p>
                     <div className="w-[72px] shrink-0 overflow-hidden rounded-[6px]">
                       {p.imageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={p.imageUrl} alt="" className="aspect-[1.6] w-full bg-surface object-contain" />
-                      ) : p.type === "GIFT_CARD" ? (
+                      ) : (
                         <div className="flex aspect-[1.6] w-full items-center justify-center bg-gradient-to-br from-[#1b9ad6] to-[#0b2a45] text-[13px] font-black text-white" dir="ltr">
                           ${p.priceUsdCents / 100}
                         </div>
-                      ) : (
-                        <div className="aspect-[1.6] w-full bg-surface" />
                       )}
                     </div>
                   </div>

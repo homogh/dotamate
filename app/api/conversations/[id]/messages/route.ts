@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Prisma } from "@prisma/client";
 
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
+import { dmChatKey, markWatchingChat, notifyChatMessage, stopWatchingChat } from "@/app/lib/chatNotifications";
 import type { ApiResponse } from "@/app/types/api";
 
 async function guardParticipant(conversationId: number, userId: number) {
@@ -38,10 +38,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }),
   ]);
 
-  await prisma.conversationParticipant.update({
-    where: { id: participant.id },
-    data: { lastReadAt: new Date() },
-  });
+  // The page sends viewing=0 while its tab is hidden or blurred: messages
+  // still load, but nothing counts as read and notifications keep coming.
+  const viewing = request.nextUrl.searchParams.get("viewing") !== "0";
+  if (viewing) {
+    await Promise.all([
+      prisma.conversationParticipant.update({ where: { id: participant.id }, data: { lastReadAt: new Date() } }),
+      markWatchingChat(session.id, dmChatKey(conversationId)),
+    ]);
+  } else {
+    await stopWatchingChat(session.id, dmChatKey(conversationId));
+  }
 
   return NextResponse.json<ApiResponse>({
     status: "success",
@@ -93,24 +100,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json<ApiResponse>({ status: "error", message: "پیام خالیه.", data: null }, { status: 400 });
   }
 
-  const ops: Prisma.PrismaPromise<unknown>[] = [
+  const [message] = await prisma.$transaction([
     prisma.message.create({ data: { conversationId, senderId: session.id, body: text.slice(0, 1000) } }),
     prisma.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } }),
-  ];
-  if (other) {
-    ops.push(
-      prisma.notification.create({
-        data: {
-          userId: other.userId,
-          type: "NEW_MESSAGE",
-          title: `پیام جدید از ${session.displayName}`,
-          body: text.slice(0, 200),
-          link: `/dashboard/messages/${conversationId}`,
-        },
-      }),
-    );
-  }
-  const [message] = await prisma.$transaction(ops);
+  ]);
 
-  return NextResponse.json<ApiResponse>({ status: "success", message: "ارسال شد.", data: { id: (message as { id: number }).id } });
+  if (other) {
+    await notifyChatMessage({
+      chatKey: dmChatKey(conversationId),
+      recipientIds: [other.userId],
+      senderId: session.id,
+      senderName: session.displayName,
+      text,
+      link: `/dashboard/messages/${conversationId}`,
+    });
+  }
+
+  return NextResponse.json<ApiResponse>({ status: "success", message: "ارسال شد.", data: { id: message.id } });
 }

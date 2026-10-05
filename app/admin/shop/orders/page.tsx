@@ -2,9 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Copy } from "lucide-react";
 
-import { useConfirm } from "@/app/stores/useConfirm";
 import { useToast } from "@/app/stores/useToast";
 import { Card } from "@/components/general/card";
 import { OrderStatusBadge } from "@/components/pages/shop/orderStatusBadge";
@@ -13,12 +11,10 @@ interface AdminOrder {
   id: number;
   status: string;
   productTitle: string;
-  productType: "GIFT_CARD" | "ITEM";
   userId: number;
   userName: string;
   totalToman: number;
   paymentMethod: "WALLET" | "GATEWAY";
-  tradeUrl: string | null;
   paidAt: string | null;
   deliveredAt: string | null;
 }
@@ -38,7 +34,6 @@ const FILTERS = [
 ];
 
 export default function AdminShopOrdersPage() {
-  const confirmAction = useConfirm();
   const toast = useToast();
   const [filter, setFilter] = useState("action");
   const [data, setData] = useState<OrdersData | null>(null);
@@ -55,29 +50,19 @@ export default function AdminShopOrdersPage() {
     load();
   }, [load]);
 
-  async function act(order: AdminOrder, action: "deliver" | "refund") {
-    let reason: string | null = null;
-    if (action === "deliver") {
-      if (!(await confirmAction({ message: `آیتم «${order.productTitle}» برای ${order.userName} ترید شد؟`, confirmLabel: "بله، تحویل شد" }))) return;
-    } else {
-      reason = prompt("دلیل بازگشت وجه (به کاربر نمایش داده می‌شود):", "موجودی این محصول تمام شد.");
-      if (reason === null) return;
-    }
+  async function refund(order: AdminOrder) {
+    const reason = prompt("دلیل بازگشت وجه (به کاربر نمایش داده می‌شود):", "کد این گیفت کارت فعلاً موجود نیست.");
+    if (reason === null) return;
 
     const res = await fetch(`/api/admin/shop/orders/${order.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, reason }),
+      body: JSON.stringify({ action: "refund", reason }),
     });
     const json = await res.json();
     if (json.status === "success") toast.success(json.message);
     else toast.error(json.message);
     load();
-  }
-
-  async function copy(text: string) {
-    await navigator.clipboard.writeText(text).catch(() => null);
-    toast.success("کپی شد.");
   }
 
   if (!data) {
@@ -115,23 +100,18 @@ export default function AdminShopOrdersPage() {
               <div key={order.id} className="flex w-full flex-col gap-3 rounded-[8px] border border-border bg-surface-alt p-4">
                 <div className="flex w-full flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2 text-[12px]">
-                    {(order.status === "AWAITING_CODE" || order.status === "AWAITING_DELIVERY") && (
-                      <button
-                        onClick={() => act(order, "refund")}
-                        className="whitespace-nowrap rounded-[6px] border border-danger/30 px-2.5 py-1.5 font-bold text-danger"
-                      >
-                        بازگشت وجه
-                      </button>
-                    )}
-                    {order.status === "AWAITING_DELIVERY" && (
-                      <button onClick={() => act(order, "deliver")} className="whitespace-nowrap rounded-[6px] bg-success px-2.5 py-1.5 font-bold text-white">
-                        ترید شد ✓
-                      </button>
-                    )}
                     {order.status === "AWAITING_CODE" && (
-                      <Link href="/admin/shop/gift-codes" className="whitespace-nowrap rounded-[6px] bg-primary px-2.5 py-1.5 font-bold text-white">
-                        افزودن کد
-                      </Link>
+                      <>
+                        <button
+                          onClick={() => refund(order)}
+                          className="whitespace-nowrap rounded-[6px] border border-danger/30 px-2.5 py-1.5 font-bold text-danger"
+                        >
+                          بازگشت وجه
+                        </button>
+                        <Link href="/admin/shop/gift-codes" className="whitespace-nowrap rounded-[6px] bg-primary px-2.5 py-1.5 font-bold text-white">
+                          افزودن کد
+                        </Link>
+                      </>
                     )}
                     <OrderStatusBadge status={order.status} />
                   </div>
@@ -153,17 +133,6 @@ export default function AdminShopOrdersPage() {
                     </div>
                   </div>
                 </div>
-
-                {order.tradeUrl && order.status === "AWAITING_DELIVERY" && (
-                  <div className="flex w-full items-center gap-2 rounded-[6px] bg-bg px-3 py-2">
-                    <button onClick={() => copy(order.tradeUrl!)} className="shrink-0 text-text-dim hover:text-text" aria-label="کپی Trade URL">
-                      <Copy size={14} />
-                    </button>
-                    <a href={order.tradeUrl} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-left font-mono text-[12px] text-accent hover:underline" dir="ltr">
-                      {order.tradeUrl}
-                    </a>
-                  </div>
-                )}
               </div>
             ))}
           </div>

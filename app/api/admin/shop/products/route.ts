@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   if (auth.error) return auth.error;
 
   const [products, settings, stock, waiting] = await Promise.all([
-    prisma.shopProduct.findMany({ orderBy: [{ type: "asc" }, { sortOrder: "asc" }, { id: "asc" }] }),
+    prisma.shopProduct.findMany({ where: { type: "GIFT_CARD" }, orderBy: [{ sortOrder: "asc" }, { id: "asc" }] }),
     getShopSettings(),
     prisma.giftCode.groupBy({ by: ["productId"], where: { status: "AVAILABLE" }, _count: true }),
     prisma.shopOrder.groupBy({ by: ["productId"], where: { status: "AWAITING_CODE" }, _count: true }),
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       lowStockThreshold: settings.lowStockThreshold,
       products: products.map((p) => ({
         ...p,
-        priceToman: priceToman(p.priceUsdCents, p.type, settings),
+        priceToman: priceToman(p.priceUsdCents, settings),
         availableCodes: stockBy.get(p.id) ?? 0,
         waitingOrders: waitingBy.get(p.id) ?? 0,
       })),
@@ -58,5 +58,5 @@ export async function POST(request: NextRequest) {
     data: { actorId: auth.session.id, action: "CREATE_SHOP_PRODUCT", targetType: "ShopProduct", targetId: product.id, detail: product.title },
   });
 
-  return NextResponse.json<ApiResponse>({ status: "success", message: "محصول اضافه شد.", data: { id: product.id, slug } });
+  return NextResponse.json<ApiResponse>({ status: "success", message: "گیفت کارت اضافه شد.", data: { id: product.id, slug } });
 }

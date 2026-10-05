@@ -36,7 +36,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const myMembership = post.members.find((m) => m.userId === session.id);
   const isAcceptedMember = myMembership?.status === "ACCEPTED";
 
-  if (!isAuthor && !isAcceptedMember) {
+  const isInvited = myMembership?.status === "INVITED";
+
+  if (!isAuthor && !isAcceptedMember && !isInvited) {
     return NextResponse.json<ApiResponse>(
       { status: "error", message: "به این اتاق لابی دسترسی نداری.", data: null },
       { status: 403 },
@@ -45,17 +47,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const accepted = post.members.filter((m) => m.status === "ACCEPTED");
   const pending = post.members.filter((m) => m.status === "PENDING");
+  const invited = post.members.filter((m) => m.status === "INVITED");
 
   const data = {
     id: post.id,
     isAuthor,
+    isInvited,
     author: {
       id: post.author.id,
       displayName: post.author.displayName,
       avatarUrl: post.author.avatarUrl,
       rank: post.author.rank,
       rankTier: post.author.rankTier,
-      steamId: post.author.steamId,
+      steamId: isInvited ? null : post.author.steamId,
     },
     position: post.position,
     rank: post.rank,
@@ -69,7 +73,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     startAt: post.startAt,
     description: post.description,
     hasVoice: post.hasVoice,
-    voiceLink: post.voiceLink,
+    voiceLink: isInvited ? null : post.voiceLink,
     partySize: post.partySize,
     status: post.status,
     createdAt: post.createdAt,
@@ -82,7 +86,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       rank: m.user.rank,
       rankTier: m.user.rankTier,
       position: m.position,
-      steamId: m.user.steamId,
+      steamId: isInvited ? null : m.user.steamId,
+    })),
+    invited: invited.map((m) => ({
+      memberId: m.id,
+      userId: m.user.id,
+      displayName: m.user.displayName,
+      avatarUrl: m.user.avatarUrl,
+      rank: m.user.rank,
+      rankTier: m.user.rankTier,
+      position: m.position ?? m.user.mainPosition,
     })),
     pending: isAuthor
       ? pending.map((m) => ({

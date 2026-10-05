@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 
+import { cn } from "@/app/lib/utils";
 import { AdminSidebar } from "@/components/admin/sidebar";
 import { AdminTopbar } from "@/components/admin/topbar";
-import { filterAdminNavItems } from "@/components/admin/navItems";
+import { AdminNavMenu } from "@/components/admin/navMenu";
+import { filterAdminNavGroups } from "@/components/admin/navItems";
 import type { AdminResource } from "@/app/lib/permissions";
 
 export function AdminShell({
@@ -26,7 +26,6 @@ export function AdminShell({
   permissions: Record<AdminResource, string>;
   children: ReactNode;
 }) {
-  const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
@@ -36,7 +35,7 @@ export function AdminShell({
     };
   }, [mobileOpen]);
 
-  const visibleItems = filterAdminNavItems(permissions, isSuperAdmin);
+  const groups = filterAdminNavGroups(permissions, isSuperAdmin);
 
   return (
     <div className="flex w-full flex-col lg:flex-row">
@@ -46,23 +45,19 @@ export function AdminShell({
         <div className="sticky top-0 z-20">
           <AdminTopbar mobileMenuOpen={mobileOpen} onToggleMobileMenu={() => setMobileOpen((v) => !v)} />
 
-          {mobileOpen && (
-            <div className="flex flex-col gap-1 border-b border-border bg-surface-alt px-4 py-4 lg:hidden">
-              {visibleItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={`rounded-[8px] px-4 py-3 text-right text-sm font-bold ${
-                    pathname === item.href ? "bg-primary text-white" : "text-text-dim hover:bg-white/5"
-                  }`}
-                  dir="auto"
-                >
-                  {item.label}
-                </Link>
-              ))}
+          <div
+            inert={!mobileOpen}
+            className={cn(
+              "grid border-b bg-surface-alt transition-[grid-template-rows,opacity,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] lg:hidden",
+              mobileOpen ? "grid-rows-[1fr] border-border opacity-100" : "grid-rows-[0fr] border-transparent opacity-0"
+            )}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <div className="max-h-[calc(100dvh-80px)] overflow-y-auto px-4 py-4">
+                <AdminNavMenu groups={groups} onNavigate={() => setMobileOpen(false)} />
+              </div>
             </div>
-          )}
+          </div>
         </div>
 
         <main className="flex-1">{children}</main>

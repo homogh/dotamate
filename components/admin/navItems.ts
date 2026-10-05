@@ -1,38 +1,110 @@
-import type { AdminResource } from "@/app/lib/permissions";
+import {
+  LayoutGrid,
+  Users,
+  MessageSquare,
+  CalendarClock,
+  LifeBuoy,
+  AlertTriangle,
+  Ticket,
+  MessageSquareQuote,
+  Newspaper,
+  FileText,
+  Database,
+  Store,
+  Settings2,
+  ShoppingBag,
+  Package,
+  KeyRound,
+  Cog,
+  Megaphone,
+  Shield,
+  Terminal,
+} from "lucide-react";
 
-export interface AdminNavItem {
-  label: string;
-  href: string;
+import type { AdminResource } from "@/app/lib/permissions";
+import { findActiveNav, type GroupedNavGroup, type GroupedNavItem } from "@/app/lib/navGroups";
+
+export interface AdminNavItem extends GroupedNavItem {
   resource: AdminResource | null;
   /** Shown only to the «مدیر کل» role, regardless of resource permissions. */
   superAdminOnly?: boolean;
 }
 
-export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
-  { label: "نمای کلی", href: "/admin", resource: null },
-  { label: "کاربران", href: "/admin/users", resource: "USERS" },
-  { label: "پست‌ها", href: "/admin/posts", resource: "POSTS" },
-  { label: "گزارش‌ها", href: "/admin/reports", resource: "REPORTS" },
-  { label: "تیکت‌های پشتیبانی", href: "/admin/tickets", resource: "TICKETS" },
-  { label: "نظرات کاربران", href: "/admin/testimonials", resource: "TESTIMONIALS" },
-  { label: "جلسات", href: "/admin/sessions", resource: "SESSIONS" },
-  { label: "وبلاگ", href: "/admin/blog", resource: "BLOG" },
-  { label: "داده‌های مرجع", href: "/admin/reference", resource: "REFERENCE_DATA" },
-  { label: "اعلامیه‌ها", href: "/admin/announcements", resource: "ANNOUNCEMENTS" },
-  { label: "فروشگاه", href: "/admin/shop", resource: null, superAdminOnly: true },
-  { label: "سفارش‌های فروشگاه", href: "/admin/shop/orders", resource: null, superAdminOnly: true },
-  { label: "محصولات فروشگاه", href: "/admin/shop/products", resource: null, superAdminOnly: true },
-  { label: "بانک گیفت کارت", href: "/admin/shop/gift-codes", resource: null, superAdminOnly: true },
-  { label: "بازار کاربران", href: "/admin/shop/market", resource: null, superAdminOnly: true },
-  { label: "درخواست‌های برداشت", href: "/admin/shop/payouts", resource: null, superAdminOnly: true },
-  { label: "نقش‌ها و دسترسی‌ها", href: "/admin/roles", resource: "ROLES" },
-  { label: "لاگ عملیات", href: "/admin/audit-log", resource: "AUDIT_LOG" },
-  { label: "رفتن به پنل کلاینت", href: "/dashboard", resource: null },
+export type AdminNavGroup = GroupedNavGroup<AdminNavItem>;
+
+export const ADMIN_OVERVIEW_ITEM: AdminNavItem = { label: "نمای کلی", href: "/admin", icon: LayoutGrid, resource: null };
+
+export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
+  {
+    id: "community",
+    label: "کاربران و لابی‌ها",
+    icon: Users,
+    tone: "#8e7bff",
+    items: [
+      { label: "کاربران", href: "/admin/users", icon: Users, resource: "USERS" },
+      { label: "پست‌ها", href: "/admin/posts", icon: MessageSquare, resource: "POSTS" },
+      { label: "جلسات", href: "/admin/sessions", icon: CalendarClock, resource: "SESSIONS" },
+    ],
+  },
+  {
+    id: "support",
+    label: "پشتیبانی و نظارت",
+    icon: LifeBuoy,
+    tone: "#f59e0b",
+    items: [
+      { label: "گزارش‌ها", href: "/admin/reports", icon: AlertTriangle, resource: "REPORTS" },
+      { label: "تیکت‌های پشتیبانی", href: "/admin/tickets", icon: Ticket, resource: "TICKETS" },
+      { label: "نظرات کاربران", href: "/admin/testimonials", icon: MessageSquareQuote, resource: "TESTIMONIALS" },
+    ],
+  },
+  {
+    id: "content",
+    label: "محتوا و داده‌ها",
+    icon: Newspaper,
+    tone: "#38bdf8",
+    items: [
+      { label: "وبلاگ", href: "/admin/blog", icon: FileText, resource: "BLOG" },
+      { label: "داده‌های مرجع", href: "/admin/reference", icon: Database, resource: "REFERENCE_DATA" },
+    ],
+  },
+  {
+    id: "shop",
+    label: "فروشگاه",
+    icon: Store,
+    tone: "#22c55e",
+    items: [
+      { label: "تنظیمات فروشگاه", href: "/admin/shop", icon: Settings2, resource: null, superAdminOnly: true },
+      { label: "سفارش‌ها", href: "/admin/shop/orders", icon: ShoppingBag, resource: null, superAdminOnly: true },
+      { label: "گیفت کارت‌ها", href: "/admin/shop/products", icon: Package, resource: null, superAdminOnly: true },
+      { label: "بانک گیفت کارت", href: "/admin/shop/gift-codes", icon: KeyRound, resource: null, superAdminOnly: true },
+    ],
+  },
+  {
+    id: "system",
+    label: "سیستم",
+    icon: Cog,
+    tone: "#94a3b8",
+    items: [
+      { label: "تنظیمات و اعلامیه‌ها", href: "/admin/announcements", icon: Megaphone, resource: "ANNOUNCEMENTS" },
+      { label: "نقش‌ها و دسترسی‌ها", href: "/admin/roles", icon: Shield, resource: "ROLES" },
+      { label: "لاگ عملیات", href: "/admin/audit-log", icon: Terminal, resource: "AUDIT_LOG" },
+    ],
+  },
 ];
 
-export function filterAdminNavItems(permissions: Record<AdminResource, string>, isSuperAdmin: boolean) {
-  return ADMIN_NAV_ITEMS.filter((item) => {
-    if (item.superAdminOnly) return isSuperAdmin;
-    return item.resource === null || permissions[item.resource] === "VIEW" || permissions[item.resource] === "EDIT";
-  });
+function canSee(item: AdminNavItem, permissions: Record<AdminResource, string>, isSuperAdmin: boolean) {
+  if (item.superAdminOnly) return isSuperAdmin;
+  return item.resource === null || permissions[item.resource] === "VIEW" || permissions[item.resource] === "EDIT";
+}
+
+/** Groups trimmed to what this admin may open; groups left empty are dropped. */
+export function filterAdminNavGroups(permissions: Record<AdminResource, string>, isSuperAdmin: boolean) {
+  return ADMIN_NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => canSee(item, permissions, isSuperAdmin)),
+  })).filter((group) => group.items.length > 0);
+}
+
+export function findActiveAdminNav(pathname: string, groups: AdminNavGroup[] = ADMIN_NAV_GROUPS) {
+  return findActiveNav(pathname, ADMIN_OVERVIEW_ITEM, groups);
 }

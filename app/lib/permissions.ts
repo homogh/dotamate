@@ -1,4 +1,5 @@
 import prisma from "@/app/lib/prisma";
+import { accountBlockMessage } from "@/app/lib/accountStatus";
 
 export type PermissionLevel = "NONE" | "VIEW" | "EDIT";
 
@@ -44,10 +45,11 @@ const LEVEL_RANK: Record<PermissionLevel, number> = { NONE: 0, VIEW: 1, EDIT: 2 
 export async function getAdminSession(userId: number): Promise<AdminSession | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: { include: { permissions: true } } },
+    select: { banned: true, banReason: true, suspendedUntil: true, role: { include: { permissions: true } } },
   });
 
-  if (!user?.role) return null;
+  // A banned or suspended admin loses panel access along with the rest of the site.
+  if (!user?.role || accountBlockMessage(user)) return null;
 
   const permissions = Object.fromEntries(
     user.role.permissions.map((p) => [p.resource, p.level]),

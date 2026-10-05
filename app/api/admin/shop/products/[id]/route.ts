@@ -14,7 +14,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   const product = await prisma.shopProduct.findUnique({ where: { id: Number(id) } });
   if (!product) {
-    return NextResponse.json<ApiResponse>({ status: "error", message: "محصول پیدا نشد.", data: null }, { status: 404 });
+    return NextResponse.json<ApiResponse>({ status: "error", message: "گیفت کارت پیدا نشد.", data: null }, { status: 404 });
   }
   return NextResponse.json<ApiResponse>({ status: "success", message: "ok", data: product });
 }
@@ -60,7 +60,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   ]);
   if (codes > 0 || orders > 0) {
     return NextResponse.json<ApiResponse>(
-      { status: "error", message: "این محصول کد یا سفارش ثبت‌شده دارد و قابل حذف نیست؛ به‌جای حذف، غیرفعالش کن.", data: null },
+      { status: "error", message: "این گیفت کارت کد یا سفارش ثبت‌شده دارد و قابل حذف نیست؛ به‌جای حذف، غیرفعالش کن.", data: null },
       { status: 409 },
     );
   }
@@ -70,5 +70,5 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     data: { actorId: auth.session.id, action: "DELETE_SHOP_PRODUCT", targetType: "ShopProduct", targetId: productId, detail: product.title },
   });
 
-  return NextResponse.json<ApiResponse>({ status: "success", message: "محصول حذف شد.", data: null });
+  return NextResponse.json<ApiResponse>({ status: "success", message: "گیفت کارت حذف شد.", data: null });
 }

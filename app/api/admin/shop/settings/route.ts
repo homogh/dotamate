@@ -9,17 +9,10 @@ import type { ApiResponse } from "@/app/types/api";
 const FIELDS: [string, number, number, boolean][] = [
   ["usdCostToman", 0, 100_000_000, true],
   ["giftCardMarginPercent", 0, 100, false],
-  ["itemMarginPercent", 0, 100, false],
-  ["marketCommissionPercent", 0, 50, false],
   ["gatewayFeePercent", 0, 10, false],
   ["workStartHour", 0, 23, true],
   ["workEndHour", 1, 24, true],
   ["lowStockThreshold", 0, 1000, true],
-  ["minWithdrawalToman", 0, 1_000_000_000, true],
-  ["payoutHoldHours", 0, 24 * 30, true],
-  ["sellerDeadlineHours", 1, 24 * 7, true],
-  ["buyerConfirmHours", 1, 24 * 14, true],
-  ["mutualConfirmHours", 1, 24 * 30, true],
 ];
 
 export async function PATCH(request: NextRequest) {

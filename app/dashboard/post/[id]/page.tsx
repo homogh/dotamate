@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Send, Copy, Check, UserPlus } from "lucide-react";
 
+import { isPageWatched } from "@/app/lib/pageAttention";
 import { useConfirm } from "@/app/stores/useConfirm";
+import { useNotifications } from "@/app/stores/useNotifications";
 import { useToast } from "@/app/stores/useToast";
 import { Card } from "@/components/general/card";
 import { UserAvatar } from "@/components/general/userAvatar";
@@ -16,6 +18,7 @@ import { RANK_LABEL } from "@/components/dashboard/postLabels";
 interface Detail {
   id: number;
   isAuthor: boolean;
+  isInvited: boolean;
   author: { id: number; displayName: string; avatarUrl: string | null; rank: string; rankTier: number | null; steamId: string | null };
   position: string;
   description: string;
@@ -26,6 +29,7 @@ interface Detail {
   createdAt: string;
   memberCount: number;
   accepted: { memberId: number; userId: number; displayName: string; avatarUrl: string | null; rank: string; rankTier: number | null; position: string | null; steamId: string | null }[];
+  invited: { memberId: number; userId: number; displayName: string; avatarUrl: string | null; rank: string; rankTier: number | null; position: string | null }[];
   pending: { memberId: number; userId: number; displayName: string; avatarUrl: string | null; rank: string; rankTier: number | null; position: string | null }[];
   neededPositions: string[];
   openPositions: string[];
@@ -48,6 +52,7 @@ export default function PostDetailPage() {
   const postId = params.id;
   const confirmAction = useConfirm();
   const toast = useToast();
+  const pollSummary = useNotifications((s) => s.pollSummary);
 
   const [detail, setDetail] = useState<Detail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,6 +61,8 @@ export default function PostDetailPage() {
   const [draft, setDraft] = useState("");
   const [copied, setCopied] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const isInvitedRef = useRef(false);
+  const [responding, setResponding] = useState(false);
 
   const loadDetail = useCallback(() => {
     fetch(`/api/posts/${postId}/detail`, { cache: "no-store" })
@@ -64,13 +71,19 @@ export default function PostDetailPage() {
         return res.json();
       })
       .then((json) => {
-        if (json.status === "success") setDetail(json.data);
+        if (json.status === "success") {
+          isInvitedRef.current = json.data.isInvited;
+          setDetail(json.data);
+        }
       })
       .finally(() => setLoading(false));
   }, [postId]);
 
   const loadMessages = useCallback(() => {
-    fetch(`/api/posts/${postId}/messages`, { cache: "no-store" })
+    if (isInvitedRef.current) return;
+    // viewing=0 while the tab is hidden/blurred, so lobby message
+    // notifications keep coming until the user actually looks.
+    return fetch(`/api/posts/${postId}/messages?viewing=${isPageWatched() ? 1 : 0}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((json) => {
         if (json.status === "success") setMessages(json.data);
@@ -90,21 +103,37 @@ export default function PostDetailPage() {
       loadDetail();
     }
 
-    refresh();
+    loadDetail();
+    loadMessages()?.then(pollSummary);
     const interval = setInterval(refresh, 4000);
 
-    function handleVisible() {
-      if (document.visibilityState === "visible") refresh();
+    // Re-poll the moment the user looks away or back, so the server stops or
+    // resumes notifying right away instead of at the next tick.
+    function handleAttention() {
+      const watched = isPageWatched();
+      const loading = loadMessages();
+      if (watched) {
+        loading?.then(pollSummary);
+        loadDetail();
+      }
     }
-    document.addEventListener("visibilitychange", handleVisible);
-    window.addEventListener("focus", handleVisible);
+    function handleLeave() {
+      fetch(`/api/posts/${postId}/messages?viewing=0`, { cache: "no-store", keepalive: true }).catch(() => {});
+    }
+    document.addEventListener("visibilitychange", handleAttention);
+    window.addEventListener("focus", handleAttention);
+    window.addEventListener("blur", handleAttention);
+    window.addEventListener("pagehide", handleLeave);
 
     return () => {
       clearInterval(interval);
-      document.removeEventListener("visibilitychange", handleVisible);
-      window.removeEventListener("focus", handleVisible);
+      document.removeEventListener("visibilitychange", handleAttention);
+      window.removeEventListener("focus", handleAttention);
+      window.removeEventListener("blur", handleAttention);
+      window.removeEventListener("pagehide", handleLeave);
+      handleLeave();
     };
-  }, [loadMessages, loadDetail, forbidden]);
+  }, [loadMessages, loadDetail, pollSummary, postId, forbidden]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -133,6 +162,31 @@ export default function PostDetailPage() {
       toast.success(action === "accept" ? "درخواست قبول شد." : "درخواست رد شد.");
     } else {
       const json = await res.json().catch(() => null);
+      toast.error(json?.message ?? "مشکلی پیش اومد.");
+    }
+
+    loadDetail();
+  }
+
+  async function handleRespond(action: "accept" | "decline") {
+    setResponding(true);
+    const res = await fetch(`/api/posts/${postId}/respond`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    const json = await res.json().catch(() => null);
+    setResponding(false);
+
+    if (res.ok) {
+      toast.success(action === "accept" ? "به پارتی پیوستی." : "دعوت رد شد.");
+      if (action === "decline") {
+        router.push("/dashboard/notifications");
+        return;
+      }
+      isInvitedRef.current = false;
+      loadMessages();
+    } else {
       toast.error(json?.message ?? "مشکلی پیش اومد.");
     }
 
@@ -198,7 +252,7 @@ export default function PostDetailPage() {
       <div className="flex w-full flex-col gap-6 p-6 md:p-10">
         <Card tone="surface" noHover className="w-full items-center gap-2 p-10 text-center">
           <p className="text-[15px] text-text-dim" dir="auto">
-            به این اتاق لابی دسترسی نداری — یا باید صاحب پست باشی یا عضو پذیرفته‌شده.
+            به این اتاق لابی دسترسی نداری — یا باید صاحب پست باشی، عضو پذیرفته‌شده یا دعوت‌شده.
           </p>
         </Card>
       </div>
@@ -210,6 +264,9 @@ export default function PostDetailPage() {
   return (
     <div className="flex w-full flex-col gap-7 p-6 md:p-10 lg:flex-row-reverse">
       <div className="flex w-full flex-col gap-5 lg:w-[420px] lg:shrink-0">
+        {detail.isInvited && (
+          <InviteResponse onRespond={handleRespond} busy={responding} hostName={detail.author.displayName} />
+        )}
         <Card tone="surface" noHover className="w-full gap-4 p-6">
           <div className="flex w-full items-center justify-between">
             <div className="flex items-center gap-2">
@@ -317,6 +374,37 @@ export default function PostDetailPage() {
           </div>
         </Card>
 
+        {detail.invited.length > 0 && (
+          <Card tone="surface" noHover className="w-full gap-3.5 p-6">
+            <p className="w-full text-right text-[15px] font-black text-text" dir="auto">
+              دعوت‌شده‌ها
+            </p>
+            <div className="flex w-full flex-col gap-2.5">
+              {detail.invited.map((p) => (
+                <MemberRow
+                  key={p.memberId}
+                  badge="در انتظار پاسخ"
+                  userId={p.userId}
+                  name={p.displayName}
+                  avatarUrl={p.avatarUrl}
+                  rank={`${RANK_LABEL[p.rank]} ${p.rankTier ?? ""}${p.position ? ` • ${POSITION_LABEL[p.position as PositionValue]}` : ""}`}
+                  actions={
+                    detail.isAuthor ? (
+                      <button
+                        onClick={() => handleAction(p.memberId, "reject")}
+                        className="rounded-[4px] bg-danger px-3 py-1.5 text-[11px] font-bold text-white"
+                        dir="auto"
+                      >
+                        لغو دعوت
+                      </button>
+                    ) : undefined
+                  }
+                />
+              ))}
+            </div>
+          </Card>
+        )}
+
         {detail.hasVoice && (
           <Card tone="surface-alt" noHover className="w-full flex-row items-center justify-between gap-4 p-5">
             <div className="flex items-center gap-3">
@@ -371,7 +459,7 @@ export default function PostDetailPage() {
           </div>
         )}
 
-        {!detail.isAuthor && (
+        {!detail.isAuthor && !detail.isInvited && (
           <div className="flex w-full gap-3">
             <button
               onClick={handleLeave}
@@ -384,12 +472,22 @@ export default function PostDetailPage() {
         )}
       </div>
 
-      <Card tone="surface" noHover className="flex h-[640px] w-full flex-1 flex-col gap-4 p-6">
+      <Card tone="surface" noHover className="relative flex h-[640px] w-full flex-1 flex-col gap-4 overflow-hidden p-6">
         <p className="w-full text-right text-[16px] font-black text-text" dir="auto">
           چت لابی
         </p>
-        <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
-          {messages.length === 0 ? (
+        <div
+          className={`flex flex-1 flex-col gap-3 overflow-y-auto ${detail.isInvited ? "pointer-events-none select-none blur-md" : ""}`}
+          aria-hidden={detail.isInvited}
+        >
+          {detail.isInvited ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex w-full flex-col gap-1.5 rounded-[8px] border border-border bg-surface-alt p-3">
+                <div className="h-3 w-24 rounded bg-white/10" />
+                <div className="h-3 w-full rounded bg-white/10" />
+              </div>
+            ))
+          ) : messages.length === 0 ? (
             <p className="flex flex-1 items-center justify-center text-[13px] text-text-dim" dir="auto">
               هنوز پیامی رد و بدل نشده — اولین نفر باش.
             </p>
@@ -432,7 +530,12 @@ export default function PostDetailPage() {
           )}
           <div ref={chatEndRef} />
         </div>
-        <div className="flex w-full items-center gap-2">
+        {detail.isInvited && (
+          <div className="absolute inset-0 flex items-center justify-center p-6">
+            <InviteResponse onRespond={handleRespond} busy={responding} hostName={detail.author.displayName} />
+          </div>
+        )}
+        <div className={`flex w-full items-center gap-2 ${detail.isInvited ? "pointer-events-none opacity-40 blur-sm" : ""}`}>
           <button
             onClick={handleSend}
             className="flex size-11 shrink-0 items-center justify-center rounded-[8px] bg-primary text-white hover:bg-primary-hover"
@@ -450,6 +553,45 @@ export default function PostDetailPage() {
           />
         </div>
       </Card>
+    </div>
+  );
+}
+
+function InviteResponse({
+  onRespond,
+  busy,
+  hostName,
+}: {
+  onRespond: (action: "accept" | "decline") => void;
+  busy: boolean;
+  hostName: string;
+}) {
+  return (
+    <div className="flex w-full flex-col gap-3 rounded-[12px] border border-primary bg-surface p-5 text-center shadow-lg">
+      <p className="text-[15px] font-black text-text" dir="auto">
+        {hostName} تو رو به لابیش دعوت کرده
+      </p>
+      <p className="text-[12px] leading-[1.7] text-text-dim" dir="auto">
+        تا قبول نکنی چت لابی برات قفله و فقط اعضا رو می‌تونی ببینی.
+      </p>
+      <div className="flex w-full gap-2">
+        <button
+          onClick={() => onRespond("decline")}
+          disabled={busy}
+          className="flex-1 rounded-[8px] bg-danger p-3 text-[13px] font-bold text-white disabled:opacity-50"
+          dir="auto"
+        >
+          رد دعوت
+        </button>
+        <button
+          onClick={() => onRespond("accept")}
+          disabled={busy}
+          className="flex-1 rounded-[8px] bg-success p-3 text-[13px] font-bold text-white disabled:opacity-50"
+          dir="auto"
+        >
+          قبول دعوت
+        </button>
+      </div>
     </div>
   );
 }

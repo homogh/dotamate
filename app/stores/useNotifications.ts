@@ -18,6 +18,8 @@ export type FriendRequestAnswer = "accept" | "decline";
 interface NotificationState {
   unreadNotifications: number;
   unreadMessages: number;
+  /** Newest unread notification's timestamp — bumps when a grouped one grows. */
+  latestUnreadAt: string | null;
   items: NotificationItem[];
   itemsLoaded: boolean;
   pollSummary: () => Promise<void>;
@@ -31,6 +33,7 @@ interface NotificationState {
 export const useNotifications = create<NotificationState>((set, get) => ({
   unreadNotifications: 0,
   unreadMessages: 0,
+  latestUnreadAt: null,
   items: [],
   itemsLoaded: false,
 
@@ -43,10 +46,11 @@ export const useNotifications = create<NotificationState>((set, get) => ({
       const res = await fetch("/api/dashboard/notifications/summary", { cache: "no-store" });
       const json = await res.json();
       if (json.status !== "success") return;
-      const prev = get().unreadNotifications;
+      const { unreadNotifications: prev, latestUnreadAt: prevLatest } = get();
       const next = json.data.unreadNotifications as number;
-      if (next > prev) playNotificationSound();
-      set({ unreadNotifications: next, unreadMessages: json.data.unreadMessages });
+      const nextLatest = json.data.latestUnreadAt as string | null;
+      if (next > prev || (prevLatest && nextLatest && nextLatest > prevLatest)) playNotificationSound();
+      set({ unreadNotifications: next, unreadMessages: json.data.unreadMessages, latestUnreadAt: nextLatest });
     } catch {
       // Silent — this is a background poll, a transient failure isn't worth surfacing.
     }

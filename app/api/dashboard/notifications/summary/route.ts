@@ -21,8 +21,12 @@ export async function GET(request: NextRequest) {
     })
     .catch(() => {});
 
-  const [unreadNotifications, participants] = await Promise.all([
-    prisma.notification.count({ where: { userId: session.id, read: false, ...(await notificationVisibilityFilter()) } }),
+  const unreadWhere = { userId: session.id, read: false, ...(await notificationVisibilityFilter()) };
+  const [unreadNotifications, latestUnread, participants] = await Promise.all([
+    prisma.notification.count({ where: unreadWhere }),
+    // Grouped message notifications grow in place without adding a row, so
+    // the client also watches this timestamp to know something new arrived.
+    prisma.notification.findFirst({ where: unreadWhere, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
     prisma.conversationParticipant.findMany({
       where: { userId: session.id },
       select: {
@@ -43,6 +47,6 @@ export async function GET(request: NextRequest) {
   return NextResponse.json<ApiResponse>({
     status: "success",
     message: "ok",
-    data: { unreadNotifications, unreadMessages },
+    data: { unreadNotifications, unreadMessages, latestUnreadAt: latestUnread?.createdAt ?? null },
   });
 }

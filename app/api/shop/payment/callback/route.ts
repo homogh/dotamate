@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import prisma from "@/app/lib/prisma";
 import { verifyPayment } from "@/app/lib/paymentGateway";
-import { fulfillPaidOrder, markOrderPaid, refundOrderToWallet, reserveItemStock } from "@/app/lib/shopOrders";
-import { cancelPendingMarketOrder, marketOrderHref, openEscrowOrder, startSellerClock } from "@/app/lib/marketOrders";
-import { getShopSettings } from "@/app/lib/shopPricing";
-import { notifyShopAdmins } from "@/app/lib/shopOrders";
+import { fulfillPaidOrder, markOrderPaid } from "@/app/lib/shopOrders";
 
 /**
  * Where the gateway sends the buyer back. Deliberately NOT gated by the shop
@@ -22,8 +19,7 @@ export async function GET(request: NextRequest) {
   const payment = authority ? await prisma.payment.findUnique({ where: { authority } }) : null;
   if (!payment) return redirect("/dashboard/wallet?payment=invalid");
 
-  const resultPath =
-    payment.purpose === "ORDER" ? `/dashboard/orders/${payment.orderId}` : payment.purpose === "MARKET_ORDER" ? marketOrderHref(payment.marketOrderId!) : "/dashboard/wallet";
+  const resultPath = payment.purpose === "ORDER" ? `/dashboard/orders/${payment.orderId}` : "/dashboard/wallet";
   const successPath = `${resultPath}?payment=success`;
   const failPath = `${resultPath}?payment=failed`;
 
@@ -36,15 +32,9 @@ export async function GET(request: NextRequest) {
     await prisma.$transaction(async (tx) => {
       await tx.payment.updateMany({ where: { id: payment.id, status: "PENDING" }, data: { status: "FAILED", verifiedAt: new Date() } });
       if (payment.orderId) await tx.shopOrder.updateMany({ where: { id: payment.orderId, status: "PENDING_PAYMENT" }, data: { status: "CANCELLED" } });
-      // Put the listing back on sale for the next buyer.
-      if (payment.marketOrderId) await cancelPendingMarketOrder(tx, payment.marketOrderId);
     });
     return redirect(failPath);
   }
-
-  const settings = await getShopSettings();
-  let escrowOpenedId: number | null = null;
-  let escrowOpenedItemName = "";
 
   const paidOrderId = await prisma.$transaction(async (tx) => {
     const { count } = await tx.payment.updateMany({
@@ -53,45 +43,6 @@ export async function GET(request: NextRequest) {
     });
     if (count === 0) return null; // another request already processed this payment
 
-    if (payment.purpose === "MARKET_ORDER") {
-      const order = await tx.marketOrder.findUnique({
-        where: { id: payment.marketOrderId! },
-        select: { id: true, status: true, listingId: true, tradeMode: true, listing: { select: { itemName: true } } },
-      });
-      if (!order) return null;
-
-      // Paid in time — or late, but nobody else grabbed the listing in the meantime.
-      const stillHeld = order.status === "PENDING_PAYMENT";
-      const reclaimed =
-        !stillHeld &&
-        order.status === "CANCELLED" &&
-        (await tx.marketListing.updateMany({ where: { id: order.listingId, status: "ACTIVE" }, data: { status: "RESERVED" } })).count === 1;
-
-      if (stillHeld || reclaimed) {
-        if (order.tradeMode === "ESCROW") await openEscrowOrder(tx, order.id);
-        else await startSellerClock(tx, order.id, settings.sellerDeadlineHours, settings.mutualConfirmHours);
-        if (order.tradeMode === "ESCROW") {
-          escrowOpenedId = order.id;
-          escrowOpenedItemName = order.listing.itemName;
-        }
-      } else {
-        // Reservation expired and the item went to someone else: never keep the money.
-        await tx.walletTransaction.create({
-          data: { userId: payment.userId, type: "REFUND", amountToman: payment.amountToman, marketOrderId: order.id, note: "مهلت رزرو تمام شد و آیتم به خریدار دیگری رسید." },
-        });
-        await tx.notification.create({
-          data: {
-            userId: payment.userId,
-            type: "SHOP_ORDER",
-            title: "مبلغ پرداختی به میت کیف برگشت",
-            body: "مهلت پرداخت تمام شده بود و این آیتم به خریدار دیگری فروخته شد.",
-            link: "/dashboard/wallet",
-          },
-        });
-      }
-      return null;
-    }
-
     if (payment.purpose === "WALLET_TOPUP") {
       await tx.walletTransaction.create({
         data: { userId: payment.userId, type: "TOPUP", amountToman: payment.amountToman, note: `شارژ میت کیف — پیگیری ${"refId" in verified ? verified.refId : ""}` },
@@ -99,10 +50,18 @@ export async function GET(request: NextRequest) {
       return null;
     }
 
-    const order = await tx.shopOrder.findUnique({ where: { id: payment.orderId! }, include: { product: { select: { type: true } } } });
+    if (payment.purpose !== "ORDER") {
+      // Left over from the removed user market: nothing to fulfil any more, so never keep the money.
+      await tx.walletTransaction.create({
+        data: { userId: payment.userId, type: "REFUND", amountToman: payment.amountToman, note: "بازگشت وجه پرداختی که دیگر قابل انجام نبود" },
+      });
+      return null;
+    }
+
+    const order = await tx.shopOrder.findUnique({ where: { id: payment.orderId! } });
     if (!order) return null;
 
-    if (!(await markOrderPaid(tx, order.id, order.product.type))) {
+    if (!(await markOrderPaid(tx, order.id))) {
       // Money arrived but the order is no longer payable (e.g. already cancelled) — never keep it.
       await tx.walletTransaction.create({
         data: { userId: payment.userId, type: "REFUND", amountToman: payment.amountToman, orderId: order.id, note: "پرداخت برای سفارشی که دیگر فعال نبود" },
@@ -110,21 +69,9 @@ export async function GET(request: NextRequest) {
       return null;
     }
 
-    if (order.product.type === "ITEM" && !(await reserveItemStock(tx, order.productId))) {
-      await refundOrderToWallet(tx, order.id, "موجودی آیتم هم‌زمان با پرداخت شما تمام شد.");
-      return null;
-    }
-
     return order.id;
   });
 
   if (paidOrderId) await fulfillPaidOrder(paidOrderId);
-  if (escrowOpenedId !== null) {
-    await notifyShopAdmins(
-      "سفارش بازار جدید منتظر پذیرش",
-      `سفارش #${escrowOpenedId} («${escrowOpenedItemName}»): برای ارسال لینک ترید، سفارش را در پنل ادمین بپذیر.`,
-      "/admin/shop/market",
-    );
-  }
   return redirect(successPath);
 }

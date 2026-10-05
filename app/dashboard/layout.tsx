@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { isShopEnabled, isMarketEnabled } from "@/app/lib/platformSettings";
+import { isShopEnabled } from "@/app/lib/platformSettings";
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
 import { DashboardShell } from "@/components/dashboard/shell";
+import { accountBlockMessage } from "@/app/lib/accountStatus";
+import { AccountBlocked } from "@/components/general/accountBlocked";
 import { notificationVisibilityFilter } from "@/app/lib/shopAccess";
 
 export const metadata: Metadata = {
@@ -39,6 +41,9 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
     redirect("/login");
   }
 
+  const blockMessage = accountBlockMessage(user);
+  if (blockMessage) return <AccountBlocked message={blockMessage} />;
+
   if (!user.profileCompletedAt) {
     if (!user.steamId || (!user.matchDataVerified && !user.matchGateOverride)) {
       redirect("/signup/steam");
@@ -46,14 +51,13 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
     redirect("/signup/profile");
   }
 
-  const [unreadNotifications, participants, shopOpen, marketOpen] = await Promise.all([
+  const [unreadNotifications, participants, shopOpen] = await Promise.all([
     prisma.notification.count({ where: { userId: user.id, read: false, ...(await notificationVisibilityFilter()) } }),
     prisma.conversationParticipant.findMany({
       where: { userId: user.id },
       include: { conversation: { include: { messages: { orderBy: { createdAt: "desc" }, take: 50 } } } },
     }),
     isShopEnabled(),
-    isMarketEnabled(),
   ]);
 
   const unreadMessages = participants.reduce((sum, participant) => {
@@ -72,7 +76,6 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
       unreadMessages={unreadMessages}
       unreadNotifications={unreadNotifications}
       shopOpen={shopOpen}
-      marketOpen={marketOpen}
     >
       {children}
     </DashboardShell>

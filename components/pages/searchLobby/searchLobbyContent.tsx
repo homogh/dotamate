@@ -9,6 +9,7 @@ import { useGSAP } from "@gsap/react";
 
 import { cn } from "@/app/lib/utils";
 import { useAuth } from "@/app/stores/useAuth";
+import { useToast } from "@/app/stores/useToast";
 import { PageBanner } from "@/components/general/pageBanner";
 import { Card } from "@/components/general/card";
 import { Button } from "@/components/ui/button";
@@ -93,6 +94,7 @@ function Select({
 export function SearchLobbyContent() {
   const router = useRouter();
   const { user, status, fetchMe } = useAuth();
+  const toast = useToast();
 
   const [query, setQuery] = useState("");
   const [region, setRegion] = useState("");
@@ -187,7 +189,12 @@ export function SearchLobbyContent() {
       const json = await res.json();
       if (json.status === "success") {
         setLobbies((prev) => prev.map((l) => (l.id === lobbyId ? { ...l, myRequestStatus: "PENDING" } : l)));
+        toast.success(json.message);
+      } else {
+        toast.error(json.message);
       }
+    } catch {
+      toast.error("مشکلی پیش اومد، دوباره امتحان کن.");
     } finally {
       setJoiningId(null);
     }

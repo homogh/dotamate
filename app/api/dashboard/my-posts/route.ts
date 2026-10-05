@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
+import { effectivePostExpiry } from "@/app/lib/postExpiry";
 import type { ApiResponse } from "@/app/types/api";
 import { postNeededPositions, postOpenPositions, postRegions } from "@/app/lib/postSlots";
 
@@ -55,6 +56,7 @@ export async function GET(request: NextRequest) {
       hasVoice: post.hasVoice,
       partySize: post.partySize,
       createdAt: post.createdAt,
+      expiresAt: effectivePostExpiry(post),
       filledPositions: post.members.filter((m) => m.status === "ACCEPTED" && m.position).map((m) => m.position),
       memberCount: post.members.filter((m) => m.status === "ACCEPTED").length + 1,
       pendingCount: post.members.filter((m) => m.status === "PENDING").length,

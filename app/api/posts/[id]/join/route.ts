@@ -44,7 +44,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   if (ownPost) {
     return NextResponse.json<ApiResponse>(
-      { status: "error", message: "شما الان یه پارتی فعال دارید.", data: null },
+      { status: "error", message: "اول لابی خودتون رو حذف کنید.", data: null },
       { status: 409 },
     );
   }

@@ -12,11 +12,6 @@ export const CDN_SOURCES = {
   },
   // Steam profile pictures — the file name is the avatar hash, so a changed
   // avatar is always a new URL and cached copies never go stale.
-  // Steam economy (inventory/market) item icons: economy/image/<icon hash>/<size>.
-  economy: {
-    origin: "https://community.cloudflare.steamstatic.com",
-    pattern: /^economy\/image\/[\w-]{20,600}\/\d{2,3}fx\d{2,3}f$/,
-  },
   avatars: {
     origin: "https://avatars.steamstatic.com",
     pattern: /^[a-f0-9]{40}(_medium|_full)?\.jpg$/i,
@@ -39,11 +34,4 @@ export function cachedAvatarUrl(url: string | null | undefined): string | null {
   // steamcdn-a.akamaihd.net/.../avatars/ab/<hash>_full.jpg form.
   const match = url.match(/^https?:\/\/[\w.-]*(?:steamstatic\.com|akamaihd\.net)\/[\w/]*?([a-f0-9]{40}(?:_medium|_full)?\.jpg)$/i);
   return match ? `/cdn/avatars/${match[1]}` : url;
-}
-
-/** Inventory `icon_url` hash → our cached copy of the item icon. */
-export function steamEconomyImageUrl(iconHash: string | null | undefined, size = 360): string | null {
-  if (!iconHash) return null;
-  const path = `economy/image/${iconHash}/${size}fx${size}f`;
-  return CDN_SOURCES.economy.pattern.test(path) ? `/cdn/economy/${path}` : null;
 }

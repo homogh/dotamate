@@ -35,9 +35,18 @@ interface MyPost {
   hasVoice: boolean;
   partySize: number;
   createdAt: string;
+  expiresAt: string;
   filledPositions: string[];
   memberCount: number;
   pendingCount: number;
+}
+
+const EXPIRY_WARNING_MS = 60 * 60_000;
+
+function expiresIn(iso: string) {
+  const minutes = Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 60000));
+  if (minutes < 60) return `${minutes} دقیقه`;
+  return `${Math.floor(minutes / 60)} ساعت`;
 }
 
 function timeAgo(iso: string) {
@@ -82,6 +91,16 @@ export default function MyPostsPage() {
     setBusyId(null);
     if (res.ok) toast.success(json?.message ?? "پست حذف شد.");
     else toast.error(json?.message ?? "حذف پست با خطا مواجه شد.");
+    load();
+  }
+
+  async function handleExtend(id: number) {
+    setBusyId(id);
+    const res = await fetch(`/api/posts/${id}/extend`, { method: "POST" });
+    const json = await res.json().catch(() => null);
+    setBusyId(null);
+    if (res.ok) toast.success(json?.message ?? "پست تمدید شد.");
+    else toast.error(json?.message ?? "تمدید پست با خطا مواجه شد.");
     load();
   }
 
@@ -141,6 +160,20 @@ export default function MyPostsPage() {
               </p>
               {activePost ? (
                 <Card tone="surface" noHover className="w-full gap-5 p-6">
+                  {new Date(activePost.expiresAt).getTime() - Date.now() <= EXPIRY_WARNING_MS && (
+                    <div className="flex w-full flex-col items-start gap-3 rounded-[8px] border border-border bg-surface-alt p-4 sm:flex-row sm:items-center sm:justify-between">
+                      <button
+                        onClick={() => handleExtend(activePost.id)}
+                        disabled={busyId === activePost.id}
+                        className="shrink-0 rounded-[8px] bg-primary px-4 py-2 text-[13px] font-bold text-white hover:bg-primary-hover disabled:opacity-50"
+                      >
+                        ۲۴ ساعت دیگه نگهش دار
+                      </button>
+                      <p className="text-right text-[13px] font-bold text-text" dir="auto">
+                        این پست {expiresIn(activePost.expiresAt)} دیگه به‌صورت خودکار حذف می‌شه.
+                      </p>
+                    </div>
+                  )}
                   <div className="flex w-full flex-col-reverse items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex shrink-0 flex-wrap items-center gap-3">
                       <button

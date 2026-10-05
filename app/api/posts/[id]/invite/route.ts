@@ -27,38 +27,32 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const existing = post.members.find((m) => m.userId === targetUserId);
-  if (existing) {
+  if (existing && ["PENDING", "ACCEPTED", "INVITED"].includes(existing.status)) {
     return NextResponse.json<ApiResponse>({ status: "error", message: "این بازیکن قبلاً دعوت شده یا عضوه.", data: null }, { status: 409 });
   }
 
   const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });
+  if (!targetUser) {
+    return NextResponse.json<ApiResponse>({ status: "error", message: "بازیکن پیدا نشد.", data: null }, { status: 404 });
+  }
 
+  // Invitee is not a member yet — they see the lobby (chat blurred) and accept/decline from there.
   await prisma.$transaction([
-    prisma.postMember.create({
-      data: { postId, userId: targetUserId, status: "ACCEPTED", position: targetUser?.mainPosition ?? null },
-    }),
+    existing
+      ? prisma.postMember.update({ where: { id: existing.id }, data: { status: "INVITED", position: targetUser.mainPosition ?? null } })
+      : prisma.postMember.create({
+          data: { postId, userId: targetUserId, status: "INVITED", position: targetUser.mainPosition ?? null },
+        }),
     prisma.notification.create({
       data: {
         userId: targetUserId,
         type: "REQUEST_ACCEPTED",
         title: "دعوت به لابی",
-        body: "میزبان مستقیم تو رو به پارتیش اضافه کرد.",
+        body: `${session.displayName} تو رو به لابیش دعوت کرد. وارد لابی شو و قبول یا رد کن.`,
         link: `/dashboard/post/${postId}`,
       },
     }),
-    prisma.message.create({
-      data: {
-        postId,
-        senderId: session.id,
-        body: `${session.displayName} کاربر ${targetUser?.displayName ?? "ناشناس"} رو مستقیم به پارتی اضافه کرد`,
-        system: true,
-      },
-    }),
   ]);
-
-  if (acceptedCount + 1 >= post.partySize) {
-    await prisma.post.update({ where: { id: postId }, data: { status: "FULL" } });
-  }
 
   return NextResponse.json<ApiResponse>({ status: "success", message: "دعوت ارسال شد.", data: null });
 }

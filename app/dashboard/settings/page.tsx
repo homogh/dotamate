@@ -29,8 +29,6 @@ interface SettingsData {
   rankTier: number | null;
   rankVerification: string;
   steamProfileUrl: string | null;
-  steamTradeUrl: string | null;
-  shopOpen: boolean;
   avatarUrl: string | null;
   notifyBell: boolean;
   notifyEmail: boolean;
@@ -49,7 +47,7 @@ export default function SettingsPage() {
       .then((res) => res.json())
       .then((json) => {
         if (json.status === "success") setData(json.data);
-        // Deep links like /dashboard/settings?tab=steam (from the shop's Trade URL prompt).
+        // Deep links like /dashboard/settings?tab=steam.
         const requested = new URLSearchParams(window.location.search).get("tab");
         if (TABS.some((t) => t.value === requested)) setTab(requested as Tab);
       })
@@ -94,12 +92,7 @@ export default function SettingsPage() {
 
       {tab === "account" && <AccountTab data={data} onSave={save} saving={saving} saved={saved} />}
       {tab === "notifications" && <NotificationsTab data={data} onSave={save} />}
-      {tab === "steam" && (
-        <>
-          <SteamTab />
-          {data.shopOpen && <TradeUrlCard initial={data.steamTradeUrl} />}
-        </>
-      )}
+      {tab === "steam" && <SteamTab />}
       {tab === "privacy" && <PrivacyTab />}
     </div>
   );
@@ -471,55 +464,5 @@ function ToggleRow({ label, checked, onChange }: { label: string; checked: boole
         {label}
       </p>
     </div>
-  );
-}
-
-function TradeUrlCard({ initial }: { initial: string | null }) {
-  const [value, setValue] = useState(initial ?? "");
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function handleSave() {
-    setBusy(true);
-    const res = await fetch("/api/dashboard/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ steamTradeUrl: value }),
-    });
-    const json = await res.json().catch(() => null);
-    setBusy(false);
-    setMessage({ ok: json?.status === "success", text: json?.message ?? "خطایی رخ داد." });
-  }
-
-  return (
-    <Card tone="surface" noHover className="w-full gap-4 p-8">
-      <p className="w-full text-right text-[16px] font-black text-text" dir="auto">
-        Trade URL استیم
-      </p>
-      <p className="w-full text-right text-[13px] leading-[1.7] text-text-dim" dir="auto">
-        برای خرید آیتم از فروشگاه لازم است؛ آیتم‌ها با ترید به همین آدرس ارسال می‌شوند. آن را از استیم، بخش Inventory → Trade Offers → Who can send me Trade Offers? کپی کن.
-      </p>
-      <div className="flex w-full gap-2">
-        <input
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...&token=..."
-          dir="ltr"
-          className="flex-1 rounded-[8px] border border-border bg-surface-alt p-3 text-[13px] text-text placeholder:text-text-dim/60 focus:outline-none"
-        />
-        <button
-          onClick={handleSave}
-          disabled={busy}
-          className="rounded-[8px] bg-primary px-6 py-3 text-[13px] font-bold text-white disabled:opacity-50"
-        >
-          {busy ? "..." : "ذخیره"}
-        </button>
-      </div>
-      {message && (
-        <p className={`text-[12px] ${message.ok ? "text-success" : "text-danger"}`} dir="auto">
-          {message.text}
-        </p>
-      )}
-    </Card>
   );
 }

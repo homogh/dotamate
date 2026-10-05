@@ -8,7 +8,6 @@ import { Card } from "@/components/general/card";
 
 interface GiftProduct {
   id: number;
-  type: "GIFT_CARD" | "ITEM";
   title: string;
   active: boolean;
   availableCodes: number;
@@ -47,7 +46,7 @@ export default function AdminGiftCodesPage() {
       .then((res) => res.json())
       .then((json) => {
         if (json.status !== "success") return;
-        const giftCards = (json.data.products as GiftProduct[]).filter((p) => p.type === "GIFT_CARD");
+        const giftCards = json.data.products as GiftProduct[];
         setProducts(giftCards);
         setLowStock(json.data.lowStockThreshold);
         setSelectedId((current) => {
@@ -116,7 +115,7 @@ export default function AdminGiftCodesPage() {
       <div className="flex w-full p-6 md:p-8">
         <Card tone="surface" noHover className="w-full items-center p-8">
           <p className="text-[14px] text-text-dim" dir="auto">
-            هنوز محصول گیفت کارتی تعریف نشده. اول از بخش «محصولات فروشگاه» یک گیفت کارت بساز.
+            هنوز گیفت کارتی تعریف نشده. اول از بخش «گیفت کارت‌ها» یک گیفت کارت بساز.
           </p>
         </Card>
       </div>
@@ -145,7 +144,7 @@ export default function AdminGiftCodesPage() {
               <p className="text-[11px] text-text-dim" dir="auto">
                 کد آماده فروش
                 {p.waitingOrders > 0 && ` · ${p.waitingOrders.toLocaleString("fa-IR")} سفارش منتظر کد`}
-                {!p.active && " · محصول غیرفعال"}
+                {!p.active && " · غیرفعال"}
               </p>
             </button>
           );
@@ -191,7 +190,7 @@ export default function AdminGiftCodesPage() {
             </p>
             {codes.length === 0 ? (
               <p className="w-full py-4 text-center text-[12px] text-text-dim" dir="auto">
-                هنوز کدی برای این محصول ثبت نشده.
+                هنوز کدی برای این گیفت کارت ثبت نشده.
               </p>
             ) : (
               codes.map((code) => (

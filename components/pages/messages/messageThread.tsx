@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, CheckCheck, Send } from "lucide-react";
 
+import { isPageWatched } from "@/app/lib/pageAttention";
 import { useConfirm } from "@/app/stores/useConfirm";
 import { useNotifications } from "@/app/stores/useNotifications";
 import { useToast } from "@/app/stores/useToast";
@@ -55,7 +56,9 @@ export function MessageThread({ conversationId }: { conversationId: string | num
   }, [conversationId]);
 
   const loadMessages = useCallback(() => {
-    return fetch(`/api/conversations/${conversationId}/messages`, { cache: "no-store" })
+    // viewing=0 while the tab is hidden/blurred: nothing counts as read and
+    // new messages keep notifying until the user actually looks.
+    return fetch(`/api/conversations/${conversationId}/messages?viewing=${isPageWatched() ? 1 : 0}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((json) => {
         if (json.status === "success") {
@@ -75,16 +78,28 @@ export function MessageThread({ conversationId }: { conversationId: string | num
     loadMessages().then(pollSummary);
     const interval = setInterval(loadMessages, 4000);
 
-    function handleVisible() {
-      if (document.visibilityState === "visible") loadMessages().then(pollSummary);
+    // Re-poll the moment the user looks away or back, so the server stops or
+    // resumes notifying right away instead of at the next tick.
+    function handleAttention() {
+      const watched = isPageWatched();
+      const loading = loadMessages();
+      if (watched) loading.then(pollSummary);
     }
-    document.addEventListener("visibilitychange", handleVisible);
-    window.addEventListener("focus", handleVisible);
+    function handleLeave() {
+      fetch(`/api/conversations/${conversationId}/messages?viewing=0`, { cache: "no-store", keepalive: true }).catch(() => {});
+    }
+    document.addEventListener("visibilitychange", handleAttention);
+    window.addEventListener("focus", handleAttention);
+    window.addEventListener("blur", handleAttention);
+    window.addEventListener("pagehide", handleLeave);
 
     return () => {
       clearInterval(interval);
-      document.removeEventListener("visibilitychange", handleVisible);
-      window.removeEventListener("focus", handleVisible);
+      document.removeEventListener("visibilitychange", handleAttention);
+      window.removeEventListener("focus", handleAttention);
+      window.removeEventListener("blur", handleAttention);
+      window.removeEventListener("pagehide", handleLeave);
+      handleLeave();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadMessages, forbidden]);

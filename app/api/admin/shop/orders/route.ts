@@ -6,7 +6,7 @@ import { requireSuperAdmin } from "@/app/lib/superAdmin";
 import type { ApiResponse } from "@/app/types/api";
 
 const FILTERS: Record<string, Prisma.ShopOrderWhereInput> = {
-  action: { status: { in: ["AWAITING_CODE", "AWAITING_DELIVERY"] } },
+  action: { status: "AWAITING_CODE" },
   delivered: { status: "DELIVERED" },
   refunded: { status: "REFUNDED" },
   all: { status: { notIn: ["PENDING_PAYMENT", "CANCELLED"] as ShopOrderStatus[] } },
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     prisma.shopOrder.findMany({
       where: filter,
       include: {
-        product: { select: { title: true, type: true } },
+        product: { select: { title: true } },
         user: { select: { id: true, displayName: true } },
       },
       orderBy: { paidAt: "asc" },
@@ -43,12 +43,10 @@ export async function GET(request: NextRequest) {
         id: o.id,
         status: o.status,
         productTitle: o.product.title,
-        productType: o.product.type,
         userId: o.user.id,
         userName: o.user.displayName,
         totalToman: o.totalToman,
         paymentMethod: o.paymentMethod,
-        tradeUrl: o.tradeUrl,
         paidAt: o.paidAt,
         deliveredAt: o.deliveredAt,
       })),
