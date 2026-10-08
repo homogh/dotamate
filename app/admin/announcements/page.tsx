@@ -29,7 +29,7 @@ const FEATURE_FLAGS: { key: keyof Settings; title: string; desc: string }[] = [
   { key: "signupsEnabled", title: "ثبت‌نام جدید کاربران", desc: "امکان عضویت و ساخت حساب کاربری جدید در دوتامیت" },
   { key: "lobbyChatEnabled", title: "سیستم ارسال چت در لابی", desc: "گفتگوی متنی زنده کاربران در اتاق‌های لابی فعال" },
   { key: "scheduledSessionsEnabled", title: "برنامه‌ریزی جلسات زمان‌بندی", desc: "رزرو و ایجاد لابی برای تاریخ و ساعت‌های آینده" },
-  { key: "steamAutoSyncEnabled", title: "سیستم صعود رنک خودکار با استیم", desc: "دریافت اطلاعات و سینک رنک به صورت خودکار از API استیم" },
+  { key: "steamAutoSyncEnabled", title: "سیستم صعود رنک خودکار با استیم", desc: "رنک بازیکن‌ها موقع به‌روزرسانی پروفایل خودکار از OpenDota عوض بشه (مچ‌های اخیر همیشه به‌روز می‌شن)" },
 ];
 
 export default function AdminAnnouncementsPage() {

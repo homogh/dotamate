@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
@@ -21,11 +21,10 @@ export async function POST(request: NextRequest) {
 
   const accountId = steamId64ToAccountId(user.steamId);
 
-  const [, summary, sync] = await Promise.all([
-    refreshOpenDotaPlayer(accountId),
-    fetchSteamPlayerSummary(user.steamId),
-    syncOpenDotaPlayer(accountId),
-  ]);
+  const [summary, sync] = await Promise.all([fetchSteamPlayerSummary(user.steamId), syncOpenDotaPlayer(accountId)]);
+  // After the reads so it never competes with them; a retry then sees the
+  // freshly pulled matches.
+  void refreshOpenDotaPlayer(accountId);
 
   if (summary) {
     await prisma.user.update({
@@ -43,9 +42,10 @@ export async function POST(request: NextRequest) {
 
   const verified = sync.matches.length > 0;
   const matchesJson = sync.matches as unknown as Prisma.InputJsonValue;
-  const ratingsJson = sync.ratings as unknown as Prisma.InputJsonValue;
-  const totalsJson = sync.totals as unknown as Prisma.InputJsonValue;
-  const heroesPlayedJson = sync.heroesPlayed as unknown as Prisma.InputJsonValue;
+  // undefined = that endpoint failed this time; Prisma then leaves the field as is.
+  const ratingsJson = sync.ratings as unknown as Prisma.InputJsonValue | undefined;
+  const totalsJson = sync.totals === null ? Prisma.DbNull : (sync.totals as unknown as Prisma.InputJsonValue | undefined);
+  const heroesPlayedJson = sync.heroesPlayed as unknown as Prisma.InputJsonValue | undefined;
   // Rank comes from OpenDota, never self-declared — set it as soon as we
   // have a real rank_tier instead of waiting on whatever ProfileSetup picks.
   const decodedRank = sync.rankTierHint != null ? decodeOpenDotaRankTier(sync.rankTierHint) : null;

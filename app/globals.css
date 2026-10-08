@@ -176,3 +176,46 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Enter/exit motion for Radix dialogs (components/ui/dialog.tsx). The
+   content's centring uses the `translate` property, so animating
+   `transform` here layers on top of it instead of fighting it. */
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes overlay-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+}
+
+@keyframes dialog-out {
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes dialog-out {
+    to {
+      opacity: 0;
+    }
+  }
+}

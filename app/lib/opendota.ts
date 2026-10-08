@@ -13,19 +13,32 @@ const OPENDOTA_TIMEOUT_MS = 8_000;
 const OPENDOTA_COOLDOWN_MS = 60_000;
 let openDotaDownUntil = 0;
 
-export async function openDotaFetch(apiPath: string, init?: RequestInit): Promise<Response | null> {
+/**
+ * `optional` calls (stats a page can live without) don't trip the cooldown
+ * when they fail — a single slow endpoint isn't an outage. `timeoutMs` is for
+ * callers that run behind an already-rendered page and can wait longer.
+ */
+export async function openDotaFetch(
+  apiPath: string,
+  init?: RequestInit,
+  { optional = false, timeoutMs = OPENDOTA_TIMEOUT_MS }: { optional?: boolean; timeoutMs?: number } = {},
+): Promise<Response | null> {
   if (Date.now() < openDotaDownUntil) return null;
 
+  const startedAt = Date.now();
   try {
     const res = await fetch(`${OPENDOTA_BASE}${apiPath}`, {
       cache: "no-store",
       ...init,
-      signal: AbortSignal.timeout(OPENDOTA_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
-    if (res.status >= 500) openDotaDownUntil = Date.now() + OPENDOTA_COOLDOWN_MS;
+    if (res.status >= 500 && !optional) openDotaDownUntil = Date.now() + OPENDOTA_COOLDOWN_MS;
+    if (!res.ok) console.warn(`[opendota] ${apiPath} → HTTP ${res.status}`);
     return res;
-  } catch {
-    openDotaDownUntil = Date.now() + OPENDOTA_COOLDOWN_MS;
+  } catch (error) {
+    if (!optional) openDotaDownUntil = Date.now() + OPENDOTA_COOLDOWN_MS;
+    const cause = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    console.warn(`[opendota] ${apiPath} failed after ${Date.now() - startedAt}ms (${cause})`);
     return null;
   }
 }
@@ -148,14 +161,19 @@ export interface OpenDotaHeroPlayed {
   lastPlayed: string | null;
 }
 
+/**
+ * Only `matches` is guaranteed. Every other field is `undefined` when its
+ * endpoint failed or was too slow this time, so callers keep what they
+ * already stored instead of wiping it (Prisma ignores undefined fields).
+ */
 export interface OpenDotaSync {
-  wins: number;
-  losses: number;
-  rankTierHint: number | null;
+  wins: number | undefined;
+  losses: number | undefined;
+  rankTierHint: number | null | undefined;
   matches: OpenDotaMatch[];
-  ratings: OpenDotaRatingPoint[];
-  totals: OpenDotaTotals | null;
-  heroesPlayed: OpenDotaHeroPlayed[];
+  ratings: OpenDotaRatingPoint[] | undefined;
+  totals: OpenDotaTotals | null | undefined;
+  heroesPlayed: OpenDotaHeroPlayed[] | undefined;
 }
 
 function isRadiantSlot(playerSlot: number) {
@@ -189,9 +207,18 @@ export function decodeOpenDotaRankTier(rankTier: number): DecodedRankTier | null
   return { rank, star: rank === "IMMORTAL" ? null : star || null };
 }
 
+// A refresh makes OpenDota re-crawl the player's history on its side, so one
+// per player per window from this server is plenty.
+const REFRESH_WINDOW_MS = 30 * 60 * 1000;
+const lastRefreshAt = new Map<number, number>();
+
 export async function refreshOpenDotaPlayer(accountId: number) {
-  // best-effort — the verify step still works off whatever OpenDota already has cached
-  await openDotaFetch(`/players/${accountId}/refresh`, { method: "POST" });
+  const last = lastRefreshAt.get(accountId) ?? 0;
+  if (Date.now() - last < REFRESH_WINDOW_MS) return;
+  lastRefreshAt.set(accountId, Date.now());
+  // Best-effort: asks OpenDota to pull new matches from Steam. Callers fire it
+  // after reading the player's stats so it never competes with those reads.
+  await openDotaFetch(`/players/${accountId}/refresh`, { method: "POST" }, { optional: true });
 }
 
 // Averages the {field, n, sum} rows OpenDota's /totals returns into a single
@@ -238,23 +265,30 @@ function parseTotals(rows: unknown): OpenDotaTotals | null {
 }
 
 const HEROES_PLAYED_LIMIT = 6;
+const PLAYER_SYNC_TIMEOUT_MS = 25_000;
 
 export async function syncOpenDotaPlayer(accountId: number): Promise<OpenDotaSync | null> {
+  // OpenDota's per-player endpoints usually answer in under a second but
+  // stall for 10–25 s whenever their backend is busy. Syncs run behind an
+  // already-rendered profile (or a "verifying…" spinner), so they wait it out
+  // instead of failing at the default 8 s.
+  const required = { timeoutMs: PLAYER_SYNC_TIMEOUT_MS };
+  const optional = { optional: true, timeoutMs: PLAYER_SYNC_TIMEOUT_MS };
   const [profileRes, wlRes, matchesRes, ratingsRes, totalsRes, heroesRes] = await Promise.all([
-    openDotaFetch(`/players/${accountId}`),
-    openDotaFetch(`/players/${accountId}/wl`),
-    openDotaFetch(`/players/${accountId}/recentMatches`),
-    openDotaFetch(`/players/${accountId}/ratings`),
-    openDotaFetch(`/players/${accountId}/totals`),
-    openDotaFetch(`/players/${accountId}/heroes`),
+    openDotaFetch(`/players/${accountId}`, undefined, optional),
+    openDotaFetch(`/players/${accountId}/wl`, undefined, optional),
+    openDotaFetch(`/players/${accountId}/recentMatches`, undefined, required),
+    openDotaFetch(`/players/${accountId}/ratings`, undefined, optional),
+    openDotaFetch(`/players/${accountId}/totals`, undefined, optional),
+    openDotaFetch(`/players/${accountId}/heroes`, undefined, optional),
   ]);
 
-  if (!matchesRes?.ok || !wlRes?.ok) return null;
+  if (!matchesRes?.ok) return null;
 
   const optionalJson = (res: Response | null) => (res?.ok ? res.json().catch(() => null) : null);
   const [profile, wl, matches, ratings, totals, heroes] = await Promise.all([
     optionalJson(profileRes),
-    wlRes.json().catch(() => null),
+    optionalJson(wlRes),
     matchesRes.json().catch(() => null),
     optionalJson(ratingsRes),
     optionalJson(totalsRes),
@@ -264,11 +298,12 @@ export async function syncOpenDotaPlayer(accountId: number): Promise<OpenDotaSyn
   if (!Array.isArray(matches)) return null;
 
   const heroLookup = Array.isArray(heroes) ? await getHeroLookup() : {};
+  const hasWl = wl && typeof wl === "object";
 
   return {
-    wins: Number(wl?.win ?? 0),
-    losses: Number(wl?.lose ?? 0),
-    rankTierHint: typeof profile?.rank_tier === "number" ? profile.rank_tier : null,
+    wins: hasWl ? Number(wl.win ?? 0) : undefined,
+    losses: hasWl ? Number(wl.lose ?? 0) : undefined,
+    rankTierHint: profile ? (typeof profile.rank_tier === "number" ? profile.rank_tier : null) : undefined,
     matches: matches.slice(0, 10).map((m: Record<string, unknown>) => ({
       matchId: Number(m.match_id),
       heroId: Number(m.hero_id),
@@ -299,8 +334,8 @@ export async function syncOpenDotaPlayer(accountId: number): Promise<OpenDotaSyn
             return rankTier === null ? null : { time: new Date(String(r.time)).toISOString(), rankTier };
           })
           .filter((r): r is OpenDotaRatingPoint => r !== null)
-      : [],
-    totals: parseTotals(totals),
+      : undefined,
+    totals: totalsRes?.ok && totals !== null ? parseTotals(totals) : undefined,
     heroesPlayed: Array.isArray(heroes)
       ? heroes
           .map((h: Record<string, unknown>) => ({
@@ -321,7 +356,7 @@ export async function syncOpenDotaPlayer(accountId: number): Promise<OpenDotaSyn
             winRate: h.games > 0 ? Math.round((h.wins / h.games) * 100) : 0,
             lastPlayed: h.lastPlayedRaw ? new Date(h.lastPlayedRaw * 1000).toISOString() : null,
           }))
-      : [],
+      : undefined,
   };
 }
 

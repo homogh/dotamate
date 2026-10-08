@@ -1,116 +1,28 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { BadgeCheck, Flag, ThumbsUp, X, UserPlus, UserCheck, Clock } from "lucide-react";
+import { Activity, ChevronLeft, FileText, RefreshCw, Trophy, Users } from "lucide-react";
 
+import { cn } from "@/app/lib/utils";
 import { useConfirm } from "@/app/stores/useConfirm";
+import { useToast } from "@/app/stores/useToast";
 import { Card } from "@/components/general/card";
-import { UserAvatar } from "@/components/general/userAvatar";
+import { DashboardFadeIn } from "@/components/dashboard/fadeIn";
 import { RANK_LABEL, REGION_LABEL, GAME_MODE_LABEL } from "@/components/dashboard/postLabels";
-import { POSITION_LABEL, type PositionValue } from "@/components/dashboard/positionMeta";
+import { POSITION_LABEL_FA, type PositionValue } from "@/components/dashboard/positionMeta";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ProfileHeader } from "@/components/pages/profile/profileHeader";
+import { RecentMatchesCard } from "@/components/pages/profile/recentMatchesCard";
+import { MatchDetailDialog } from "@/components/pages/profile/matchDetailDialog";
+import { InfoRow, MiniStat, StatTile } from "@/components/pages/profile/profileStatTiles";
+import { faNumber, timeAgo } from "@/components/pages/profile/profileFormat";
 import { RankTrendChart } from "@/components/pages/profile/rankTrendChart";
-import { BehaviorScoreCard, type CommendSummary } from "@/components/pages/profile/behaviorScoreCard";
+import { BehaviorScoreCard } from "@/components/pages/profile/behaviorScoreCard";
 import { ReportPlayerModal } from "@/components/pages/profile/reportPlayerModal";
 import { CommendPlayerModal } from "@/components/pages/profile/commendPlayerModal";
-import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
-
-// OpenDota's own numeric game_mode — distinct from this app's GAME_MODE_LABEL,
-// which is keyed by the LFG post enum instead.
-const OPENDOTA_GAME_MODE_LABEL: Record<number, string> = {
-  1: "All Pick",
-  2: "Captains Mode",
-  3: "Random Draft",
-  4: "Single Draft",
-  5: "All Random",
-  16: "Captains Draft",
-  22: "Ranked All Pick",
-  23: "Turbo",
-};
-
-interface ProfileData {
-  id: number;
-  displayName: string;
-  avatarUrl: string | null;
-  steamProfileUrl: string | null;
-  steamId: string | null;
-  bio: string | null;
-  country: string | null;
-  languages: string[];
-  rank: string;
-  rankTier: number | null;
-  mainPosition: string | null;
-  rankVerification: string;
-  behaviorScore: number;
-  communicationScore: number;
-  commends: CommendSummary;
-  isSelf: boolean;
-  isFavorited: boolean;
-  friend: { state: "NONE" | "OUTGOING" | "INCOMING" | "FRIENDS"; requestId: number | null };
-  online: boolean;
-  stats: { teammatesFound: number; activePosts: number; totalPosts: number };
-  recentPosts: { id: number; position: string; region: string; gameMode: string; status: string; createdAt: string }[];
-  dotaStats: {
-    wins: number;
-    losses: number;
-    winRate: number;
-    lastSyncedAt: string | null;
-    matches: {
-      matchId: number;
-      heroId: number;
-      heroName: string;
-      heroIcon: string;
-      heroImg: string;
-      win: boolean;
-      duration: number;
-      startAt: string;
-      kills: number;
-      deaths: number;
-      assists: number;
-      gameMode: number;
-      partySize: number | null;
-      goldPerMin: number | null;
-      xpPerMin: number | null;
-      lastHits: number | null;
-      heroDamage: number | null;
-    }[];
-    ratings: { time: string; rankTier: number; rankLabel: string }[];
-    totals: {
-      kills: number;
-      deaths: number;
-      assists: number;
-      goldPerMin: number;
-      xpPerMin: number;
-      lastHits: number;
-      heroDamage: number;
-      heroHealing: number;
-      duration: number;
-    } | null;
-    heroesPlayed: {
-      heroId: number;
-      heroName: string;
-      heroIcon: string;
-      games: number;
-      wins: number;
-      winRate: number;
-      lastPlayed: string | null;
-    }[];
-  } | null;
-}
-
-type DotaMatch = NonNullable<ProfileData["dotaStats"]>["matches"][number];
-
-interface MatchItem {
-  id: number;
-  name: string;
-  img: string;
-  cost: number | null;
-}
-interface MatchItemsData {
-  items: MatchItem[];
-  neutralItem: MatchItem | null;
-}
+import type { DotaMatch, ProfileData, SyncResponse } from "@/components/pages/profile/profileTypes";
 
 const STATUS_LABEL: Record<string, string> = {
   ACTIVE: "فعال",
@@ -120,48 +32,87 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELLED: "لغو شده",
 };
 
+const STATUS_TONE: Record<string, string> = {
+  ACTIVE: "bg-success/12 text-success",
+  FULL: "bg-accent/15 text-accent",
+};
+
 export default function PublicProfilePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const toast = useToast();
+  const confirmAction = useConfirm();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<DotaMatch | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [commendOpen, setCommendOpen] = useState(false);
-  const confirmAction = useConfirm();
-  const [matchItemsCache, setMatchItemsCache] = useState<Record<number, MatchItemsData>>({});
-  const matchItems = selectedMatch ? (matchItemsCache[selectedMatch.matchId] ?? null) : null;
-  const matchItemsLoading = selectedMatch !== null && matchItems === null;
 
-  useEffect(() => {
-    if (!selectedMatch || !profile || matchItemsCache[selectedMatch.matchId]) return;
-    let cancelled = false;
-    const matchId = selectedMatch.matchId;
-    fetch(`/api/users/${profile.id}/matches/${matchId}`)
-      .then((res) => res.json())
-      .then((json) => {
-        if (!cancelled && json.status === "success") {
-          setMatchItemsCache((prev) => ({ ...prev, [matchId]: json.data }));
+  const load = useCallback(
+    () =>
+      fetch(`/api/users/${params.id}`, { cache: "no-store" })
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.status !== "success") return null;
+          setProfile(json.data);
+          return json.data as ProfileData;
+        })
+        .catch(() => null)
+        .finally(() => setLoading(false)),
+    [params.id],
+  );
+
+  // Pulls fresh matches from OpenDota. `auto` is the silent refresh right
+  // after the page opens on stale stats; a manual click reports back.
+  const syncStats = useCallback(
+    async (auto: boolean, knownMatchIds: number[] = []) => {
+      setSyncing(true);
+      try {
+        const res = await fetch(`/api/users/${params.id}/sync`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ auto }),
+        });
+        const json = await res.json();
+        if (json.status !== "success") {
+          if (!auto) toast.error(json.message);
+          return;
         }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedMatch, profile, matchItemsCache]);
+        const synced = json.data as SyncResponse | null;
+        if (!synced) return;
 
-  const load = useCallback(() => {
-    fetch(`/api/users/${params.id}`, { cache: "no-store" })
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.status === "success") setProfile(json.data);
-      })
-      .finally(() => setLoading(false));
-  }, [params.id]);
+        setProfile((prev) =>
+          prev
+            ? {
+                ...prev,
+                rank: synced.rank,
+                rankTier: synced.rankTier,
+                rankVerification: synced.rankVerification,
+                dotaStats: synced.dotaStats,
+              }
+            : prev,
+        );
+        if (!auto) {
+          const added = synced.dotaStats.matches.filter((m) => !knownMatchIds.includes(m.matchId)).length;
+          toast.success(added > 0 ? `${faNumber(added)} مچ جدید اضافه شد.` : "همه‌چی به‌روزه؛ مچ جدیدی نبود.");
+        }
+      } catch {
+        if (!auto) toast.error("ارتباط برقرار نشد؛ دوباره امتحان کن.");
+      } finally {
+        setSyncing(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [params.id],
+  );
 
   useEffect(() => {
-    load();
-  }, [load]);
+    load().then((data) => {
+      if (data?.syncable && (!data.dotaStats || data.dotaStats.stale)) syncStats(true);
+    });
+  }, [load, syncStats]);
 
   async function handleFavorite() {
     if (!profile) return;
@@ -220,260 +171,141 @@ export default function PublicProfilePage() {
     if (json.status === "success") router.push(`/dashboard/messages/${json.data.id}`);
   }
 
-  if (loading) {
-    return <div className="flex h-64 w-full items-center justify-center text-sm text-text-dim">در حال بارگذاری...</div>;
-  }
+  if (loading) return <ProfileSkeleton />;
 
   if (!profile) {
     return (
       <div className="flex w-full flex-col gap-6 p-6 md:p-10">
-        <p className="text-center text-[14px] text-text-dim" dir="auto">
-          کاربر پیدا نشد.
-        </p>
+        <Card tone="surface" noHover className="w-full items-center py-16 text-center">
+          <p className="text-[15px] font-bold text-text">کاربر پیدا نشد.</p>
+          <p className="text-[13px] text-text-dim">شاید حسابش حذف شده یا آدرس اشتباهه.</p>
+        </Card>
       </div>
     );
   }
 
+  const stats = profile.dotaStats;
   const verified = profile.rankVerification === "VERIFIED";
+  const position = profile.mainPosition as PositionValue | null;
 
   return (
-    <div className="flex w-full flex-col gap-7 p-6 md:p-10">
-      <Card tone="surface" noHover className="w-full flex-row flex-wrap items-center gap-6 p-8">
-        <div className="flex items-start gap-3">
-          {profile.isSelf ? (
-            <button
-              onClick={() => router.push("/dashboard/settings")}
-              className="rounded-[8px] border border-border bg-surface-alt px-6 py-3 text-[14px] font-bold text-text"
-              dir="auto"
-            >
-              ویرایش پروفایل
-            </button>
-          ) : (
-            <>
-              {profile.friend.state === "INCOMING" ? (
+    <div className="flex w-full flex-col gap-6 p-4 sm:p-6 md:p-10">
+      <ProfileHeader
+        profile={profile}
+        busy={busy}
+        onEdit={() => router.push("/dashboard/settings")}
+        onFriend={handleFriend}
+        onAnswerFriend={handleAnswerFriend}
+        onFavorite={handleFavorite}
+        onMessage={handleMessage}
+        onCommend={() => setCommendOpen(true)}
+        onReport={() => setReportOpen(true)}
+      />
+
+      <div className="flex w-full flex-col gap-6 xl:flex-row xl:items-start">
+        <DashboardFadeIn className="@container flex min-w-0 flex-1 flex-col gap-6">
+          <div
+            className={cn(
+              "grid w-full grid-cols-2 gap-3 [&>:last-child:nth-child(odd)]:col-span-2",
+              stats ? "@xl:grid-cols-4" : "@xl:grid-cols-3 @xl:[&>:last-child:nth-child(odd)]:col-span-1",
+            )}
+          >
+            <StatTile icon={Users} value={profile.stats.teammatesFound} label="هم‌تیمی یافته" />
+            <StatTile icon={Activity} value={profile.stats.activePosts} label="پست فعال" />
+            <StatTile icon={FileText} value={profile.stats.totalPosts} label="کل پست‌ها" />
+            {stats && <StatTile icon={Trophy} value={stats.winRate} label="درصد وین" suffix="٪" meter={stats.winRate} />}
+          </div>
+
+          {stats ? (
+            <RecentMatchesCard
+              stats={stats}
+              syncing={syncing}
+              onRefresh={() => syncStats(false, stats.matches.map((m) => m.matchId))}
+              onSelect={setSelectedMatch}
+            />
+          ) : profile.syncable ? (
+            <Card tone="surface" noHover className="w-full items-center gap-3 py-10 text-center">
+              {syncing ? (
                 <>
-                  <button
-                    onClick={() => handleAnswerFriend("decline")}
-                    disabled={busy}
-                    className="rounded-[8px] border border-border bg-surface-alt px-5 py-3 text-[14px] font-bold text-text-dim hover:text-text disabled:opacity-50"
-                    dir="auto"
-                  >
-                    رد درخواست
-                  </button>
-                  <button
-                    onClick={() => handleAnswerFriend("accept")}
-                    disabled={busy}
-                    className="flex items-center gap-1.5 rounded-[8px] border border-primary px-5 py-3 text-[14px] font-bold text-accent hover:bg-primary/10 disabled:opacity-50"
-                    dir="auto"
-                  >
-                    <UserPlus size={15} />
-                    قبول درخواست دوستی
-                  </button>
+                  <RefreshCw size={18} className="animate-spin text-accent" />
+                  <p className="text-[13px] text-text-dim">در حال گرفتن مچ‌ها از OpenDota…</p>
                 </>
               ) : (
-                <button
-                  onClick={handleFriend}
-                  disabled={busy}
-                  className={`flex items-center gap-1.5 rounded-[8px] px-5 py-3 text-[14px] font-bold disabled:opacity-50 ${
-                    profile.friend.state === "NONE"
-                      ? "border border-primary text-accent hover:bg-primary/10"
-                      : "border border-border bg-surface-alt text-text-dim hover:text-text"
-                  }`}
-                  dir="auto"
-                  title={profile.friend.state === "FRIENDS" ? "برای حذف از دوستان کلیک کن" : profile.friend.state === "OUTGOING" ? "برای لغو درخواست کلیک کن" : undefined}
-                >
-                  {profile.friend.state === "FRIENDS" ? <UserCheck size={15} /> : profile.friend.state === "OUTGOING" ? <Clock size={15} /> : <UserPlus size={15} />}
-                  {profile.friend.state === "FRIENDS"
-                    ? "دوست هستید"
-                    : profile.friend.state === "OUTGOING"
-                      ? "درخواست ارسال شد"
-                      : "افزودن به دوستان"}
-                </button>
+                <>
+                  <p className="text-[14px] font-bold text-text">آمار دوتا هنوز نیومده.</p>
+                  <button
+                    type="button"
+                    onClick={() => syncStats(false)}
+                    className="flex items-center gap-1.5 rounded-[10px] border border-border bg-surface-alt px-4 py-2 text-[12px] font-bold text-text-dim transition-colors hover:border-accent/40 hover:text-accent"
+                  >
+                    <RefreshCw size={13} />
+                    دوباره امتحان کن
+                  </button>
+                </>
               )}
-              <button
-                onClick={handleFavorite}
-                disabled={busy}
-                className="rounded-[8px] border border-border bg-surface-alt px-6 py-3 text-[14px] font-bold text-text disabled:opacity-50"
-                dir="auto"
-              >
-                {profile.isFavorited ? "حذف از علاقه‌مندی‌ها" : "افزودن به علاقه‌مندی‌ها"}
-              </button>
-              <button
-                onClick={handleMessage}
-                disabled={busy}
-                className="rounded-[8px] bg-primary px-7 py-3 text-[14px] font-bold text-white disabled:opacity-50"
-                dir="auto"
-              >
-                ارسال پیام
-              </button>
-              <button
-                onClick={() => setCommendOpen(true)}
-                className="flex items-center gap-1.5 rounded-[8px] border border-success/60 px-4 py-3 text-[14px] font-bold text-success transition-colors hover:bg-success/10"
-                dir="auto"
-              >
-                <ThumbsUp size={15} />
-                کامند
-              </button>
-              <button
-                onClick={() => setReportOpen(true)}
-                className="flex items-center gap-1.5 rounded-[8px] border border-danger/60 px-4 py-3 text-[14px] font-bold text-danger transition-colors hover:bg-danger/10"
-                dir="auto"
-                title="گزارش تخلف"
-              >
-                <Flag size={15} />
-                گزارش
-              </button>
-            </>
-          )}
-        </div>
-
-        <div className="flex flex-1 flex-col items-end gap-2">
-          <div className="flex items-center gap-2">
-            {verified && (
-              <span className="flex items-center gap-1 rounded-full border border-success bg-success/10 px-2.5 py-0.5 text-[12px] font-bold text-success" dir="auto">
-                تایید‌شده
-                <BadgeCheck size={12} />
-              </span>
-            )}
-            <p className="text-[24px] font-black text-text" dir="auto">
-              {profile.displayName}
-            </p>
-          </div>
-          <p className="w-full text-right text-[14px] leading-[1.7] text-text-dim" dir="auto">
-            {profile.bio || "این بازیکن هنوز بایو ننوشته."}
-          </p>
-          <div className="flex items-center gap-3">
-            {profile.steamProfileUrl && (
-              <a
-                href={profile.steamProfileUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[12px] text-text-dim underline"
-                dir="ltr"
-              >
-                پروفایل استیم
-              </a>
-            )}
-            {!profile.isSelf && profile.steamId && (
-              <a
-                href={`steam://friends/add/${profile.steamId}`}
-                className="flex items-center gap-1.5 rounded-[6px] bg-primary px-3 py-1.5 text-[12px] font-bold text-white"
-                dir="auto"
-              >
-                <UserPlus size={13} />
-                افزودن در استیم
-              </a>
-            )}
-          </div>
-        </div>
-
-        <div className="rounded-full border-2 border-primary">
-          <UserAvatar name={profile.displayName} avatarUrl={profile.avatarUrl} size={80} round />
-        </div>
-      </Card>
-
-      <div className="flex w-full flex-col gap-6 lg:flex-row">
-        <div className="flex flex-1 flex-col gap-6">
-          <div className={`grid w-full gap-4 ${profile.dotaStats ? "grid-cols-4" : "grid-cols-3"}`}>
-            <StatTile value={profile.stats.teammatesFound} label="هم‌تیمی یافته" />
-            <StatTile value={profile.stats.activePosts} label="پست فعال" />
-            <StatTile value={profile.stats.totalPosts} label="کل پست‌ها" />
-            {profile.dotaStats && <StatTile value={profile.dotaStats.winRate} label="درصد وین" suffix="%" />}
-          </div>
-
-          {profile.dotaStats && (
-            <Card tone="surface" noHover className="w-full gap-4 p-6">
-              <div className="flex w-full items-center justify-between">
-                <span className="text-[12px] text-text-dim" dir="auto">
-                  {profile.dotaStats.wins.toLocaleString("fa-IR")} برد / {profile.dotaStats.losses.toLocaleString("fa-IR")} باخت
-                </span>
-                <p className="text-[16px] font-black text-text" dir="auto">
-                  {profile.dotaStats.matches.length.toLocaleString("fa-IR")} مچ اخیر
-                </p>
-              </div>
-              {profile.dotaStats.matches.length === 0 ? (
-                <p className="w-full py-4 text-center text-[13px] text-text-dim" dir="auto">
-                  مچی برای نمایش پیدا نشد.
-                </p>
-              ) : (
-                <div className="flex w-full flex-col gap-2">
-                  {profile.dotaStats.matches.map((m) => (
-                    <button
-                      key={m.matchId}
-                      type="button"
-                      onClick={() => setSelectedMatch(m)}
-                      className="flex w-full cursor-pointer flex-col-reverse items-end gap-2 rounded-[8px] border border-transparent bg-surface-alt p-3 text-right outline-none transition-colors hover:border-accent/30 hover:bg-accent/10 focus-visible:border-accent/50 focus-visible:bg-accent/10 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
-                    >
-                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-text-dim sm:gap-3" dir="ltr">
-                        <span>
-                          {Math.floor(m.duration / 60)}:{String(m.duration % 60).padStart(2, "0")}
-                        </span>
-                        {m.goldPerMin !== null && <span>{m.goldPerMin} GPM</span>}
-                        {m.xpPerMin !== null && <span>{m.xpPerMin} XPM</span>}
-                      </div>
-                      <div className="flex flex-wrap items-center justify-end gap-2 text-[13px] sm:gap-3">
-                        <span className="text-text-dim" dir="ltr">
-                          {m.kills}/{m.deaths}/{m.assists}
-                        </span>
-                        <span className="font-bold text-text" dir="auto">
-                          {m.heroName}
-                        </span>
-                        {m.heroIcon && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={m.heroIcon} alt="" className="size-7 shrink-0 rounded-[4px]" />
-                        )}
-                        <span
-                          className={`shrink-0 rounded-[4px] px-2 py-0.5 text-[11px] font-bold ${m.win ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}
-                          dir="auto"
-                        >
-                          {m.win ? "برد" : "باخت"}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
+            </Card>
+          ) : (
+            <Card tone="surface" noHover className="w-full items-center gap-2 py-10 text-center">
+              <p className="text-[14px] font-bold text-text">آمار دوتا هنوز وصل نشده.</p>
+              <p className="text-[12px] text-text-dim">
+                {profile.isSelf ? "استیمت رو وصل کن تا مچ‌ها و رنکت اینجا نشون داده بشه." : "این بازیکن هنوز استیمش رو تایید نکرده."}
+              </p>
             </Card>
           )}
 
-          {profile.dotaStats && profile.dotaStats.totals && (
+          {stats?.totals && (
             <Card tone="surface" noHover className="w-full gap-4 p-6">
-              <p className="w-full text-right text-[16px] font-black text-text" dir="auto">
-                میانگین آمار (بر اساس مچ‌های اخیر)
-              </p>
-              <div className="grid w-full grid-cols-3 gap-3 sm:grid-cols-4">
-                <MiniStat value={profile.dotaStats.totals.kills} label="کیل" />
-                <MiniStat value={profile.dotaStats.totals.deaths} label="دث" />
-                <MiniStat value={profile.dotaStats.totals.assists} label="اسیست" />
-                <MiniStat value={profile.dotaStats.totals.lastHits} label="لست‌هیت" />
-                <MiniStat value={profile.dotaStats.totals.goldPerMin} label="GPM" />
-                <MiniStat value={profile.dotaStats.totals.xpPerMin} label="XPM" />
-                <MiniStat value={profile.dotaStats.totals.heroDamage} label="دمیج به هیرو" />
-                <MiniStat value={profile.dotaStats.totals.heroHealing} label="هیل" />
+              <h2 className="text-[16px] font-black text-text">میانگین هر مچ</h2>
+              <div className="grid w-full grid-cols-2 gap-2.5 @lg:grid-cols-4">
+                <MiniStat value={stats.totals.kills} label="کیل" />
+                <MiniStat value={stats.totals.deaths} label="دث" />
+                <MiniStat value={stats.totals.assists} label="اسیست" />
+                <MiniStat value={stats.totals.lastHits} label="لست‌هیت" />
+                <MiniStat value={stats.totals.goldPerMin} label="GPM" />
+                <MiniStat value={stats.totals.xpPerMin} label="XPM" />
+                <MiniStat value={stats.totals.heroDamage} label="دمیج به هیرو" />
+                <MiniStat value={stats.totals.heroHealing} label="هیل" />
               </div>
             </Card>
           )}
 
-          {profile.dotaStats && profile.dotaStats.heroesPlayed.length > 0 && (
+          {stats && stats.heroesPlayed.length > 0 && (
             <Card tone="surface" noHover className="w-full gap-4 p-6">
-              <p className="w-full text-right text-[16px] font-black text-text" dir="auto">
-                هیروهای اصلی
-              </p>
-              <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3">
-                {profile.dotaStats.heroesPlayed.map((h) => (
-                  <div key={h.heroId} className="flex items-center gap-3 rounded-[8px] bg-surface-alt p-3">
-                    {h.heroIcon ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={h.heroIcon} alt={h.heroName} className="size-9 rounded-[6px]" />
-                    ) : (
-                      <div className="size-9 rounded-[6px] bg-surface" />
-                    )}
-                    <div className="flex flex-1 flex-col items-end gap-0.5">
-                      <span className="text-[13px] font-bold text-text" dir="auto">
-                        {h.heroName}
-                      </span>
-                      <span className="text-[11px] text-text-dim" dir="auto">
-                        {h.games.toLocaleString("fa-IR")} گیم · {h.winRate.toLocaleString("fa-IR")}% وین
+              <h2 className="text-[16px] font-black text-text">هیروهای اصلی</h2>
+              <div className="grid w-full gap-2.5 @xl:grid-cols-2">
+                {stats.heroesPlayed.map((h) => (
+                  <div
+                    key={h.heroId}
+                    className="group flex items-center gap-3 rounded-[10px] bg-surface-alt p-3 transition-colors duration-200 hover:bg-[#23252d]"
+                  >
+                    <div className="h-10 w-[70px] shrink-0 overflow-hidden rounded-[6px] bg-surface">
+                      {h.heroImg && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={h.heroImg}
+                          alt=""
+                          loading="lazy"
+                          className="size-full object-cover transition-transform duration-300 group-hover:scale-110"
+                        />
+                      )}
+                    </div>
+                    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate text-[13px] font-bold text-text" dir="auto">
+                          {h.heroName}
+                        </span>
+                        <span className={cn("shrink-0 text-[12px] font-bold", h.winRate >= 50 ? "text-success" : "text-[#ff6b57]")}>
+                          {faNumber(h.winRate)}٪
+                        </span>
+                      </div>
+                      <div className="h-1 w-full overflow-hidden rounded-full bg-surface">
+                        <div
+                          className={cn("h-full rounded-full", h.winRate >= 50 ? "bg-success/80" : "bg-[#ff6b57]/70")}
+                          style={{ width: `${h.winRate}%` }}
+                        />
+                      </div>
+                      <span className="text-[11px] text-text-dim">
+                        {faNumber(h.games)} گیم{h.lastPlayed ? ` · آخرین بازی ${timeAgo(h.lastPlayed)}` : ""}
                       </span>
                     </div>
                   </div>
@@ -482,63 +314,86 @@ export default function PublicProfilePage() {
             </Card>
           )}
 
-          {profile.dotaStats && (
+          {stats && (
             <Card tone="surface" noHover className="w-full gap-4 p-6">
-              <p className="w-full text-right text-[16px] font-black text-text" dir="auto">
-                روند رنک
-              </p>
-              <RankTrendChart points={profile.dotaStats.ratings} />
+              <h2 className="text-[16px] font-black text-text">روند رنک</h2>
+              <RankTrendChart points={stats.ratings} />
             </Card>
           )}
 
           <Card tone="surface" noHover className="w-full gap-4 p-6">
-            <p className="w-full text-right text-[16px] font-black text-text" dir="auto">
-              فعالیت اخیر
-            </p>
+            <h2 className="text-[16px] font-black text-text">فعالیت اخیر</h2>
             {profile.recentPosts.length === 0 ? (
-              <p className="w-full py-4 text-center text-[13px] text-text-dim" dir="auto">
-                هنوز پستی منتشر نکرده.
-              </p>
+              <p className="w-full py-4 text-center text-[13px] text-text-dim">هنوز پستی منتشر نکرده.</p>
             ) : (
-              <div className="flex w-full flex-col gap-2.5">
+              <div className="flex w-full flex-col gap-2">
                 {profile.recentPosts.map((p) => (
-                  <div key={p.id} className="flex w-full flex-wrap items-center justify-between gap-2 rounded-[8px] bg-surface-alt p-3">
-                    <span className="shrink-0 rounded-[4px] bg-surface px-2 py-0.5 text-[11px] text-text-dim" dir="auto">
-                      {STATUS_LABEL[p.status]}
-                    </span>
-                    <div className="flex flex-wrap items-center justify-end gap-2 text-[13px]">
-                      <span className="text-text-dim">{GAME_MODE_LABEL[p.gameMode]}</span>
-                      <span className="text-text-dim">•</span>
+                  <Link
+                    key={p.id}
+                    href={`/dashboard/post/${p.id}`}
+                    className="group flex w-full flex-wrap items-center justify-between gap-2 rounded-[10px] bg-surface-alt px-4 py-3 transition-colors duration-200 hover:bg-[#23252d]"
+                  >
+                    <div className="flex flex-wrap items-center gap-2 text-[13px]">
+                      <span className="font-bold text-text">{POSITION_LABEL_FA[p.position as PositionValue] ?? p.position}</span>
+                      <span className="text-text-dim">·</span>
                       <span className="text-text-dim">{REGION_LABEL[p.region]}</span>
-                      <span className="text-text-dim">•</span>
-                      <span className="font-bold text-text" dir="auto">
-                        {POSITION_LABEL[p.position as PositionValue]}
+                      <span className="text-text-dim">·</span>
+                      <span className="text-text-dim" dir="auto">
+                        {GAME_MODE_LABEL[p.gameMode]}
                       </span>
                     </div>
-                  </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-text-dim">{timeAgo(p.createdAt)}</span>
+                      <span className={cn("rounded-[6px] px-2 py-0.5 text-[11px] font-bold", STATUS_TONE[p.status] ?? "bg-surface text-text-dim")}>
+                        {STATUS_LABEL[p.status]}
+                      </span>
+                      <ChevronLeft size={15} className="text-text-dim transition-transform duration-200 group-hover:-translate-x-0.5" />
+                    </div>
+                  </Link>
                 ))}
               </div>
             )}
           </Card>
-        </div>
+        </DashboardFadeIn>
 
-        <div className="flex w-full flex-col gap-6 lg:w-[380px] lg:shrink-0">
+        <DashboardFadeIn className="grid w-full items-start gap-6 md:grid-cols-2 xl:flex xl:w-[340px] xl:shrink-0 xl:flex-col">
           <Card tone="surface" noHover className="w-full gap-4 p-6">
-            <p className="w-full text-right text-[16px] font-black text-text" dir="auto">
-              اطلاعات کلی بازیکن
-            </p>
+            <h2 className="text-[16px] font-black text-text">اطلاعات بازیکن</h2>
             <div className="flex w-full flex-col gap-3">
-              <InfoRow label="رنک" value={`${RANK_LABEL[profile.rank]} ${profile.rankTier ?? ""}`} accent />
-              <InfoRow label="نقش اصلی (Pos)" value={profile.mainPosition ? POSITION_LABEL[profile.mainPosition as PositionValue] : "مشخص نشده"} chip />
-              <InfoRow label="وضعیت تایید" value={verified ? "تایید‌شده" : "خوداظهاری"} success={verified} />
+              <InfoRow label="رنک">
+                <span className="text-[14px] font-bold text-accent">
+                  {RANK_LABEL[profile.rank]}
+                  {profile.rankTier ? ` ${faNumber(profile.rankTier)}` : ""}
+                </span>
+              </InfoRow>
+              <InfoRow label="نقش اصلی">
+                <span className="rounded-[6px] bg-surface-alt px-2.5 py-1 text-[12px] font-bold text-text">
+                  {position ? POSITION_LABEL_FA[position] : "مشخص نشده"}
+                </span>
+              </InfoRow>
+              <InfoRow label="وضعیت رنک">
+                <span className={cn("text-[13px] font-bold", verified ? "text-success" : "text-text-dim")}>
+                  {verified ? "تاییدشده با OpenDota" : "خوداظهاری"}
+                </span>
+              </InfoRow>
+              {profile.languages.length > 0 && (
+                <InfoRow label="زبان">
+                  <span className="text-[13px] text-text" dir="auto">
+                    {profile.languages.join("، ")}
+                  </span>
+                </InfoRow>
+              )}
+              {profile.country && (
+                <InfoRow label="کشور">
+                  <span className="text-[13px] text-text" dir="auto">
+                    {profile.country}
+                  </span>
+                </InfoRow>
+              )}
             </div>
           </Card>
-          <BehaviorScoreCard
-            behaviorScore={profile.behaviorScore}
-            communicationScore={profile.communicationScore}
-            commends={profile.commends}
-          />
-        </div>
+          <BehaviorScoreCard behaviorScore={profile.behaviorScore} communicationScore={profile.communicationScore} commends={profile.commends} />
+        </DashboardFadeIn>
       </div>
 
       {!profile.isSelf && (
@@ -553,160 +408,29 @@ export default function PublicProfilePage() {
         </>
       )}
 
-      <Dialog open={selectedMatch !== null} onOpenChange={(open) => !open && setSelectedMatch(null)}>
-        <DialogContent className="overflow-hidden border-border bg-surface p-0 sm:max-w-md" dir="rtl" showCloseButton={false}>
-          {selectedMatch && (
-            <>
-              <div className="relative h-[150px] w-full overflow-hidden bg-surface-alt">
-                {selectedMatch.heroImg && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={selectedMatch.heroImg} alt="" className="absolute inset-0 h-full w-full object-cover object-top" />
-                )}
-                <div
-                  className={`absolute inset-0 bg-gradient-to-t ${
-                    selectedMatch.win ? "from-success/25" : "from-danger/25"
-                  } via-surface/60 to-surface/5`}
-                />
-                <DialogClose className="absolute left-3 top-3 flex size-8 items-center justify-center rounded-full bg-bg/50 text-white backdrop-blur-sm transition-colors hover:bg-bg/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                  <X size={16} />
-                  <span className="sr-only">بستن</span>
-                </DialogClose>
-                <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-5">
-                  <span
-                    className={`rounded-[4px] px-2 py-0.5 text-[11px] font-bold ${
-                      selectedMatch.win ? "bg-success/15 text-success" : "bg-danger/15 text-danger"
-                    }`}
-                    dir="auto"
-                  >
-                    {selectedMatch.win ? "برد" : "باخت"}
-                  </span>
-                  <DialogTitle className="text-[20px] font-black text-white" dir="auto">
-                    {selectedMatch.heroName}
-                  </DialogTitle>
-                </div>
-              </div>
-
-              <div className="flex w-full flex-col gap-4 px-6 pb-6 pt-4">
-                <DialogDescription className="w-full text-center text-[12px] text-text-dim" dir="auto">
-                  {new Date(selectedMatch.startAt).toLocaleDateString("fa-IR")} ·{" "}
-                  {Math.floor(selectedMatch.duration / 60)}:{String(selectedMatch.duration % 60).padStart(2, "0")} ·{" "}
-                  {OPENDOTA_GAME_MODE_LABEL[selectedMatch.gameMode] ?? "نامشخص"}
-                  {selectedMatch.partySize && selectedMatch.partySize > 1
-                    ? ` · پارتی ${selectedMatch.partySize.toLocaleString("fa-IR")} نفره`
-                    : ""}
-                </DialogDescription>
-
-                <div className="grid w-full grid-cols-3 gap-3">
-                  <MiniStat value={selectedMatch.kills} label="کیل" />
-                  <MiniStat value={selectedMatch.deaths} label="دث" />
-                  <MiniStat value={selectedMatch.assists} label="اسیست" />
-                  {selectedMatch.lastHits !== null && <MiniStat value={selectedMatch.lastHits} label="لست‌هیت" />}
-                  {selectedMatch.goldPerMin !== null && <MiniStat value={selectedMatch.goldPerMin} label="GPM" />}
-                  {selectedMatch.xpPerMin !== null && <MiniStat value={selectedMatch.xpPerMin} label="XPM" />}
-                  {selectedMatch.heroDamage !== null && (
-                    <MiniStat value={selectedMatch.heroDamage} label="دمیج به هیرو" />
-                  )}
-                </div>
-
-                <div className="flex w-full flex-col gap-2">
-                  <p className="w-full text-right text-[13px] font-bold text-text" dir="auto">
-                    آیتم‌های نهایی
-                  </p>
-                  {matchItemsLoading ? (
-                    <div className="flex items-center gap-2" dir="ltr">
-                      {Array.from({ length: 6 }).map((_, i) => (
-                        <Skeleton key={i} className="h-9 w-12 rounded-[4px]" />
-                      ))}
-                    </div>
-                  ) : matchItems && (matchItems.items.length > 0 || matchItems.neutralItem) ? (
-                    <div className="flex flex-wrap items-center gap-2" dir="ltr">
-                      {matchItems.items.map((item) => (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          key={item.id}
-                          src={item.img}
-                          alt={item.name}
-                          title={item.name}
-                          className="h-9 w-12 rounded-[4px] border border-border object-cover"
-                        />
-                      ))}
-                      {matchItems.neutralItem && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={matchItems.neutralItem.img}
-                          alt={matchItems.neutralItem.name}
-                          title={`${matchItems.neutralItem.name} (نیوترال)`}
-                          className="h-9 w-12 rounded-[4px] border border-accent/60 object-cover ring-1 ring-accent/40"
-                        />
-                      )}
-                    </div>
-                  ) : (
-                    <p className="w-full text-center text-[12px] text-text-dim" dir="auto">
-                      اطلاعات آیتم برای این مچ در دسترس نیست.
-                    </p>
-                  )}
-                </div>
-
-                <a
-                  href={`https://www.opendota.com/matches/${selectedMatch.matchId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full text-center text-[12px] font-bold text-accent underline"
-                  dir="ltr"
-                >
-                  مشاهده کامل مچ در OpenDota
-                </a>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      <MatchDetailDialog userId={profile.id} match={selectedMatch} onClose={() => setSelectedMatch(null)} />
     </div>
   );
 }
 
-function StatTile({ value, label, suffix }: { value: number; label: string; suffix?: string }) {
+function ProfileSkeleton() {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-[12px] border border-border bg-surface-alt p-5">
-      <p className="text-[28px] font-black text-accent">
-        {value.toLocaleString("fa-IR")}
-        {suffix}
-      </p>
-      <p className="text-[13px] text-text-dim" dir="auto">
-        {label}
-      </p>
-    </div>
-  );
-}
-
-function MiniStat({ value, label }: { value: number; label: string }) {
-  return (
-    <div className="flex flex-col items-center gap-1 rounded-[8px] bg-surface-alt p-3">
-      <p className="text-[16px] font-black text-text" dir="ltr">
-        {value.toLocaleString("fa-IR")}
-      </p>
-      <p className="text-[11px] text-text-dim" dir="auto">
-        {label}
-      </p>
-    </div>
-  );
-}
-
-function InfoRow({ label, value, accent, chip, success }: { label: string; value: string; accent?: boolean; chip?: boolean; success?: boolean }) {
-  return (
-    <div className="flex w-full items-center justify-between border-b border-border pb-3 last:border-b-0 last:pb-0">
-      {chip ? (
-        <span className="rounded-[4px] bg-surface-alt px-2.5 py-1 text-[12px] font-bold text-accent" dir="auto">
-          {value}
-        </span>
-      ) : (
-        <p className={`text-[14px] font-bold ${accent ? "text-accent" : success ? "text-success" : "text-text"}`} dir="auto">
-          {value}
-        </p>
-      )}
-      <p className="text-[14px] text-text-dim" dir="auto">
-        {label}
-      </p>
+    <div className="flex w-full flex-col gap-6 p-4 sm:p-6 md:p-10" aria-busy>
+      <Skeleton className="h-[240px] w-full rounded-[16px]" />
+      <div className="flex w-full flex-col gap-6 xl:flex-row">
+        <div className="flex flex-1 flex-col gap-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-[112px] rounded-[12px]" />
+            ))}
+          </div>
+          <Skeleton className="h-[520px] w-full rounded-[12px]" />
+        </div>
+        <div className="flex w-full flex-col gap-6 xl:w-[340px]">
+          <Skeleton className="h-[240px] rounded-[12px]" />
+          <Skeleton className="h-[320px] rounded-[12px]" />
+        </div>
+      </div>
     </div>
   );
 }

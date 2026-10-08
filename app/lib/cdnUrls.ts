@@ -35,3 +35,9 @@ export function cachedAvatarUrl(url: string | null | undefined): string | null {
   const match = url.match(/^https?:\/\/[\w.-]*(?:steamstatic\.com|akamaihd\.net)\/[\w/]*?([a-f0-9]{40}(?:_medium|_full)?\.jpg)$/i);
   return match ? `/cdn/avatars/${match[1]}` : url;
 }
+
+/** "npc_dota_hero_antimage" → the hero's transparent waist-up cutout (400×250) via our /cdn route. */
+export function heroCropUrl(heroName: string | null | undefined): string {
+  const slug = String(heroName ?? "").replace(/^npc_dota_hero_/, "");
+  return /^\w+$/.test(slug) ? steamAssetUrl(`/apps/dota2/images/dota_react/heroes/crops/${slug}.png`) : "";
+}

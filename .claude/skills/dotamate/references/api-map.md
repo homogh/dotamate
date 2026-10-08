@@ -6,7 +6,7 @@ Shortcuts: 🔒 = session required · 🛡 = admin permission (resource in brack
 - `auth/{signup,login,logout,me,role,forgot-password,reset-password}`; `auth/steam/{login,callback}`
 - `landing` (landing stats/preview data) · `testimonials` (public approved + 🔒 own submit) · `search-lobby` (public post list) · `players` (public player directory) · `meta/heroes`, `meta/heroes/[id]` (OpenDota-backed hero meta)
 - `settings/banner` (site banner), `settings/maintenance` (maintenance flag, read by middleware), `settings/shop` (shop-enabled flags for client UI)
-- `users/[id]` (public profile + OpenDota stats) · `users/[id]/{block,commend,matches/[matchId],report-matches}` 🔒
+- `users/[id]` (public profile + cached OpenDota stats; blocks on OpenDota only for the first sync) · `users/[id]/sync` POST (re-pull stats; `{auto:true}` = page's silent refresh when stale >10 min, manual = 60 s cooldown/429; logic in `app/lib/profileStats.ts`) · `users/[id]/{block,commend,matches/[matchId],report-matches}` 🔒
 
 ## Onboarding 🔒
 `onboarding/status`, `onboarding/profile`, `onboarding/steam/{verify,manual}`

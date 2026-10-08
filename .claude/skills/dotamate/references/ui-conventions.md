@@ -19,6 +19,8 @@ Page wrappers: `.landing-page > section`, `.search-lobby-page > *`, `.content-pa
 ## Animation (GSAP)
 Project skills `gsap-core` / `gsap-react` are installed in `.claude/skills`. Always `useGSAP` from `@gsap/react`, scope to a ref, wrap in `gsap.matchMedia()` with `(prefers-reduced-motion: no-preference)`. Default entrance = short fade+rise (`Reveal`: y 16, 0.5 s, `power2.out`); richer motion only for 1–2 focal moments per page.
 
+Dialogs: `tw-animate-css` is **not** installed, so shadcn's `animate-in/fade-in/zoom-in` classes do nothing — `components/ui/dialog.tsx` uses `animate-[dialog-in…]`/`animate-[overlay-in…]` keyframes from `globals.css` instead; do the same for any new Radix primitive. Hero art: `heroCropUrl(name)` (`app/lib/cdnUrls.ts`) = transparent 400×250 hero cutout via `/cdn`, sharper than the 256×144 `img` for big headers (used by the profile header + match dialog).
+
 ## Key art (user preference)
 Bespoke illustrated art (login/signup, hero): full-bleed `<Image fill quality={100}>` over the whole shell, only a light **asymmetric** gradient on the text side (`bg-gradient-to-r from-bg via-bg/25 to-transparent`), glass card (`border bg-bg/45 backdrop-blur-xl`) over the art side. Don't box it in a small frame or dim it heavily; generic stock banners may still be dimmed like the landing Hero. `images.qualities` in `next.config.ts` must list any non-default quality (75, 100 currently).
 
