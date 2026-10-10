@@ -6,7 +6,7 @@ import { getShopCategory } from "@/app/lib/shopCategories";
 import { Card } from "@/components/general/card";
 import { CategoryShell, categoryHref, parsePageParam, parseSortParam } from "@/components/pages/shop/categoryShell";
 import { ProductCard } from "@/components/pages/shop/productCard";
-import { ShopPagination } from "@/components/pages/shop/shopPagination";
+import { Pagination } from "@/components/general/pagination";
 
 export async function generateMetadata({ params, searchParams }: PageProps<"/shop/[category]">): Promise<Metadata> {
   const { category: key } = await params;
@@ -49,7 +49,7 @@ export default async function ShopCategoryPage({ params, searchParams }: PagePro
               <ProductCard key={p.id} product={p} />
             ))}
           </div>
-          <ShopPagination page={listing.page} totalPages={listing.totalPages} hrefFor={(p) => categoryHref(category.key, p, sort)} />
+          <Pagination page={listing.page} totalPages={listing.totalPages} hrefFor={(p) => categoryHref(category.key, p, sort)} />
         </>
       )}
     </CategoryShell>

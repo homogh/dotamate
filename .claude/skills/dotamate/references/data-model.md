@@ -15,7 +15,7 @@ Rank UNRANKED…IMMORTAL · Position POS1–5 · Region EU_WEST/EU_EAST/RUSSIA/D
 - **DotaMatchStats** (1:1 user): wins/losses, rankTierHint, matches/ratings/totals/heroesPlayed JSON, lastSyncedAt.
 
 ## Admin/content
-Role, RolePermission, AuditLog(actor, action, targetType, targetId, detail), PlatformSetting, Announcement, BlogPost (slug unique, categories/tags/heroIds as comma strings, body JSON blocks, SEO meta, status), Ticket + TicketMessage(isStaff), Testimonial (1 per user; edit → back to PENDING), ReferenceEntry (category+key lookup rows editable in admin), PasswordResetToken.
+Role, RolePermission, AuditLog(actor, action, targetType, targetId, detail), PlatformSetting, Announcement, BlogPost (slug unique, categories/tags/heroIds as comma strings, body JSON blocks, SEO meta, status), Ticket + TicketMessage(isStaff), Testimonial (1 per user; edit → back to PENDING), ReferenceEntry (category+key lookup rows editable in admin), PasswordResetToken, EmailLog (userId+templateKey unique — send-once claim for drip/campaign emails, see `signupReminders.ts`; `openedAt`/`clickedAt` from tracking).
 
 ## Shop / money
 - Shop tables below still contain item/market/withdrawal columns and models from before 2026-10-05; the app no longer reads or writes them (only `GIFT_CARD` products are used).

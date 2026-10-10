@@ -19,6 +19,7 @@ import {
   Megaphone,
   Shield,
   Terminal,
+  Mail,
 } from "lucide-react";
 
 import type { AdminResource } from "@/app/lib/permissions";
@@ -42,6 +43,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     tone: "#8e7bff",
     items: [
       { label: "کاربران", href: "/admin/users", icon: Users, resource: "USERS" },
+      { label: "ایمیل‌های یادآوری", href: "/admin/emails", icon: Mail, resource: "USERS" },
       { label: "پست‌ها", href: "/admin/posts", icon: MessageSquare, resource: "POSTS" },
       { label: "جلسات", href: "/admin/sessions", icon: CalendarClock, resource: "SESSIONS" },
     ],

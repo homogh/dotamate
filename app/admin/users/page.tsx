@@ -19,6 +19,8 @@ interface AdminUser {
   suspendedUntil: string | null;
   source: string;
   utmCampaign: string | null;
+  profileCompleted: boolean;
+  signupRemindersSent: number;
   createdAt: string;
 }
 
@@ -27,6 +29,7 @@ const STATUS_OPTIONS = [
   { value: "active", label: "فعال" },
   { value: "suspended", label: "تعلیق‌شده" },
   { value: "banned", label: "مسدود شده" },
+  { value: "incomplete", label: "ثبت‌نام ناقص" },
 ];
 
 function statusOf(u: AdminUser) {
@@ -144,6 +147,15 @@ export default function AdminUsersPage() {
                         <span className={`rounded-[4px] px-2 py-0.5 text-[12px] font-bold ${st.cls}`} dir="auto">
                           {st.label}
                         </span>
+                        {!u.profileCompleted && (
+                          <span
+                            className="mt-1 block whitespace-nowrap text-[11px] text-text-dim"
+                            title="ایمیل‌های یادآوری روز ۱، ۳ و ۷ خودکار ارسال می‌شن"
+                            dir="auto"
+                          >
+                            ثبت‌نام ناقص · یادآوری {u.signupRemindersSent.toLocaleString("fa-IR")} از ۳
+                          </span>
+                        )}
                       </td>
                       <td className="p-3">
                         <span className="text-text" dir="auto">{u.source}</span>

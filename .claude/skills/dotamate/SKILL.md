@@ -75,7 +75,7 @@ More detail: `references/architecture.md` (auth/RBAC/gates/background jobs), `re
 8. Reports never change scores by themselves — only admin-confirmed ones (`app/lib/behavior.ts`).
 
 ## 6. Env vars (names only, values live in `.env`, gitignored)
-`DATABASE_URL`, `JWT_SECRET`, `NEXT_PUBLIC_API_URL` (site URL, used for SEO/callbacks), `STEAM_API_KEY`, `GIFT_CODE_SECRET`, `RESEND_API_KEY`, `MAIL_FROM`, `PAYMENT_MOCK` (dev), `ZARINPAL_MERCHANT_ID`, `ZARINPAL_SANDBOX`.
+`DATABASE_URL`, `JWT_SECRET`, `NEXT_PUBLIC_API_URL` (site URL, used for SEO/callbacks), `STEAM_API_KEY`, `GIFT_CODE_SECRET`, `RESEND_API_KEY`, `MAIL_FROM`, `SIGNUP_REMINDERS_ENABLED` (prod only), `PAYMENT_MOCK` (dev), `ZARINPAL_MERCHANT_ID`, `ZARINPAL_SANDBOX`.
 
 ## 7. Workflow rules (from user preferences)
 - **Reply to the user in Persian**, always. Code/identifiers/commit messages in English.
@@ -95,6 +95,9 @@ Before finishing a task, check whether it changed anything this skill documents;
 Keep entries terse (facts + file paths, no prose); don't paste code that the repo already contains. If a task changed nothing documented, don't touch the skill.
 
 ### Changelog
+- 2026-10-10: reminder emails get open pixel + signed click links; admin page `/admin/emails` (funnel sent→opened→clicked→completed onboarding, per step, recipient list).
+- 2026-10-10: signup-reminder drip (day 1/3/7) + `EmailLog` model + unsubscribe page/API; emails redesigned on a shared layout (`emailLayout.ts`/`emailTemplates.ts`), password reset included.
+- 2026-10-10: `components/general/pagination.tsx` no longer renders every page (overflowed on players/admin); windowed + 10-step jumps, separate mobile list, pop animation (`.pagination-pop` in globals.css). Gained `hrefFor` link mode; `shopPagination.tsx` deleted.
 - 2026-10-08: profile recent matches fixed. Real root cause: OpenDota's per-player endpoints intermittently stall 10–25 s and the sync gave up at 8 s if *any* of 6 calls was slow, so it failed most of the time (also hit onboarding verify). Now: 25 s budget, only `recentMatches` required, others optional (undefined ⇒ keep stored value), refresh fired after the reads + throttled, profile GET never blocks (`syncable` flag; page triggers the first sync too). Also: `users/[id]` no longer refreshes in the background (that only showed on the *next* view), and `steamAutoSyncEnabled` now gates only the rank update, not match refresh. New `POST users/[id]/sync` + manual refresh button; sync/serialize shared in `app/lib/profileStats.ts`; `totalPosts` was capped at 5. Profile page split into `components/pages/profile/{profileHeader,recentMatchesCard,matchDetailDialog,profileStatTiles,profileTypes,profileFormat}`. Dialog enter/exit keyframes added (tw-animate-css isn't installed, so shadcn `animate-in` classes were no-ops).
 - 2026-10-05: shop reduced to Steam gift cards only — deleted Dota items (type picker, Steam-market search, Trade URL, manual item delivery), the user market (pages, APIs, admin, timeouts, `marketEnabled` switch) and Sheba withdrawals/payouts. Prisma schema left untouched (market/withdrawal tables + `ITEM`/`marketEnabled` fields still exist, unused). Payment callback refunds any leftover non-ORDER/non-TOPUP payment to the wallet.
 - 2026-10-05: chat-message notifications grouped per chat+sender and suppressed while the chat is on screen (`app/lib/chatNotifications.ts`, new `User.activeChatKey/activeChatAt`, `Notification.groupKey/count`).

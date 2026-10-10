@@ -5,6 +5,7 @@ import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
 import { getAdminSession, hasAccess } from "@/app/lib/permissions";
 import { attributionLabel } from "@/app/lib/attribution";
+import { SIGNUP_REMINDER_KEYS } from "@/app/lib/signupReminders";
 import type { ApiResponse } from "@/app/types/api";
 
 const PAGE_SIZE = 8;
@@ -42,6 +43,7 @@ export async function GET(request: NextRequest) {
     ...(status === "active" ? { banned: false, suspendedUntil: null } : {}),
     ...(status === "suspended" ? { suspendedUntil: { gt: new Date() } } : {}),
     ...(status === "banned" ? { banned: true } : {}),
+    ...(status === "incomplete" ? { profileCompletedAt: null } : {}),
   };
 
   const [total, users] = await Promise.all([
@@ -51,6 +53,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
+      include: { _count: { select: { emailLogs: { where: { templateKey: { in: SIGNUP_REMINDER_KEYS } } } } } },
     }),
   ]);
 
@@ -66,6 +69,8 @@ export async function GET(request: NextRequest) {
       suspendedUntil: u.suspendedUntil,
       source: attributionLabel(u),
       utmCampaign: u.utmCampaign,
+      profileCompleted: Boolean(u.profileCompletedAt),
+      signupRemindersSent: u._count.emailLogs,
       createdAt: u.createdAt,
     })),
     page,

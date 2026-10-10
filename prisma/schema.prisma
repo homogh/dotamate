@@ -430,6 +430,7 @@ model User {
   marketOrderAttachments MarketOrderAttachment[]
   marketOrdersAccepted   MarketOrder[]             @relation("MarketOrderAccepter")
   passwordResetTokens    PasswordResetToken[]
+  emailLogs              EmailLog[]
 }
 
 model Post {
@@ -1062,6 +1063,24 @@ model MarketOrderAttachment {
 
 // Forgot-password flow. token is the HMAC of the raw token mailed to the user
 // (see app/lib/mailer.ts) so the DB never holds a usable secret in plaintext.
+// One row per (user, email template). The unique pair is what stops a drip or
+// campaign email from reaching the same user twice — the row is written as a
+// claim right before sending and removed again if the send fails.
+model EmailLog {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateKey String    @db.VarChar(64)
+  sentAt      DateTime  @default(now())
+  // First open (tracking pixel — approximate: blocked images miss it, Apple
+  // Mail prefetch fakes it) and first click on a tracked link.
+  openedAt    DateTime?
+  clickedAt   DateTime?
+
+  @@unique([userId, templateKey])
+  @@index([templateKey, sentAt])
+}
+
 model PasswordResetToken {
   id        Int       @id @default(autoincrement())
   userId    Int

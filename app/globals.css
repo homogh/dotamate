@@ -206,7 +206,30 @@ body {
   }
 }
 
+/* Current page in components/general/pagination.tsx: a short springy pop
+   whenever a button becomes the active one. */
+.pagination-pop {
+  animation: pagination-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes pagination-pop {
+  0% {
+    transform: scale(0.82);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 55%, transparent);
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .pagination-pop {
+    animation: none;
+  }
+
   @keyframes dialog-in {
     from {
       opacity: 0;
