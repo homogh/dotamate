@@ -242,6 +242,7 @@ enum AuditAction {
   APPROVE_TESTIMONIAL
   REJECT_TESTIMONIAL
   DELETE_TESTIMONIAL
+  TOGGLE_SIGNUP_REMINDERS
 }
 
 enum MarketListingStatus {
@@ -698,6 +699,8 @@ model PlatformSetting {
   shopEnabled              Boolean  @default(false)
   // Separate switch for the user market («بازار کاربران»); only matters while the shop itself is on.
   marketEnabled            Boolean  @default(false)
+  // Day 1/3/7 onboarding reminder emails (app/lib/signupReminders.ts), toggled from /admin/emails.
+  signupRemindersEnabled   Boolean  @default(false)
   updatedAt                DateTime @updatedAt
 }
 

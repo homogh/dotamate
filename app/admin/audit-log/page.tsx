@@ -42,6 +42,7 @@ const ACTION_LABEL: Record<string, string> = {
   APPROVE_TESTIMONIAL: "تایید نظر کاربر",
   REJECT_TESTIMONIAL: "رد نظر کاربر",
   DELETE_TESTIMONIAL: "حذف نظر کاربر",
+  TOGGLE_SIGNUP_REMINDERS: "روشن/خاموش کردن ایمیل یادآوری",
 };
 
 const ACTION_COLOR: Record<string, string> = {

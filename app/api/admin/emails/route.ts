@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/app/lib/prisma";
 import { SESSION_COOKIE, verifySession } from "@/app/lib/auth";
 import { getAdminSession, hasAccess } from "@/app/lib/permissions";
-import { SIGNUP_REMINDER_KEYS, SIGNUP_REMINDER_STEPS } from "@/app/lib/signupReminders";
+import { getPlatformSettings } from "@/app/lib/platformSettings";
+import { processSignupReminders, SIGNUP_REMINDER_KEYS, SIGNUP_REMINDER_STEPS } from "@/app/lib/signupReminders";
 import type { ApiResponse } from "@/app/types/api";
 
 const PAGE_SIZE = 10;
@@ -45,7 +46,8 @@ export async function GET(request: NextRequest) {
   const filter = (FILTERS as readonly string[]).includes(filterParam) ? filterParam : "all";
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
 
-  const [logs, incompleteWithEmail, notYetEmailed, unsubscribed] = await Promise.all([
+  const [settings, logs, incompleteWithEmail, notYetEmailed, unsubscribed] = await Promise.all([
+    getPlatformSettings(),
     prisma.emailLog.findMany({
       where: { templateKey: { in: SIGNUP_REMINDER_KEYS } },
       orderBy: { sentAt: "asc" },
@@ -131,7 +133,10 @@ export async function GET(request: NextRequest) {
     .sort((a, b) => b.lastSentAt.getTime() - a.lastSentAt.getTime());
 
   const data = {
-    enabled: process.env.SIGNUP_REMINDERS_ENABLED === "true",
+    enabled: settings.signupRemindersEnabled,
+    canEdit: hasAccess(admin, "USERS", "EDIT"),
+    // The sweep only runs under `next start` (see instrumentation.ts).
+    devMode: process.env.NODE_ENV !== "production",
     summary,
     steps,
     recipients: filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
@@ -142,4 +147,43 @@ export async function GET(request: NextRequest) {
   };
 
   return NextResponse.json<ApiResponse>({ status: "success", message: "ok", data });
+}
+
+export async function PATCH(request: NextRequest) {
+  const token = request.cookies.get(SESSION_COOKIE)?.value;
+  const session = token ? await verifySession(token) : null;
+  if (!session) {
+    return NextResponse.json<ApiResponse>({ status: "error", message: "وارد نشدی.", data: null }, { status: 401 });
+  }
+
+  const admin = await getAdminSession(session.id);
+  if (!admin || !hasAccess(admin, "USERS", "EDIT")) {
+    return NextResponse.json<ApiResponse>({ status: "error", message: "دسترسی نداری.", data: null }, { status: 403 });
+  }
+
+  const body = await request.json().catch(() => null);
+  if (typeof body?.enabled !== "boolean") {
+    return NextResponse.json<ApiResponse>({ status: "error", message: "وضعیت نامعتبره.", data: null }, { status: 400 });
+  }
+  const enabled: boolean = body.enabled;
+
+  await getPlatformSettings();
+  await prisma.$transaction([
+    prisma.platformSetting.update({ where: { id: 1 }, data: { signupRemindersEnabled: enabled } }),
+    prisma.auditLog.create({
+      data: { actorId: session.id, action: "TOGGLE_SIGNUP_REMINDERS", targetType: "PlatformSetting", detail: JSON.stringify({ enabled }) },
+    }),
+  ]);
+
+  // Start right away instead of waiting for the next hourly sweep; claims make
+  // an overlap with that sweep harmless.
+  if (enabled && process.env.NODE_ENV === "production") {
+    processSignupReminders().catch((error) => console.error("[mail] signup reminder sweep failed", error));
+  }
+
+  return NextResponse.json<ApiResponse>({
+    status: "success",
+    message: enabled ? "ارسال خودکار یادآوری‌ها روشن شد." : "ارسال خودکار یادآوری‌ها خاموش شد.",
+    data: { enabled },
+  });
 }

@@ -12,9 +12,10 @@ export async function register() {
   setTimeout(sweepPosts, 15_000);
   setInterval(sweepPosts, 5 * 60_000);
 
-  // Day 1/3/7 emails for users who never finished onboarding. Opt-in per env so
-  // a dev machine pointed at a copy of the real DB can't mail real users.
-  if (process.env.SIGNUP_REMINDERS_ENABLED === "true") {
+  // Day 1/3/7 emails for users who never finished onboarding (switched on/off
+  // from /admin/emails). Never from `next dev`, so a dev machine pointed at a
+  // copy of the real DB can't mail real users.
+  if (process.env.NODE_ENV === "production") {
     const { processSignupReminders } = await import("@/app/lib/signupReminders");
     const sweepReminders = () => processSignupReminders().catch((error) => console.error("[mail] signup reminder sweep failed", error));
     setTimeout(sweepReminders, 60_000);

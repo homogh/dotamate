@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 
 import prisma from "@/app/lib/prisma";
 import { sendEmail } from "@/app/lib/mailer";
+import { getPlatformSettings } from "@/app/lib/platformSettings";
 import { signupReminderEmail, type OnboardingStage } from "@/app/lib/emailTemplates";
 import { unsubscribeActionUrl, unsubscribePageUrl } from "@/app/lib/emailUnsubscribe";
 import { emailClickUrl, emailOpenPixelUrl } from "@/app/lib/emailTracking";
@@ -52,6 +53,8 @@ async function socialProofStats() {
 // but never finished onboarding. Safe to run concurrently: an EmailLog row is
 // claimed (unique userId+templateKey) before each send.
 export async function processSignupReminders() {
+  if (!(await getPlatformSettings()).signupRemindersEnabled) return;
+
   const now = new Date();
   const hour = tehranHour(now);
   if (hour < SEND_HOURS_TEHRAN.from || hour >= SEND_HOURS_TEHRAN.to) return;

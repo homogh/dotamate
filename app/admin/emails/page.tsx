@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, Clock, Eye, Mail, MousePointerClick, UserCheck } from "lucide-react";
+import { CheckCircle2, Clock, Eye, Mail, MailCheck, MailX, MousePointerClick, UserCheck } from "lucide-react";
 
+import { useToast } from "@/app/stores/useToast";
+import { useConfirm } from "@/app/stores/useConfirm";
 import { Card } from "@/components/general/card";
 import { Pagination } from "@/components/general/pagination";
+import { Switch } from "@/components/ui/switch";
 
 interface StepStat {
   step: number;
@@ -30,6 +33,8 @@ interface Recipient {
 
 interface EmailStats {
   enabled: boolean;
+  canEdit: boolean;
+  devMode: boolean;
   summary: {
     recipients: number;
     opened: number;
@@ -71,6 +76,9 @@ export default function AdminEmailsPage() {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<EmailStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [toggling, setToggling] = useState(false);
+  const toast = useToast();
+  const confirmAction = useConfirm();
 
   const load = useCallback(() => {
     const params = new URLSearchParams({ filter, page: String(page) });
@@ -92,6 +100,34 @@ export default function AdminEmailsPage() {
     setPage(1);
   }
 
+  const toggleReminders = async (enabled: boolean) => {
+    if (!data || toggling) return;
+    if (
+      enabled &&
+      !(await confirmAction({
+        title: "روشن کردن ایمیل‌های یادآوری",
+        message: `از همین حالا به ${fa(data.summary.notYetEmailed)} کاربری که ثبت‌نامشون ناقصه، بین ۹ صبح تا ۱۰ شب و ساعتی حداکثر ۱۰۰ نفر، یادآوری اول ارسال می‌شه. روشن بشه؟`,
+        confirmLabel: "روشن کن",
+      }))
+    )
+      return;
+
+    setToggling(true);
+    const res = await fetch("/api/admin/emails", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    });
+    const json = await res.json().catch(() => null);
+    setToggling(false);
+    if (json?.status === "success") {
+      toast.success(json.message);
+      load();
+    } else {
+      toast.error(json?.message ?? "تغییر وضعیت ارسال ناموفق بود.");
+    }
+  };
+
   if (!data) {
     return (
       <div className="flex h-64 w-full items-center justify-center text-sm text-text-dim">
@@ -111,15 +147,34 @@ export default function AdminEmailsPage() {
 
   return (
     <div className="flex w-full flex-col gap-6 p-6 md:p-8">
-      {!data.enabled && (
-        <div className="flex w-full items-start gap-3 rounded-[12px] border border-[#ff9f0a]/30 bg-[#ff9f0a]/[0.08] p-4" dir="rtl">
-          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-[#ff9f0a]" />
-          <p className="text-[13px] leading-[1.9] text-text" dir="auto">
-            ارسال خودکار یادآوری‌ها روی این سرور خاموشه. برای روشن کردنش باید{" "}
-            <span className="font-mono text-[12px]" dir="ltr">SIGNUP_REMINDERS_ENABLED=true</span> توی فایل env سرور باشه.
-          </p>
+      <Card tone="surface" noHover className="w-full flex-col items-stretch gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <Switch checked={data.enabled} onChange={(v) => data.canEdit && toggleReminders(v)} className={data.canEdit && !toggling ? "" : "pointer-events-none opacity-50"} />
+          <span
+            className={`rounded-[4px] px-2 py-0.5 text-[12px] font-bold ${data.enabled ? "bg-success/[0.13] text-success" : "bg-surface-alt text-text-dim"}`}
+            dir="auto"
+          >
+            {data.enabled ? "روشن" : "خاموش"}
+          </span>
         </div>
-      )}
+        <div className="flex items-start gap-3" dir="rtl">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-[8px] bg-surface-alt">
+            {data.enabled ? <MailCheck size={18} className="text-success" /> : <MailX size={18} className="text-text-dim" />}
+          </div>
+          <div className="flex flex-col gap-1">
+            <p className="text-[15px] font-black text-text" dir="auto">
+              ارسال خودکار ایمیل یادآوری ثبت‌نام
+            </p>
+            <p className="text-[12px] leading-[1.9] text-text-dim" dir="auto">
+              {data.enabled
+                ? "کاربرهای ثبت‌نام ناقص روز ۱، ۳ و ۷ بعد از ثبت‌نام خودکار ایمیل می‌گیرن (بین ۹ صبح تا ۱۰ شب)."
+                : "خاموشه؛ هیچ ایمیل یادآوری‌ای ارسال نمی‌شه."}
+              {!data.canEdit && " برای تغییرش دسترسی ویرایش کاربران لازمه."}
+              {data.devMode && " (روی محیط توسعه ارسال واقعی انجام نمی‌شه.)"}
+            </p>
+          </div>
+        </div>
+      </Card>
 
       <div className="grid w-full grid-cols-2 gap-4 md:grid-cols-5">
         <KpiCard icon={Mail} label="ایمیل گرفتن" value={fa(summary.recipients)} hint="نفر" />

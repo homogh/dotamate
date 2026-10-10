@@ -75,7 +75,7 @@ More detail: `references/architecture.md` (auth/RBAC/gates/background jobs), `re
 8. Reports never change scores by themselves — only admin-confirmed ones (`app/lib/behavior.ts`).
 
 ## 6. Env vars (names only, values live in `.env`, gitignored)
-`DATABASE_URL`, `JWT_SECRET`, `NEXT_PUBLIC_API_URL` (site URL, used for SEO/callbacks), `STEAM_API_KEY`, `GIFT_CODE_SECRET`, `RESEND_API_KEY`, `MAIL_FROM`, `SIGNUP_REMINDERS_ENABLED` (prod only), `PAYMENT_MOCK` (dev), `ZARINPAL_MERCHANT_ID`, `ZARINPAL_SANDBOX`.
+`DATABASE_URL`, `JWT_SECRET`, `NEXT_PUBLIC_API_URL` (site URL, used for SEO/callbacks), `STEAM_API_KEY`, `GIFT_CODE_SECRET`, `RESEND_API_KEY`, `MAIL_FROM`, `PAYMENT_MOCK` (dev), `ZARINPAL_MERCHANT_ID`, `ZARINPAL_SANDBOX`.
 
 ## 7. Workflow rules (from user preferences)
 - **Reply to the user in Persian**, always. Code/identifiers/commit messages in English.
@@ -95,6 +95,7 @@ Before finishing a task, check whether it changed anything this skill documents;
 Keep entries terse (facts + file paths, no prose); don't paste code that the repo already contains. If a task changed nothing documented, don't touch the skill.
 
 ### Changelog
+- 2026-10-10: reminder on/off moved from env `SIGNUP_REMINDERS_ENABLED` to `PlatformSetting.signupRemindersEnabled` (switch on `/admin/emails`, USERS EDIT, audit `TOGGLE_SIGNUP_REMINDERS`); sweep only registered under `next start`.
 - 2026-10-10: reminder emails get open pixel + signed click links; admin page `/admin/emails` (funnel sent→opened→clicked→completed onboarding, per step, recipient list).
 - 2026-10-10: signup-reminder drip (day 1/3/7) + `EmailLog` model + unsubscribe page/API; emails redesigned on a shared layout (`emailLayout.ts`/`emailTemplates.ts`), password reset included.
 - 2026-10-10: `components/general/pagination.tsx` no longer renders every page (overflowed on players/admin); windowed + 10-step jumps, separate mobile list, pop animation (`.pagination-pop` in globals.css). Gained `hrefFor` link mode; `shopPagination.tsx` deleted.
