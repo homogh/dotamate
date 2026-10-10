@@ -25,6 +25,9 @@ const MAX_SENDS_PER_SWEEP = 100;
 const SEND_GAP_MS = 600;
 // Only mail during waking hours in Iran; the hourly sweep picks the rest up in the morning.
 const SEND_HOURS_TEHRAN = { from: 9, to: 22 };
+// Consecutive failed sends that end the sweep early — when Resend is
+// unreachable every send fails, so there's no point burning through the batch.
+const MAX_FAILURE_STREAK = 5;
 // Below these the numbers would read as "empty site" rather than social proof.
 const MIN_PLAYERS_TO_SHOW = 50;
 const MIN_LOBBIES_TO_SHOW = 10;
@@ -60,6 +63,7 @@ export async function processSignupReminders() {
   if (hour < SEND_HOURS_TEHRAN.from || hour >= SEND_HOURS_TEHRAN.to) return;
 
   let budget = MAX_SENDS_PER_SWEEP;
+  let failureStreak = 0;
   let stats: Awaited<ReturnType<typeof socialProofStats>> | null = null;
 
   for (const [index, step] of SIGNUP_REMINDER_STEPS.entries()) {
@@ -122,10 +126,15 @@ export async function processSignupReminders() {
             "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
           },
         });
+        failureStreak = 0;
       } catch (error) {
         // Release the claim so the next sweep retries this user.
         await prisma.emailLog.deleteMany({ where: { id: logId } });
-        console.error(`[mail] ${step.key} to user ${user.id} failed`, error);
+        console.error(`[mail] ${step.key} to user ${user.id} failed: ${error instanceof Error ? error.message : error}`);
+        if (++failureStreak >= MAX_FAILURE_STREAK) {
+          console.error(`[mail] ${MAX_FAILURE_STREAK} sends failed in a row — stopping this sweep, next one in an hour`);
+          return;
+        }
       }
 
       budget--;

@@ -15,7 +15,7 @@ Last full audit: 2026-10-05.
 - Production: Ubuntu VPS, nginx + pm2 + MariaDB, manual deploy. See "Workflow rules".
 
 ## 2. Stack
-Next.js **16.3** (App Router, `middleware.ts`) · React 19.2 · TypeScript · Tailwind v4 (CSS tokens, no tailwind.config) · shadcn "new-york" (`components/ui`, Radix) · Prisma 6 + MySQL (`binaryTargets` set for Linux) · zustand · GSAP (`@gsap/react`) · recharts · lucide-react · jose (JWT) · bcryptjs · resend (mail). No test suite. Lint: `npm run lint`.
+Next.js **16.3** (App Router, `middleware.ts`) · React 19.2 · TypeScript · Tailwind v4 (CSS tokens, no tailwind.config) · shadcn "new-york" (`components/ui`, Radix) · Prisma 6 + MySQL (`binaryTargets` set for Linux) · zustand · GSAP (`@gsap/react`) · recharts · lucide-react · jose (JWT) · bcryptjs · nodemailer (Resend via SMTP). No test suite. Lint: `npm run lint`.
 
 **Next 16 differs from training data** (CLAUDE.md/AGENTS.md insists): read `node_modules/next/dist/docs/` before using unfamiliar APIs. Already in use: `params`/`searchParams` are Promises (`await params`), global types `PageProps<"/x/[id]">` / `LayoutProps<"/x">`, `connection()` from `next/server` for per-request routes, `revalidatePath`. `middleware.ts` still works (Next 16 deprecates it in favour of `proxy.ts`; not migrated).
 
@@ -95,6 +95,7 @@ Before finishing a task, check whether it changed anything this skill documents;
 Keep entries terse (facts + file paths, no prose); don't paste code that the repo already contains. If a task changed nothing documented, don't touch the skill.
 
 ### Changelog
+- 2026-10-10: prod reminder sends failed ("Unable to fetch data"): from the VPS, POSTs >~1 KB to Cloudflare IPs (api.resend.com) hang, other hosts fine. `mailer.ts` now sends via nodemailer SMTP to smtp.resend.com (AWS); `resend` SDK removed; sweep stops after 5 failures in a row.
 - 2026-10-10: reminder on/off moved from env `SIGNUP_REMINDERS_ENABLED` to `PlatformSetting.signupRemindersEnabled` (switch on `/admin/emails`, USERS EDIT, audit `TOGGLE_SIGNUP_REMINDERS`); sweep only registered under `next start`.
 - 2026-10-10: reminder emails get open pixel + signed click links; admin page `/admin/emails` (funnel sent→opened→clicked→completed onboarding, per step, recipient list).
 - 2026-10-10: signup-reminder drip (day 1/3/7) + `EmailLog` model + unsubscribe page/API; emails redesigned on a shared layout (`emailLayout.ts`/`emailTemplates.ts`), password reset included.
